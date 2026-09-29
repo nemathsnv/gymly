@@ -2147,7 +2147,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Register a Web-Push subscription</span>
   </summary>
   <div class="ep-body">
-<p>Stores the browser's <code>PushSubscription</code> for this account. Only <code>endpoint</code> and the two protocol keys are kept. The endpoint must be a public <code>https://</code> URL; private/loopback/link-local addresses are refused (here and again at send time, against DNS rebinding). At most 20 subscriptions per user; the oldest are dropped first. Re-subscribing an existing endpoint replaces it and keeps its original <code>created</code>. The client re-sends its subscription on every signed-in boot, so a row the instance lost comes back on its own.</p>
+<p>Stores the browser's <code>PushSubscription</code> for this account. Only <code>endpoint</code> and the two protocol keys are kept. The endpoint must be a public <code>https://</code> URL; private/loopback/link-local addresses are refused (here and again at send time, against DNS rebinding). At most 20 subscriptions per user; the oldest are dropped first. Re-subscribing an existing endpoint replaces it and keeps its original <code>created</code>. The client re-sends its subscription on every signed-in boot, so a row the instance lost comes back on its own. An endpoint stored for another account moves to the caller only when the request carries that subscription's own keys (the same browser, signed into another account); otherwise it is a 409 and the row stays where it was.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 <p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
@@ -2175,6 +2175,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">The endpoint is stored for another account and the request does not carry that subscription's keys.<span class="r-sig"><code>{&quot;error&quot;:&quot;this subscription belongs to another account&quot;}</code></span></span>
   </div>
     </div>
   </div>

@@ -2319,6 +2319,9 @@ paths:
         are dropped first. Re-subscribing an existing endpoint replaces it and keeps
         its original `created`. The client re-sends its subscription on every
         signed-in boot, so a row the instance lost comes back on its own.
+        An endpoint stored for another account moves to the caller only when the
+        request carries that subscription's own keys (the same browser, signed into
+        another account); otherwise it is a 409 and the row stays where it was.
       requestBody:
         required: true
         content:
@@ -2351,6 +2354,14 @@ paths:
                 malformed: { value: { error: "invalid subscription" } }
                 private: { value: { error: "endpoint must not point at a private address" } }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: >-
+            The endpoint is stored for another account and the request does not carry
+            that subscription's keys.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: "this subscription belongs to another account" }
 
   /api/push/status:
     get:

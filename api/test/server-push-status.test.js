@@ -132,6 +132,30 @@ test('a rest started on a device whose row has no id rings that row, never anoth
   assert.equal(sent(), 2, `after the repair the phone's alert goes to the phone alone:\n${h.log}`);
 });
 
+test('another account cannot take over a subscription without its keys; the same browser can', async t => {
+  const h = await startServer(t);
+  const endpoint = 'https://push.example/victim';
+  const browserKeys = { p256dh: 'p-victim', auth: 'a-victim' };
+  assert.equal((await post(h, '/api/push/subscribe', { subscription: { endpoint, keys: browserKeys } })).status, 200);
+
+  // u_test_2 has learned the endpoint URL, not the keys only the browser (and this server) hold.
+  // That used to delete u_test_1's row and file the endpoint under u_test_2: u_test_1's phone
+  // went quiet, and got u_test_2's alerts instead, or nothing at all under keys of their choosing.
+  const r = await post(h, '/api/push/subscribe', { subscription: { endpoint, keys: { p256dh: 'p-mine', auth: 'a-mine' } } }, other);
+  assert.equal(r.status, 409);
+  assert.deepEqual(await r.json(), { error: 'this subscription belongs to another account' });
+  assert.deepEqual(await status(h, endpoint), { subscribed: true, deviceId: null }, "the owner's row is untouched");
+  assert.deepEqual(readDb(h).subs.map(s => [s.userId, s.keys.auth]), [['u_test_1', 'a-victim']]);
+
+  // A shared browser: u_test_1 signed out (which leaves the push subscription in place), u_test_2
+  // signed in, and boot re-registers the same subscription. That browser holds the keys, so the
+  // row moves: u_test_1's reminders stop arriving on a device somebody else now uses.
+  assert.equal((await post(h, '/api/push/subscribe', { subscription: { endpoint, keys: browserKeys } }, other)).status, 200);
+  assert.deepEqual(await status(h, endpoint), { subscribed: false });
+  assert.deepEqual(await status(h, endpoint, other), { subscribed: true, deviceId: null });
+  assert.equal(readDb(h).subs.length, 1);
+});
+
 test('a rest timer belongs to the device that set it: another device cancelling does not silence it', async t => {
   // localhost resolves to a loopback address, which PUSH_AGENT refuses — every send fails locally
   // and quietly, and "push send failed" in the log is the proof that a send was attempted.

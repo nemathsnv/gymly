@@ -2762,6 +2762,20 @@ const routes = {
     // An upsert: the client re-sends its subscription on every boot (lib/push.js) so a row this
     // instance lost — pruned after a dead send, a rebuilt db.json — comes back without anyone
     // touching Settings. The same endpoint sent again keeps its original `created`.
+    //
+    // A row filed under another account moves only for a caller that sends its keys. The endpoint
+    // alone is a URL, and whoever learned it could otherwise re-file it as theirs: the owner's
+    // device stops getting their alerts, and the caller's are sent to it instead, encrypted to
+    // keys of the caller's choosing. The keys are what the browser holds (the auth secret never
+    // leaves it and this server), and the legitimate move carries them: a shared browser signed
+    // into a second account re-registers the same subscription on boot, and the row should
+    // follow the person now using it. Refusing that, or keeping both rows, would leave the first
+    // account's reminders arriving on a device somebody else is using.
+    const keyDigest = k => crypto.createHash('sha256').update(`${k?.p256dh}\n${k?.auth}`).digest();
+    const sameKeys = k => crypto.timingSafeEqual(keyDigest(k), keyDigest(keys));
+    if (db.subs.some(s => s.endpoint === sub.endpoint && s.userId !== user.id && !sameKeys(s.keys))) {
+      return json(res, 409, { error: 'this subscription belongs to another account' });
+    }
     const prev = db.subs.find(s => s.endpoint === sub.endpoint);
     // No usable id in the request (none, or not a short token) leaves the id the row already
     // has: the request is a re-send, not a request to forget which device the row is.
