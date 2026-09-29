@@ -3429,7 +3429,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">The Coach card</span>
   </summary>
   <div class="ep-body">
-<p>Everything the admin screen renders in one round trip, including a live check of the configured provider: for a runtime provider &quot;is the runtime there&quot;, for an HTTPS one the model list its stored key can see.</p>
+<p>Everything the admin screen renders in one round trip, including a live check of the configured provider: for a runtime provider &quot;is the runtime there&quot;, for an HTTPS one the model list its stored key can see. A runtime-backed provider is not run when the privilege drop cannot be performed, exactly as a job would not be: <code>runtime</code> then reads unavailable, with the same reason a job is refused with.</p>
 <p>Counts and outcomes only: no intake answers, no payloads, no proposals, and never a credential, only whether one is filed and what it is labelled.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Admin only: a signed-in session whose user is an admin (<code>ADMIN_UIDS</code> or <code>admin:true</code>), as the session cookie or a Bearer token.</span></p>
 
@@ -3549,7 +3549,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Run one round trip against the provider</span>
   </summary>
   <div class="ep-body">
-<p>Checks the runtime, then asks the model for one fixed JSON object and validates the shape that comes back. That is the whole path a job takes, on nobody's profile.</p>
+<p>Checks the runtime, then asks the model for one fixed JSON object and validates the shape that comes back. That is the whole path a job takes, on nobody's profile. A runtime-backed provider is refused, without spawning anything, when the privilege drop cannot be performed, exactly as a job would be.</p>
 <p>Always 200: the outcome is in the body, because &quot;the provider refused&quot; is an answer to the question the button asks, not a failure of the request. An HTTPS provider gets the same retries as a job: a 429, 500, 502, 503, 504 or 529 is tried twice more, after pauses of 2 and 5 seconds, and only then reported. A runtime provider is asked once.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Admin only: a signed-in session whose user is an admin (<code>ADMIN_UIDS</code> or <code>admin:true</code>), as the session cookie or a Bearer token.</span></p>
 

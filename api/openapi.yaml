@@ -3213,6 +3213,9 @@ paths:
         Everything the admin screen renders in one round trip, including a live check of
         the configured provider: for a runtime provider "is the runtime there", for an
         HTTPS one the model list its stored key can see.
+        A runtime-backed provider is not run when the privilege drop cannot be
+        performed, exactly as a job would not be: `runtime` then reads unavailable, with
+        the same reason a job is refused with.
 
         Counts and outcomes only: no intake answers, no payloads, no proposals, and never
         a credential, only whether one is filed and what it is labelled.
@@ -3290,6 +3293,8 @@ paths:
       description: |
         Checks the runtime, then asks the model for one fixed JSON object and validates
         the shape that comes back. That is the whole path a job takes, on nobody's profile.
+        A runtime-backed provider is refused, without spawning anything, when the
+        privilege drop cannot be performed, exactly as a job would be.
 
         Always 200: the outcome is in the body, because "the provider refused" is an
         answer to the question the button asks, not a failure of the request. An HTTPS
