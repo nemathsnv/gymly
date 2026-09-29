@@ -46,7 +46,7 @@ async function startServer(t, subs = []) {
   return h;
 }
 const readDb = h => JSON.parse(fs.readFileSync(path.join(h.dataDir, 'db.json'), 'utf8'));
-const post = (h, p, body, hdr = cookie) => fetch(`${h.api}${p}`, { method: 'POST', headers: hdr, body: JSON.stringify(body) });
+const post = (h, p, body, hdr = cookie) => fetch(`${h.api}${p}`, { method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const status = (h, endpoint, hdr = cookie) => fetch(`${h.api}/api/push/status?endpoint=${encodeURIComponent(endpoint)}`, { headers: hdr }).then(r => r.json());
 
 test('status tells whether the server holds the endpoint; subscribe is an upsert that keeps created and stores the device id', async t => {

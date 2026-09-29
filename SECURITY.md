@@ -249,12 +249,17 @@ Read this before hosting openGym for anyone other than yourself.
   reverse proxy, several apps, i.e. the usual self-hosting layout) is the *same* site and does
   get the cookie. So every state-changing request that a browser sent must also be
   `Sec-Fetch-Site: same-origin` (or `none`, which only the user's own navigation produces), or
-  carry an `Origin` equal to `ORIGIN` where that header is missing (`csrfOk`). Requests
-  authenticated with a Bearer token skip the check —
-  a browser never attaches one by itself, so there is no ambient authority to borrow — as do the
-  register/login/pair handshakes, which carry their own credential in the body and act on no
-  existing session (`CSRF_EXEMPT`). The device-code routes are not exempt: a code is
-  redeemed on the app's own origin, the only one a passkey for it can be created on.
+  carry an `Origin` equal to `ORIGIN` where that header is missing (`csrfOk`). Requests a Bearer
+  token authenticates skip the check — a browser never attaches one by itself, so there is no
+  ambient authority to borrow. The token has to verify and be the only credential (no session
+  cookie beside it), so a header that merely starts with `Bearer ` switches nothing off, and it
+  buys nothing on the sign-in routes (passkey, password, reset code, device code), where what the
+  body carries is the credential and a Bearer never is. The mobile app's pairing redeem skips it
+  too: the app calls it from its own origin, and it answers with a token in the body, never a
+  cookie. The passkey routes are checked like any other: their challenge is bound to nothing but
+  an id anyone can ask for, so exempting them let another site finish the attacker's own sign-in
+  in the victim's browser. And a route that reads a body refuses one not declared
+  `application/json`, the one type a form cannot send.
 - **User verification is preferred, not required.** Both handshakes pass
   `requireUserVerification: false` (the `POST /api/register/verify` and `POST /api/login/verify`
   handlers), so a passkey released without a biometric or PIN is still accepted. In practice:
