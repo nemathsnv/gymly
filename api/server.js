@@ -27,7 +27,8 @@ import {
 } from './password.js';
 import { createBackoff, createWindow } from './rate-limit.js';
 import {
-  listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS
+  listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS,
+  transportsOf,
 } from './passkeys-store.js';
 import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } from './device-link.js';
 import {
@@ -409,10 +410,19 @@ async function sendPush(userId, payload, deviceId) {
 // In memory only — an API restart drops whatever is pending.
 const restTimers = new Map(); // `${userId}:${deviceId}` -> Timeout
 const restKey = (userId, deviceId) => `${userId}:${deviceId || ''}`;
+// A browser holds one device id, so a person has a timer or two pending, never more than the
+// devices they train with. Each request with a new id used to leave another hour-long timer (and
+// its push to every id-less subscription) behind, without limit; past this many, the oldest goes.
+const MAX_REST_TIMERS_PER_USER = 5;
 function scheduleRestTimer(userId, deviceId, sec, lang) {
   const k = restKey(userId, deviceId);
   const t = restTimers.get(k);
   if (t) clearTimeout(t);
+  restTimers.delete(k);                     // re-inserted below, so the map stays oldest first
+  const mine = [...restTimers.keys()].filter(x => x.startsWith(userId + ':'));
+  for (const old of mine.slice(0, Math.max(0, mine.length - MAX_REST_TIMERS_PER_USER + 1))) {
+    clearTimeout(restTimers.get(old)); restTimers.delete(old);
+  }
   restTimers.set(k, setTimeout(() => {
     restTimers.delete(k);
     sendPush(userId, restTimerPush(lang), deviceId);
@@ -509,25 +519,56 @@ function nudgeTick(user, S, now) {
   saveDb();
   sendPush(user.id, nudgePush(S.lang, toneOf(S.reminder), routine, now.date));
 }
+// What the tick needs to know before it reads a whole state: the reminder settings and whether
+// the Coach was agreed to, kept per user against the state file's mtime and size. The state cache
+// above holds at most STATE_CACHE_MAX documents, and the tick walks every subscribed user in the
+// same order, so past that many it missed on every lookup and parsed every state every 10 s: a
+// handful of accounts with multi-megabyte states stalled the instance for everyone. A summary is
+// a few bytes, so there is one for every user, and a full read happens only while one of that
+// user's windows is open and something could still be sent.
+const stateSummaries = new Map(); // uid -> { mtimeMs, size, rem, consent, settled }
+function stateSummary(uid) {
+  let st;
+  try { st = fs.statSync(stateFile(uid)); } catch { stateSummaries.delete(uid); return null; }
+  const had = stateSummaries.get(uid);
+  if (had && had.mtimeMs === st.mtimeMs && had.size === st.size) return had;
+  const S = readStateCached(uid);
+  const r = S?.reminder;
+  const sum = {
+    mtimeMs: st.mtimeMs, size: st.size,
+    rem: r && typeof r === 'object' ? { on: !!r.on, tz: r.tz, time: r.time, nudge: !!r.nudge } : { on: false },
+    consent: !!S?.coach?.consent?.agreedAt,
+    settled: '',   // a local date the reminder was found to owe nothing on, for this file
+  };
+  stateSummaries.set(uid, sum);
+  return sum;
+}
 setInterval(() => {
   for (const user of db.users) {
+    if (user.disabled) continue;            // locked out everywhere, reminders included
     if (!db.subs.some(s => s.userId === user.id)) continue;
     // One user's state file is one user's problem: a shape this tick cannot read is logged and
     // skipped, not allowed to take the process — and everyone else's reminders — down with it.
     // PUT /api/data refuses the obvious shapes, but a file already on disk answers to nobody.
     try {
+      const sum = stateSummary(user.id);
+      if (!sum?.rem.on) continue;
+      const now = userNow(sum.rem.tz || 'UTC');
+      if (!now) continue;
+      const late = minutesLate(sum.rem.time, now);
+      const reminderOpen = late >= 0 && late <= REMINDER_WINDOW_MIN && user.lastReminder !== now.date && sum.settled !== now.date;
+      const nudgeOpen = sum.rem.nudge && user.lastNudge !== now.date && nudgeWindowOpen(sum.rem.time, now.hhmm);
+      if (!reminderOpen && !nudgeOpen) continue;
       const S = readStateCached(user.id);
       if (!S?.reminder?.on) continue;
-      const now = userNow(S.reminder.tz || 'UTC');
-      if (!now) continue;
-      nudgeTick(user, S, now);
-      const late = minutesLate(S.reminder.time, now);
-      if (!(late >= 0 && late <= REMINDER_WINDOW_MIN)) continue;
-      if (user.lastReminder === now.date) continue;
-      if ((S.workouts || []).some(w => w?.d === now.date)) continue;
-      if (excusedOn(S, now.date)) continue; // noted as sick, away, … (nudge.js excusedOn)
+      if (nudgeOpen) nudgeTick(user, S, now);
+      if (!reminderOpen) continue;
+      // Nothing below depends on anything but the file, so an answer of "nothing owed today"
+      // holds until the file changes (which drops the summary) or the date does.
+      if ((S.workouts || []).some(w => w?.d === now.date)) { sum.settled = now.date; continue; }
+      if (excusedOn(S, now.date)) { sum.settled = now.date; continue; } // noted as sick, away, … (nudge.js excusedOn)
       const rid = effectiveRoutineId(S, now.date);
-      if (!rid) continue; // rest day — nothing planned
+      if (!rid) { sum.settled = now.date; continue; } // rest day — nothing planned
       const routine = (S.routines || []).find(r => r?.id === rid);
       console.log('reminder firing', user.id, rid);
       user.lastReminder = now.date;
@@ -562,9 +603,14 @@ function verifySig(token) {
 // signing out the whole instance. Cookies minted before `sv` existed have no third field and are
 // read as version 0, matching a user who has never bumped — they stay valid until they expire.
 const sessionVersion = user => user.sv || 0;
-function makeSession(user) {
+// A fourth field says what the token was made for: `c` a browser's cookie, `b` a paired phone's
+// bearer. Both verify the same way and either works in either place, but only a phone's token is
+// renewed (GET /api/me): a cookie value replayed as a bearer used to be traded for a fresh 90-day
+// token whenever it was past half its life, so a stolen cookie never had to expire. Tokens from
+// before the field have none and are renewed as before; the cookies among them expire on their own.
+function makeSession(user, kind = 'b') {
   const exp = Date.now() + SESSION_DAYS * 86400000;
-  return sign(user.id + ':' + exp + ':' + sessionVersion(user));
+  return sign(user.id + ':' + exp + ':' + sessionVersion(user) + ':' + kind);
 }
 // With the __Host- prefix the *browser* guarantees the cookie is host-only (no Domain attribute
 // is even allowed) — which is what stops a sibling subdomain, e.g. anything-else.example.com
@@ -619,7 +665,7 @@ function sessionUser(tok) {
   if (tok.startsWith(MCP_TOKEN_PREFIX) || tok.startsWith(OAUTH_TOKEN_PREFIX)) return null;
   const payload = verifySig(tok);
   if (!payload) return null;
-  const [uid, exp, ver] = payload.split(':');
+  const [uid, exp, ver, kind] = payload.split(':');
   if (!uid || +exp < Date.now()) return null;
   const user = db.users.find(u => u.id === uid) || null;
   if (!user) return null;
@@ -628,7 +674,7 @@ function sessionUser(tok) {
   // payload (it still had to pass the HMAC, so this is belt-and-braces) and is refused outright.
   const claimed = ver === undefined ? 0 : Number(ver);
   if (!Number.isInteger(claimed) || claimed !== sessionVersion(user)) return null;
-  return { user, exp: +exp };
+  return { user, exp: +exp, kind: kind || null };
 }
 function readSession(req) {
   return sessionOf(req)?.user || null;
@@ -644,7 +690,7 @@ function requireAdmin(req, res) {
 }
 const expireCookie = name => `${name}=; Path=/; Max-Age=0; HttpOnly;${SECURE} SameSite=Lax`;
 function sessionCookie(user) {
-  const fresh = `${COOKIE}=${makeSession(user)}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly;${SECURE} SameSite=Lax`;
+  const fresh = `${COOKIE}=${makeSession(user, 'c')}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly;${SECURE} SameSite=Lax`;
   // Signing in also retires any pre-upgrade cookie, so nobody is left carrying an unprefixed one
   // (or a shadowing copy of it) alongside the new session.
   return COOKIE === LEGACY_COOKIE ? [fresh] : [fresh, expireCookie(LEGACY_COOKIE)];
@@ -1366,7 +1412,13 @@ const passwordRoutes = {
     const problem = passwordProblem(body.password, name);
     if (problem) return policyError(res, problem);
     const taken = () => json(res, 409, { error: 'another profile already signs in with this name', code: 'name-taken' });
-    if (nameTaken(name)) return taken();
+    // A name is also matched against every sign-in e-mail (nameTaken), so a name that is an
+    // address is the e-mail question asked through the name field: it waits for the hash below
+    // and counts against the address like the e-mail field does, or it would answer "in use" for
+    // any address at once and without limit.
+    const nameIsAddress = name.includes('@');
+    if (nameIsAddress && addressPaused(req, res, 'email')) return;
+    if (!nameIsAddress && nameTaken(name)) return taken();
     // An e-mail is optional here. One already in use counts against the address, the way it
     // does in Settings: this route needs no session, so it is the cheaper place to ask. Whether
     // it is in use is only answered after the hash and the invite check that follows it, so on
@@ -1389,7 +1441,11 @@ const passwordRoutes = {
         return json(res, 403, { error: 'invite code is no longer valid, ask for a new one', code: 'invite' });
       }
     }
-    if (nameTaken(name)) return taken();
+    if (nameTaken(name)) {
+      // No name in the row: it is an address, and the log keeps none (maskEmail is for owners).
+      if (nameIsAddress) { strikeAddress(req, 'email'); audit(req, 'auth.register.fail', { ok: false, msg: 'email-taken' }); }
+      return taken();
+    }
     // No await from here to the push: nothing can take the address between this check and it.
     if (email && emailTaken(email)) return emailRefused();
     const created = new Date().toISOString();
@@ -1847,6 +1903,17 @@ setInterval(() => {
   MEDIA_BURST.sweep(); MEDIA_SWEEPS.sweep();
   for (const [k, until] of mediaThrottleNoted) if (until < Date.now()) mediaThrottleNoted.delete(k);
 }, 600000).unref();
+// Every one of these makes the server send pushes, one per subscription of the account. A
+// person taps "send test" a few times and starts a rest after each set; a loop does neither.
+const PUSH_TESTS = createWindow({ max: 10, windowMs: 600000 });
+const REST_TIMER_SETS = createWindow({ max: 60, windowMs: 60000 });
+setInterval(() => { PUSH_TESTS.sweep(); REST_TIMER_SETS.sweep(); }, 600000).unref();
+function pushThrottled(res, win, user) {
+  const wait = win.take(user.id);
+  if (!wait) return false;
+  json(res, 429, { error: 'too many requests, try again later', code: 'locked', retryAfter: wait }, { 'Retry-After': String(wait) });
+  return true;
+}
 function mediaThrottle(req, user, win) {
   const wait = win.take(user.id);
   if (!wait) return;
@@ -2269,7 +2336,7 @@ const routes = {
     const s = sessionOf(req);
     if (!s) return json(res, 401, { error: 'not signed in' });
     const { user } = s;
-    const renew = s.bearer && s.exp - Date.now() < SESSION_DAYS * 86400000 / 2;
+    const renew = s.bearer && s.kind !== 'c' && s.exp - Date.now() < SESSION_DAYS * 86400000 / 2;
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) }, ...(renew ? { token: makeSession(user) } : {}) });
   },
 
@@ -2342,7 +2409,7 @@ const routes = {
       id: credential.id, userId: user.id,
       publicKey: Buffer.from(credential.publicKey).toString('base64url'),
       counter: credential.counter || 0,
-      transports: body.credential?.response?.transports || [],
+      transports: transportsOf(body.credential?.response?.transports),
       // What Settings → Passkeys shows (#95); a passkey from before then has neither.
       created: user.created, lastUsed: user.created
     });
@@ -2821,6 +2888,7 @@ const routes = {
   'POST /api/push/test': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    if (pushThrottled(res, PUSH_TESTS, user)) return;
     await sendPush(user.id, testPush(readStateCached(user.id)?.lang));
     json(res, 200, { ok: true });
   },
@@ -2828,6 +2896,7 @@ const routes = {
   'POST /api/push/rest-timer': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    if (pushThrottled(res, REST_TIMER_SETS, user)) return;
     const body = await readBody(req);
     // Validated before it is clamped: the clamp used to run first, which turned a missing or
     // unusable value into a 1-second push and made the 400 below unreachable. `Number()` only
@@ -3071,7 +3140,7 @@ coachJobs.setProposalHook((uid, pending) => {
     tag: 'coach-proposal', url: '#/coach'
   });
 });
-startCadence({ users: () => db.users, userNow });
+startCadence({ users: () => db.users.filter(u => !u.disabled), userNow, skip: uid => !stateSummary(uid)?.consent });
 startWarmup();
 
 // node's requestTimeout is one number for every route, and it is half an hour (below) for the
@@ -3133,6 +3202,12 @@ const server = http.createServer(async (req, res) => {
   let url;
   try { url = new URL(req.url, 'http://x'); }
   catch { return json(res, 400, { error: 'bad request' }); }
+  // The path routed on has to be the path that was sent. The URL parser turns a backslash into a
+  // slash and resolves dot segments; nginx does neither, so `/api/media/..\data` matched nginx's
+  // media block (its body size and buffering) and reached `/api/data` here. Any rule the proxy
+  // keys on the path could be stepped around the same way. No client sends such a path.
+  const sent = req.url.split('?')[0];
+  if (sent.startsWith('/') && sent !== url.pathname) return json(res, 400, { error: 'bad request' });
   let key = req.method + ' ' + url.pathname;
   // The one route with a parameter in its path. Mapped onto its template key here so the table
   // above stays a plain lookup, and so csrfOk and the catch-all see one name for every file.

@@ -74,5 +74,5 @@ test('logout/all invalidates the account\'s outstanding pairing codes and nobody
   const fresh = await redeem(await create('u_test_1', 1));
   assert.equal(fresh.status, 200);
   const { token } = await fresh.json();
-  assert.match(token.split('.')[0], /^u_test_1:\d+:1$/);
+  assert.match(token.split('.')[0], /^u_test_1:\d+:1:b$/);
 });
