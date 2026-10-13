@@ -74,11 +74,12 @@ in the thread; there's no objection, and no request to sit on it indefinitely.
   throttle *is* in scope, and so is genuine amplification (one small request causing unbounded
   work).
 - **Missing security headers.** `web/nginx.conf.template` sets `X-Frame-Options: DENY`,
-  `Content-Security-Policy: frame-ancestors 'none'`, `X-Content-Type-Options: nosniff` and
-  `Referrer-Policy: same-origin`. It deliberately does **not** set HSTS or a full CSP: TLS is the
-  reverse proxy's job, and a script/style policy tight enough to be worth having needs testing
-  against the built app rather than being asserted here. A concrete attack that a header would
-  have stopped is still worth reporting.
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and a Content-Security-Policy
+  (`CONTENT_SECURITY_POLICY`, default in `web/Dockerfile`) that runs scripts from the instance
+  only. It deliberately does **not** set HSTS: TLS is the reverse proxy's job, and so is any
+  header an operator changes. `connect-src` is open on purpose (the Coach on a device talks to
+  the provider its owner chose). A concrete attack that a header would have stopped is still
+  worth reporting.
 - Instances served over plain `http://` on a LAN IP. Passkeys don't work there, and with
   password sign-in the password and the session cookie (not marked `Secure`) cross that network
   in the clear. That is the documented trade of running without TLS, not a finding.
