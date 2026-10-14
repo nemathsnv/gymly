@@ -284,6 +284,7 @@ function isPrivateAddr(ip, operatorExceptions = true) {
     if (a === 192 && b === 168) return true;                      // private
     if (a === 192 && b === 0) return true;                        // 192.0.0.0/24, 192.0.2.0/24
     if (a === 100 && b >= 64 && b <= 127) return true;            // CGNAT
+    if (a === 198 && (b === 18 || b === 19)) return true;         // benchmarking 198.18.0.0/15
     if (a >= 224) return true;                                    // multicast + reserved
     return false;
   }
@@ -297,7 +298,17 @@ function isPrivateAddr(ip, operatorExceptions = true) {
   }
   if (g.slice(0, 7).every(x => x === 0) && g[7] <= 1) return true; // unspecified, loopback
   if ((g[0] & 0xffc0) === 0xfe80) return true;                    // link-local fe80::/10
+  if ((g[0] & 0xffc0) === 0xfec0) return true;                    // site-local fec0::/10 (deprecated, still routed by some)
   if ((g[0] & 0xfe00) === 0xfc00) return true;                    // unique local fc00::/7
+  if ((g[0] & 0xff00) === 0xff00) return true;                    // multicast ff00::/8
+  // The forms that carry an IPv4 address inside: on a host with NAT64 or a 6to4 relay they reach
+  // that IPv4 address, so they are judged by it. 64:ff9b:1::/48 is the local-use NAT64 prefix,
+  // which only ever translates into a network of the operator's own.
+  const v4 = (hi, lo) => isPrivateAddr(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  if (g.slice(0, 6).every(x => x === 0)) return v4(g[6], g[7]);          // IPv4-compatible ::a.b.c.d
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every(x => x === 0)) return v4(g[6], g[7]); // NAT64 64:ff9b::/96
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true;       // local-use NAT64 64:ff9b:1::/48
+  if (g[0] === 0x2002) return v4(g[1], g[2]);                            // 6to4 2002::/16
   return false;
 }
 
