@@ -67,7 +67,8 @@ Settings → Account → "Pair the mobile app" in an already signed-in browser t
 sent as an `Authorization` header rather than a cookie. Two consequences worth knowing if
 you're poking at the API directly:
 
-- `POST /api/pair/create` (needs a session) and `POST /api/pair/redeem` (doesn't) implement
+- `POST /api/pair/create` (needs a session plus the owner proof: a passkey, or the current
+  password where that counts) and `POST /api/pair/redeem` (doesn't) implement
   this — see `api/server.js`. The returned token is the exact same signed value a cookie
   carries, so "sign out everywhere" invalidates it too — and a phone has no passkey to sign
   back in with, so every paired phone has to be **paired again** afterwards. The phone says

@@ -592,7 +592,15 @@ paths:
         Called from an already signed-in browser tab (Settings → "Pair the mobile
         app"). Returns an 8-character code (alphabet without 0/O/1/I) the phone
         redeems within 5 minutes via /api/pair/redeem. One-shot. One live code per
-        profile: minting a new one retires the previous one.
+        profile: minting a new one retires the previous one. Same proof as a device
+        link (a passkey assertion made for this request, or the current password while
+        password sign-in is on), since the phone token a code turns into is renewed for
+        as long as it is used. Audited as `auth.pair.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerProof' }
       responses:
         '200':
           description: A fresh pairing code.
@@ -606,6 +614,9 @@ paths:
                     description: 8 chars from ABCDEFGHJKLMNPQRSTUVWXYZ23456789.
               example: { code: "K7WQ2MZP" }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProofRefused' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Busy' }
 
   /api/pair/redeem:
     post:

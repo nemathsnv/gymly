@@ -608,10 +608,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Mint a pairing code for the mobile app</span>
   </summary>
   <div class="ep-body">
-<p>Called from an already signed-in browser tab (Settings → &quot;Pair the mobile app&quot;). Returns an 8-character code (alphabet without 0/O/1/I) the phone redeems within 5 minutes via /api/pair/redeem. One-shot. One live code per profile: minting a new one retires the previous one.</p>
+<p>Called from an already signed-in browser tab (Settings → &quot;Pair the mobile app&quot;). Returns an 8-character code (alphabet without 0/O/1/I) the phone redeems within 5 minutes via /api/pair/redeem. One-shot. One live code per profile: minting a new one retires the previous one. Same proof as a device link (a passkey assertion made for this request, or the current password while password sign-in is on), since the phone token a code turns into is renewed for as long as it is used. Audited as <code>auth.pair.create</code>.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
-
+<p class="ep-h">Request body</p><p class="p-desc"><a href="#schema-OwnerProof">OwnerProof</a></p>
     <p class="ep-h">Responses</p>
     <div class="ptab">
   <div class="prow rrow">
@@ -621,6 +621,18 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">No acceptable proof that the owner is here: <code>passkey-required</code> (no password that counts, because none is set or <code>PASSWORD_LOGIN</code> is off, so a passkey has to confirm), <code>passkey</code> (the assertion did not verify, belongs to another profile, or was made for another challenge, one handed out for another ceremony or one already used), <code>current-required</code> or <code>current-wrong</code>.<span class="r-sig"><code>{&quot;error&quot;:&quot;confirm with your passkey first&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Paused by the sign-in throttle (see <i>Throttling</i> in the description). The request was not looked at; try again after <code>Retry-After</code> seconds.<span class="r-sig"><code>{&quot;error&quot;:&quot;too many attempts, try again later&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Every password check slot and the short queue behind them are taken.<span class="r-sig"><code>{&quot;error&quot;:&quot;the server is busy, try again in a moment&quot;}</code></span></span>
   </div>
     </div>
   </div>

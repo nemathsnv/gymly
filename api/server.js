@@ -1082,6 +1082,8 @@ const THROTTLED = {
   // budget: the password that may prove them counts its own failures (passwordAttempt).
   'POST /api/device-link/options': 'link', 'POST /api/device-link/verify': 'link',
   'POST /api/account/passkeys/options': null, 'POST /api/account/device-link': null,
+  // Pairing a phone: the same, for the password that may prove it.
+  'POST /api/pair/create': null,
   'DELETE /api/account/passkeys': null,
   // Making and revoking an MCP token: each is a durable db.json write and an audit row.
   'POST /api/account/mcp-tokens': null, 'DELETE /api/account/mcp-tokens': null
@@ -2519,16 +2521,26 @@ const routes = {
   },
 
   // Mobile app pairing: called from an already signed-in browser tab (Settings → "Pair the
-  // mobile app") to mint a short code the phone can redeem below.
+  // mobile app") to mint a short code the phone can redeem below. The code turns into a phone's
+  // token, which /api/me renews for as long as it is used and which gets the device pass on the
+  // account's own delete, so it asks the proof a device link asks (proveOwner): a session alone
+  // may be a cookie someone walked off with, and minting a phone token is how that cookie would
+  // stop having to expire.
   'POST /api/pair/create': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    const proof = await proveOwner(req, res, user, body, 'pair');
+    if (!proof) return;
+    // Awaited: a sign-out everywhere, a disable or an admin reset may have ended this session.
+    if (readSession(req) !== user) return json(res, 401, { error: 'not signed in' });
+    if (proof === 'passkey') saveDb();   // the confirming passkey's counter and last use
     // One live code per profile: the newest is the one on screen. Keeping every code minted
     // let one session grow this Map without limit for five minutes at a time.
     for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
     const code = makePairCode();
     pairings.set(code, { uid: user.id, exp: Date.now() + 5 * 60000 });
-    audit(req, 'auth.pair.create', { user });
+    audit(req, 'auth.pair.create', { user, msg: proof });
     json(res, 200, { code });
   },
 
