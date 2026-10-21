@@ -966,7 +966,9 @@ const THROTTLED = {
   // budget: the password that may prove them counts its own failures (passwordAttempt).
   'POST /api/device-link/options': 'link', 'POST /api/device-link/verify': 'link',
   'POST /api/account/passkeys/options': null, 'POST /api/account/device-link': null,
-  'DELETE /api/account/passkeys': null
+  'DELETE /api/account/passkeys': null,
+  // Making and revoking an MCP token: each is a durable db.json write and an audit row.
+  'POST /api/account/mcp-tokens': null, 'DELETE /api/account/mcp-tokens': null
 };
 
 // Which address the throttle counts against. Unlike clientIp() above, which only labels a log
@@ -1939,9 +1941,26 @@ function mcpCaller(req, res) {
   if (touchMcpToken(rec)) { try { saveDb(); } catch (e) { console.error('db save failed', e.message); } }
   return { user, rec };
 }
+// A token made under an earlier session version is dead (mcpCaller refuses it). Every path that
+// bumps the version drops the profile's tokens too, but one that did not — an older release in
+// a rollback — would leave dead tokens showing as live in Settings and filling the ten slots.
+function dropStaleMcpTokens(user) {
+  const before = db.mcpTokens.length;
+  db.mcpTokens = db.mcpTokens.filter(t => t.userId !== user.id || (t.sv || 0) === sessionVersion(user));
+  return db.mcpTokens.length !== before;
+}
 // The MCP view's shape version, part of the ETag: a server that changes what it withholds must
 // not answer 304 to a client holding the old view.
 const MCP_VIEW_VERSION = 1;
+// If-None-Match is compared weakly (RFC 9110 13.1.2), and may list several tags or be `*`. The
+// weak form is not hypothetical: the bundled nginx gzips JSON and turns the ETag into W/"…", so
+// a client only ever holds the weak tag, and an exact comparison never once answered 304.
+const weakTag = t => t.trim().replace(/^W\//, '');
+function etagMatches(header, etag) {
+  if (typeof header !== 'string' || !header) return false;
+  if (header.trim() === '*') return true;
+  return header.split(',').some(t => weakTag(t) === etag);
+}
 
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
@@ -2203,6 +2222,7 @@ const routes = {
   'GET /api/account/mcp-tokens': async (req, res) => {
     const user = readSession(req);
     if (!user) return notSignedIn(res);
+    if (dropStaleMcpTokens(user)) saveDb();
     json(res, 200, { tokens: listMcpTokens(db, user.id), max: MAX_MCP_TOKENS });
   },
 
@@ -2212,10 +2232,17 @@ const routes = {
   'POST /api/account/mcp-tokens': async (req, res) => {
     const user = readSession(req);
     if (!user) return notSignedIn(res);
+    // The session version is taken before the body and the session asked again after it: a body
+    // can take minutes to arrive, and "sign out everywhere", a new password, a reset or a disable
+    // landing in between must not be outlived by a token minted at the end of it, stamped with
+    // the version that sign-out just set.
+    const sv = sessionVersion(user);
     const body = await readBody(req);
+    if (readSession(req) !== user || sessionVersion(user) !== sv) return notSignedIn(res);
     const p = parseMcpTokenRequest(body);
     if (p.error) return json(res, 400, { error: p.error, code: p.code });
-    const r = createMcpToken(db, user.id, { name: p.name, days: p.days, sv: sessionVersion(user) });
+    dropStaleMcpTokens(user);
+    const r = createMcpToken(db, user.id, { name: p.name, days: p.days, sv });
     if (r.error) return json(res, 409, { error: r.error, code: r.code });
     saveDb();
     audit(req, 'auth.mcp.create', { user, msg: r.record.name });
@@ -2244,8 +2271,10 @@ const routes = {
     const state = readStateStrict(user.id);
     if (state === UNREADABLE) { console.error('state file unreadable for', user.id); return json(res, 503, { error: 'state unreadable' }); }
     const rev = state?._rev || 0;
-    const etag = `"m${MCP_VIEW_VERSION}-${rev}-${state?._wid || ''}"`;
-    if (req.headers['if-none-match'] === etag) {
+    // The write id is withheld from the view, so the tag carries a digest of it, not the id.
+    const wid = state?._wid ? crypto.createHash('sha256').update(String(state._wid)).digest('base64url').slice(0, 12) : '';
+    const etag = `"m${MCP_VIEW_VERSION}-${rev}-${wid}"`;
+    if (etagMatches(req.headers['if-none-match'], etag)) {
       res.writeHead(304, { ETag: etag, 'Cache-Control': 'no-store' });
       return res.end();
     }

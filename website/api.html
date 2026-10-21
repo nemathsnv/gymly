@@ -1610,7 +1610,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Make a read-only MCP token</span>
   </summary>
   <div class="ep-body">
-<p>Answers with the token once; only a SHA-256 of it is stored. Scope <code>read</code>: it opens <code>GET /api/mcp/v1/state</code> for this profile and nothing else. It stops working when it expires, when it is revoked, and when the profile's sessions end — &quot;sign out everywhere&quot;, a new password, an admin's password reset, a disable or a delete. Audited as <code>auth.mcp.create</code> with the token's name.</p>
+<p>Answers with the token once; only a SHA-256 of it is stored. Scope <code>read</code>: it opens <code>GET /api/mcp/v1/state</code> for this profile and nothing else. It stops working when it expires, when it is revoked, and when the profile's sessions end — &quot;sign out everywhere&quot;, a new password, an admin's password reset, a disable or a delete. Audited as <code>auth.mcp.create</code> with the token's name. A request whose session ends (sign-out everywhere, disable, password change) while its body is still arriving gets 401 and no token. Control, bidi and line-separator characters are removed from <code>name</code>.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 <p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
@@ -1642,6 +1642,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">409</span>
     <span class="p-desc">The profile already holds as many tokens as it may (<code>mcp-token-limit</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many token requests from this address (shares the sign-in burst budget, 60 a minute).</span>
   </div>
     </div>
   </div>
@@ -1678,6 +1682,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">404</span>
     <span class="p-desc">No token of this profile has that id (<code>mcp-token-unknown</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many token requests from this address.</span>
   </div>
     </div>
   </div>

@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { boundPort } from './helpers.mjs';
@@ -128,6 +129,12 @@ test('a session makes a token; the token reads its owner\'s data and only that',
   assert.equal(again.status, 304);
   assert.equal(await again.text(), '');
   assert.equal((await h.state(made.token, { 'If-None-Match': '"m1-2-x"' })).status, 200);
+  // Behind the bundled nginx the tag reaches the client weak (gzip), and comes back that way.
+  assert.equal((await h.state(made.token, { 'If-None-Match': 'W/' + etag })).status, 304);
+  assert.equal((await h.state(made.token, { 'If-None-Match': `"other", W/${etag}` })).status, 304);
+  assert.equal((await h.state(made.token, { 'If-None-Match': 'W/"m1-2-x"' })).status, 200);
+  // A conditional request is still a request: a wrong token gets 401, never 304.
+  assert.equal((await h.state('gymly_mcp_' + 'B'.repeat(43), { 'If-None-Match': '*' })).status, 401);
 
   // A profile with no document yet: an honest null, not someone else's.
   const freshTok = (await h.mint('u_fresh')).token;
@@ -260,6 +267,51 @@ test('a token stops working when revoked, on "sign out everywhere", and on a dis
   assert.match(audit, /"ev":"auth\.mcp\.revoke".*"msg":"a"/);
 });
 
+// A request that starts before "sign out everywhere" and finishes its body after it must not come
+// back with a token: the sign-out has already dropped the profile's tokens and moved its session
+// version, and a token minted at the end would be stamped with the new version and live on.
+function slowCreate(h, uid) {
+  const body = JSON.stringify({ name: 'slow' });
+  let finish;
+  const done = new Promise((resolve, reject) => {
+    const req = http.request(h.api + '/api/account/mcp-tokens', {
+      method: 'POST', headers: { ...cookie(uid), 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, res => { let t = ''; res.on('data', d => t += d); res.on('end', () => resolve({ status: res.statusCode, text: t })); });
+    req.on('error', reject);
+    req.write(body.slice(0, 5));
+    finish = () => req.end(body.slice(5));
+  });
+  return { done, finish: () => finish() };
+}
+
+test('a token request still in flight when the account signs out everywhere, or is disabled, gets no token', async t => {
+  const h = await startServer(t);
+  const slow = slowCreate(h, 'u_one');
+  await new Promise(r => setTimeout(r, 100));          // the server is now waiting on the body
+  assert.equal((await h.req('POST', '/api/logout/all', cookie('u_one'), {})).status, 200);
+  slow.finish();
+  const r = await slow.done;
+  assert.equal(r.status, 401, r.text);
+  assert.ok(!r.text.includes('gymly_mcp_'));
+  const db = JSON.parse(fs.readFileSync(path.join(h.dataDir, 'db.json'), 'utf8'));
+  assert.deepEqual(db.mcpTokens || [], []);
+
+  const slow2 = slowCreate(h, 'u_two');
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal((await h.req('POST', '/api/admin/user/disable', cookie('u_admin'), { id: 'u_two', disabled: true })).status, 200);
+  slow2.finish();
+  assert.equal((await slow2.done).status, 401);
+});
+
+test('making and revoking tokens is rate-limited per address', async t => {
+  const h = await startServer(t);
+  let last;
+  for (let i = 0; i < 61; i++) last = await h.req('POST', '/api/account/mcp-tokens', cookie('u_two'), { name: 'n' + i });
+  assert.equal(last.status, 429);
+  assert.ok(+last.headers.get('retry-after') > 0);
+  assert.equal((await h.req('DELETE', '/api/account/mcp-tokens?id=x', cookie('u_two'))).status, 429, 'the same budget');
+});
+
 test('a surviving record is still refused: older session version, disabled profile, missing profile', async t => {
   // Every path that bumps a profile's session version also drops its tokens; this is the second
   // line behind that. Seeded straight into db.json, since no route leaves such a record behind.
@@ -278,6 +330,9 @@ test('a surviving record is still refused: older session version, disabled profi
     ];
   });
   assert.equal((await h.state(stale)).status, 401);
+  // …and it is neither listed as live nor holding one of the ten slots.
+  const listed = await (await h.req('GET', '/api/account/mcp-tokens', cookie('u_sv', 1))).json();
+  assert.deepEqual(listed.tokens.map(x => x.id), ['live']);
   assert.equal((await h.state(locked)).status, 401);
   assert.equal((await h.state(orphan)).status, 401);
   assert.equal((await h.state(live)).status, 200);

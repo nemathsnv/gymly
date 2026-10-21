@@ -50,8 +50,10 @@ export function parseMcpTokenRequest(body) {
   const b = body && typeof body === 'object' ? body : {};
   let name = b.name === undefined || b.name === null ? '' : b.name;
   if (typeof name !== 'string') return { error: 'name must be text', code: 'mcp-token-name' };
-  // Control characters would reach the Settings list and the audit log as typed.
-  name = name.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  // Control characters (C0, DEL, C1), bidi overrides and isolates, and line/paragraph separators
+  // would reach the Settings list and the admin activity log as typed — a name that reorders how
+  // an audit row reads is a spoof even where nothing executes.
+  name = name.replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069\u2028\u2029]/g, '').trim();
   if (name.length > MCP_NAME_MAX) return { error: `name is longer than ${MCP_NAME_MAX} characters`, code: 'mcp-token-name' };
   let days = b.days === undefined || b.days === null ? MCP_TOKEN_DAYS : b.days;
   if (!Number.isInteger(days) || days < 1 || days > MCP_TOKEN_MAX_DAYS) {

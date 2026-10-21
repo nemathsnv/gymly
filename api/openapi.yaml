@@ -1447,7 +1447,9 @@ paths:
         `GET /api/mcp/v1/state` for this profile and nothing else. It stops working when it
         expires, when it is revoked, and when the profile's sessions end — "sign out
         everywhere", a new password, an admin's password reset, a disable or a delete.
-        Audited as `auth.mcp.create` with the token's name.
+        Audited as `auth.mcp.create` with the token's name. A request whose session ends
+        (sign-out everywhere, disable, password change) while its body is still arriving gets
+        401 and no token. Control, bidi and line-separator characters are removed from `name`.
       security:
         - cookieAuth: []
         - bearerAuth: []
@@ -1483,6 +1485,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many token requests from this address (shares the sign-in burst budget, 60 a minute).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
     delete:
       tags: [mcp]
       operationId: revokeMcpToken
@@ -1512,6 +1519,11 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404':
           description: No token of this profile has that id (`mcp-token-unknown`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many token requests from this address.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

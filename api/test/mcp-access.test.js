@@ -118,6 +118,8 @@ test('request parsing: defaults, trimming, and every refusal', () => {
   assert.deepEqual(parseMcpTokenRequest({}), { name: 'MCP client', days: 90 });
   assert.deepEqual(parseMcpTokenRequest(null), { name: 'MCP client', days: 90 });
   assert.deepEqual(parseMcpTokenRequest({ name: '  Claude Code \n', days: 7 }), { name: 'Claude Code', days: 7 });
+  // Bidi overrides/isolates, C1 controls and line separators would spoof how an audit row reads.
+  assert.equal(parseMcpTokenRequest({ name: 'evil\u202Etxt.exe\u2066x\u2069\u0085\u2028y\u200F' }).name, 'eviltxt.exexy');
   assert.deepEqual(parseMcpTokenRequest({ name: 'a'.repeat(60), days: MCP_TOKEN_MAX_DAYS }), { name: 'a'.repeat(60), days: MCP_TOKEN_MAX_DAYS });
   for (const name of [5, true, ['x'], { a: 1 }, 'a'.repeat(61)]) assert.equal(parseMcpTokenRequest({ name }).code, 'mcp-token-name', String(name));
   for (const days of [0, -1, 1.5, '30', MCP_TOKEN_MAX_DAYS + 1, NaN, Infinity, true]) assert.equal(parseMcpTokenRequest({ days }).code, 'mcp-token-days', String(days));
