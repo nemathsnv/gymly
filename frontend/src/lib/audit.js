@@ -49,6 +49,11 @@ const LABELS = {
   'auth.link.create': 'Made a one-time code for another device',
   'auth.link.ok': 'Added a device with a one-time code',
   'auth.link.fail': 'Adding a device with a code failed',
+  // Read-only tokens for an MCP client (Settings → AI assistant access; api/mcp-access.js).
+  // `msg` on a creation or revocation is the name the token was given.
+  'auth.mcp.create': 'Created an MCP access token',
+  'auth.mcp.revoke': 'Revoked an MCP access token',
+  'auth.mcp.fail': 'MCP access with a refused token',
   // The owner's proof (current password or a passkey) for one of the changes below was refused.
   'auth.proof.fail': 'Confirming a change failed',
   // The password throttle paused an address; `msg` says for what (password, signup).
@@ -93,6 +98,7 @@ const REASONS = {
   'reset-invalid': 'wrong or expired reset code',
   'link-invalid': 'wrong, used or expired device code',
   'passkey-limit': 'the profile already has as many passkeys as it can hold',
+  'token-invalid': 'wrong, expired or revoked MCP token',
   // What an `auth.throttled` pause was for.
   'password': 'wrong passwords or reset codes',
   'signup': 'wrong invite codes on password signup',

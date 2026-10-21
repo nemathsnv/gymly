@@ -30,6 +30,10 @@ import {
   listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS
 } from './passkeys-store.js';
 import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } from './device-link.js';
+import {
+  MCP_TOKEN_PREFIX, MAX_MCP_TOKENS, parseMcpTokenRequest, listMcpTokens, createMcpToken, findMcpToken,
+  touchMcpToken, revokeMcpToken, dropMcpTokens, mcpTokenView, mcpView
+} from './mcp-access.js';
 import { createMediaStore, mediaLimits, mediaConfig, MediaError, HASH_RE } from './media.js';
 import { effectiveRoutineId } from './queue.js';
 import { stampPut } from './sync-stamps.js';
@@ -146,6 +150,7 @@ db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
+db.mcpTokens = db.mcpTokens || [];       // read-only MCP client tokens, hashed (mcp-access.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // 0600: db.json holds passkey credential material. It used to be covered by a blanket 0700 on
 // the whole directory; now that the directory stays traversable, the file carries its own mode.
@@ -596,6 +601,9 @@ function sessionOf(req) {
   const cookie = cookieToken(req);
   const tok = cookie || (auth.startsWith('Bearer ') ? auth.slice(7).trim() : null);
   if (!tok) return null;
+  // An MCP token is not a session and never stands in for one (mcp-access.js). It would fail the
+  // signature check below anyway; refused by name so that stays true whatever the format becomes.
+  if (tok.startsWith(MCP_TOKEN_PREFIX)) return null;
   const payload = verifySig(tok);
   if (!payload) return null;
   const [uid, exp, ver] = payload.split(':');
@@ -1113,6 +1121,7 @@ function setPassword(user, h) {
   user.sv = sessionVersion(user) + 1;
   for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
   dropDeviceLinks(db, user.id);
+  dropMcpTokens(db, user.id);
 }
 
 // A passkey assertion made just now by the signed-in account itself — how someone who has no
@@ -1462,6 +1471,7 @@ const passwordRoutes = {
     u.sv = sessionVersion(u) + 1;
     for (const [k, v] of pairings) if (v.uid === u.id) pairings.delete(k);
     dropDeviceLinks(db, u.id);
+    dropMcpTokens(db, u.id);
     presence.delete(u.id);
     saveDb();
     audit(req, 'admin.password.reset', { user: admin, target: u });
@@ -1904,6 +1914,35 @@ function dataWritable() {
   return ok;
 }
 
+/* ---------- MCP client access (mcp-access.js) ---------- */
+// The caller of an /api/mcp/v1/* route: { user, rec } for a live token of a profile that is still
+// there, still enabled and still on the session version the token was made under, or null with
+// the 401 already sent. Only the Authorization header is read — never a cookie, never the query
+// string, where a token would end up in proxy logs and browser history. Counted per address on a
+// window of its own, so an MCP client never spends the sign-in routes' budget, and a wrong token
+// is written to the audit log at the same capped rate as any other failed credential.
+const MCP_BURST = createWindow({ max: 120, windowMs: 60000 });
+setInterval(() => MCP_BURST.sweep(), 60000).unref();
+const MCP_REFUSED = { error: 'the MCP token is missing, wrong, expired or revoked', code: 'mcp-token-invalid' };
+function mcpCaller(req, res) {
+  const wait = MCP_BURST.take(limitAddress(req));
+  if (wait) { tooMany(res, wait); return null; }
+  const auth = req.headers.authorization || '';
+  const tok = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const rec = tok ? findMcpToken(db, tok) : null;
+  const user = rec ? db.users.find(u => u.id === rec.userId) : null;
+  if (!rec || !user || user.disabled || (rec.sv || 0) !== sessionVersion(user)) {
+    if (tok) auditFail(req, 'auth.mcp.fail', { ok: false, ...(user ? { user } : {}), msg: 'token-invalid' });
+    json(res, 401, MCP_REFUSED, { 'WWW-Authenticate': 'Bearer realm="gymly-mcp"' });
+    return null;
+  }
+  if (touchMcpToken(rec)) { try { saveDb(); } catch (e) { console.error('db save failed', e.message); } }
+  return { user, rec };
+}
+// The MCP view's shape version, part of the ETag: a server that changes what it withholds must
+// not answer 304 to a client holding the old view.
+const MCP_VIEW_VERSION = 1;
+
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -2117,9 +2156,10 @@ const routes = {
     if (!user) return json(res, 401, { error: 'not signed in' });
     user.sv = sessionVersion(user) + 1;
     // An unredeemed pairing code is a session-in-waiting for this account; it goes too, and so
-    // does an unused device link.
+    // does an unused device link, and every MCP token.
     for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
     dropDeviceLinks(db, user.id);
+    dropMcpTokens(db, user.id);
     saveDb();
     audit(req, 'auth.logout.all', { user });
     json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie });
@@ -2157,6 +2197,64 @@ const routes = {
     }
     audit(req, 'auth.pair.ok', { user });
     json(res, 200, { token: makeSession(user), user: { id: user.id, name: user.name, admin: isAdmin(user) } });
+  },
+
+  // Settings → "AI assistant access": the profile's MCP tokens, without the secrets.
+  'GET /api/account/mcp-tokens': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    json(res, 200, { tokens: listMcpTokens(db, user.id), max: MAX_MCP_TOKENS });
+  },
+
+  // Makes one. The token is in this answer and nowhere else, ever: only its hash is kept.
+  // Read-only by construction (mcp-access.js), so a session is proof enough — the same session can
+  // already read everything with GET /api/data. A write scope will ask for proveOwner as well.
+  'POST /api/account/mcp-tokens': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    const body = await readBody(req);
+    const p = parseMcpTokenRequest(body);
+    if (p.error) return json(res, 400, { error: p.error, code: p.code });
+    const r = createMcpToken(db, user.id, { name: p.name, days: p.days, sv: sessionVersion(user) });
+    if (r.error) return json(res, 409, { error: r.error, code: r.code });
+    saveDb();
+    audit(req, 'auth.mcp.create', { user, msg: r.record.name });
+    json(res, 201, { token: r.token, ...mcpTokenView(r.record) });
+  },
+
+  // `?id=` — the id from the list. Another profile's id answers exactly like one that never was.
+  'DELETE /api/account/mcp-tokens': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    const id = new URL(req.url, 'http://x').searchParams.get('id') || '';
+    const rec = revokeMcpToken(db, user.id, id);
+    if (!rec) return json(res, 404, { error: 'no such token', code: 'mcp-token-unknown' });
+    saveDb();
+    audit(req, 'auth.mcp.revoke', { user, msg: rec.name });
+    json(res, 200, { ok: true, tokens: listMcpTokens(db, user.id) });
+  },
+
+  // The MCP client's one read: the token owner's profile document, minus what mcpView withholds.
+  // No parameter picks the profile — the token is the profile. Conditional on the revision: a
+  // client that already holds this one gets a 304 and no body.
+  'GET /api/mcp/v1/state': async (req, res) => {
+    const caller = mcpCaller(req, res);
+    if (!caller) return;
+    const { user } = caller;
+    const state = readStateStrict(user.id);
+    if (state === UNREADABLE) { console.error('state file unreadable for', user.id); return json(res, 503, { error: 'state unreadable' }); }
+    const rev = state?._rev || 0;
+    const etag = `"m${MCP_VIEW_VERSION}-${rev}-${state?._wid || ''}"`;
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    json(res, 200, {
+      user: { id: user.id, name: user.name, created: user.created || null },
+      scope: caller.rec.scope,
+      rev,
+      state: mcpView(forClient(state))
+    }, { ETag: etag });
   },
 
   // Absent entirely while PASSWORD_LOGIN is off, so each of them is a plain 404.
@@ -2461,6 +2559,8 @@ const routes = {
     if (u.disabled) presence.delete(u.id);   // drop them off "training now" at once
     // A device link made before the lock would otherwise still be waiting when it is lifted.
     if (u.disabled) dropDeviceLinks(db, u.id);
+    // Its MCP tokens too: refused while disabled anyway, they must not come back with an enable.
+    if (u.disabled) dropMcpTokens(db, u.id);
     saveDb();
     audit(req, u.disabled ? 'admin.user.disable' : 'admin.user.enable', { user: admin, target: u });
     json(res, 200, { ok: true, id: u.id, disabled: u.disabled });
@@ -2484,6 +2584,7 @@ const routes = {
     db.creds = (db.creds || []).filter(c => c.userId !== u.id);
     db.subs = (db.subs || []).filter(x => x.userId !== u.id);
     dropDeviceLinks(db, u.id);
+    dropMcpTokens(db, u.id);
     presence.delete(u.id);
     // The training history and any Coach credential of theirs, both outside db.json.
     try { fs.unlinkSync(stateFile(u.id)); } catch { /* already gone */ }

@@ -1,8 +1,15 @@
-/* opengym-mcp state — reads ./data/state-<uid>.json + db.json (read-only). Cached with an
-   fs.watch + mtime fallback so a session the api server just wrote is visible on the next
-   tool call without a restart. */
+/* opengym-mcp state — two sources, one shape.
+
+   Local mode (default): reads ./data/state-<uid>.json + db.json (read-only), for an MCP server
+   running on the same machine as the data. Cached with an fs.watch + mtime fallback so a session
+   the api server just wrote is visible on the next tool call without a restart.
+
+   Remote mode (GYMLY_URL set): fetches the profile from a Gymly server with a read-only MCP token
+   (remote.js). refresh() does the network part before each tool call; getState()/getUser() stay
+   synchronous, so the tools are the same code in both modes. */
 import fs from 'node:fs'
 import path from 'node:path'
+import { remoteConfig, createRemoteSource } from './remote.js'
 
 const DATA_DIR = process.env.OPENGYM_DATA || path.join(process.cwd(), 'data')
 
@@ -12,6 +19,9 @@ let _db = undefined
 let _uid = null
 let _watcher = null
 let _loadedMtime = 0    // mtimeMs we last read at — used to catch watcher omissions
+// Remote mode: the source (remote.js), and the defaults-merged copy of what it last fetched.
+let _remote = null
+let _remoteMerged = { from: undefined, value: undefined }
 
 // null means one thing only: the file is not there (an account that never synced from a device).
 // Every other failure — no permission on the mount, a truncated or corrupt file — is a real fault,
@@ -81,8 +91,53 @@ function ambiguousUid(ids) {
   return err
 }
 
+// Which mode, decided once from the environment. A GYMLY_URL configuration that is wrong throws —
+// at startup and again on every tool call, never falling back to local mode: an operator who
+// asked for a remote profile must not be answered from whatever ./data happens to be nearby.
+let _modeDecided = false
+let _configError = null
+function decideMode() {
+  if (_configError) throw _configError
+  if (_modeDecided) return
+  _modeDecided = true
+  try {
+    const cfg = remoteConfig()
+    if (cfg) _remote = createRemoteSource(cfg)
+  } catch (e) {
+    _configError = e
+    throw e
+  }
+}
+
+export const isRemote = () => { decideMode(); return !!_remote }
+export const remoteHost = () => (_remote ? _remote.describe() : null)
+
+// Remote mode: fetch (or revalidate) before a tool runs. A no-op in local mode. Throws a coded
+// error (remote.js) that the tool call reports as its result.
+export async function refresh(opts) {
+  decideMode()
+  if (_remote) await _remote.refresh(opts)
+}
+
+// Test-only: answer from a given remote source (createRemoteSource with a stub fetch).
+export function _useRemoteForTests(source) {
+  _modeDecided = true
+  _configError = null
+  _remote = source
+  _remoteMerged = { from: undefined, value: undefined }
+  _uid = null
+}
+
+function remoteNotLoaded() {
+  const err = new Error('the profile has not been fetched from Gymly yet')
+  err.code = 'NETWORK'
+  return err
+}
+
 // Idempotent. Picks the uid, loads db.json, attaches the watcher, primes state.
 export function init() {
+  decideMode()
+  if (_remote) return
   if (_uid !== null) return
   if (!fs.existsSync(DATA_DIR)) throw new Error(`OPENGYM_DATA dir does not exist: ${DATA_DIR}`)
   _uid = resolveUid()
@@ -115,6 +170,12 @@ export function init() {
 // Returns the state object, or null for a fresh account that never signed in on a device.
 export function getState() {
   init()
+  if (_remote) {
+    if (!_remote.loaded) throw remoteNotLoaded()
+    const raw = _remote.state
+    if (_remoteMerged.from !== raw) _remoteMerged = { from: raw, value: raw ? Object.assign({}, defaultsShape(), raw) : null }
+    return _remoteMerged.value
+  }
   const file = stateFile(_uid)
   // Re-read if the file's mtime changed since our last load — covers watcher omissions and
   // platforms with no fs.watch.
@@ -139,6 +200,10 @@ export function getState() {
 // Returns the user record (id + name). No passkey material, no VAPID keys, no push subs.
 export function getUser() {
   init()
+  if (_remote) {
+    if (!_remote.loaded) throw remoteNotLoaded()
+    return { ..._remote.user }
+  }
   const u = _db.users.find(x => x.id === _uid) || { id: _uid, name: 'Profile', created: null }
   return { id: u.id, name: u.name, created: u.created || null }
 }
@@ -147,6 +212,9 @@ export const dataDir = () => DATA_DIR
 
 // Test-only: work against a passed-in state, not the disk.
 export function _seedStateForTests(state) {
+  _modeDecided = true
+  _configError = null
+  _remote = null
   _uid = 'test-uid'
   _db = { users: [{ id: _uid, name: 'Test', created: '2026-07-26T00:00:00.000Z' }], creds: [], subs: [], invites: [] }
   _state = state

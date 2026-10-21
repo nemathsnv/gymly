@@ -1403,6 +1403,21 @@ export const PT_BR_OVERRIDES = {
   'Gentle, for headphones or a quiet room.': 'Suave, para fones de ouvido ou um lugar silencioso.',
   'Fewer than two workouts in this period. Pick a longer one.': 'Menos de dois treinos neste período. Escolha um mais longo.',
   'Releases are checked on GitHub. The download is verified against its checksum before the installer opens.': 'As versões são verificadas no GitHub. O download é conferido pela soma de verificação antes de abrir o instalador.',
+  // --- AI assistant access (MCP tokens) ---
+  'AI assistant access': 'Acesso para assistentes de IA',
+  'Let an AI assistant such as Claude read your training data.': 'Deixe um assistente de IA como o Claude ler seus dados de treino.',
+  'A token lets an AI assistant read this profile’s routines, workouts and progress over MCP. It cannot change anything, and it expires after 90 days. Signing out everywhere revokes every token.': 'Um token permite que um assistente de IA leia as rotinas, os treinos e o progresso deste perfil via MCP. Ele não pode alterar nada e expira depois de 90 dias. Sair de todos os dispositivos revoga todos os tokens.',
+  'Name, e.g. Claude Code': 'Nome, por ex. Claude Code',
+  'Create token': 'Criar token',
+  'Copy this token now: it is shown only once. Keep it in a file only you can read.': 'Copie este token agora: ele só aparece uma vez. Guarde-o em um arquivo que só você pode ler.',
+  'Copy token': 'Copiar token',
+  'Revoke this token?': 'Revogar este token?',
+  'Anything that uses it loses access immediately.': 'Tudo o que o usa perde o acesso na hora.',
+  'Revoke': 'Revogar',
+  'Expires {0}': 'Expira em {0}',
+  'Token revoked': 'Token revogado',
+  'Setup guide': 'Guia de configuração',
+  'No tokens yet.': 'Nenhum token ainda.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }
