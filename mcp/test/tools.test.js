@@ -12,6 +12,9 @@ import { bestSetOf } from '../../frontend/src/lib/onerm.js'
 // Re-stated here so the assertions stand alone without reaching into lib internals to learn
 // the demo state's exact values.
 const FAKE_TODAY_ISO = '2026-07-27'                         // Monday — Push Day is scheduled
+// Local noon, not 12:00Z: the seed reads the local clock (it logs today's session once it's
+// evening), so a UTC noon is 19:00 in Bangkok and already tomorrow in Kiritimati.
+const fakeNow = () => new Date(FAKE_TODAY_ISO + 'T12:00:00')
 const GOAL_WEIGHT = 77
 // Re-pinned against the v1.2.4 seed, which moved when the demo learned about bodyweight work
 // and effort. Hand-checked rather than copied off a failing run: 18412.5 is the sum of w×r
@@ -40,7 +43,7 @@ function freshState() {
 // Pin "today" before building state so dayPlan/week alignment matches the assertions below.
 // `toFake: ['Date']` only — keeps fs.watch and the rest of the event loop real.
 beforeAll(() => {
-  vi.useFakeTimers({ now: new Date(FAKE_TODAY_ISO + 'T12:00:00Z'), toFake: ['Date'] })
+  vi.useFakeTimers({ now: fakeNow(), toFake: ['Date'] })
   S = freshState()
   _seedStateForTests(S)
 })
@@ -267,7 +270,7 @@ describe('get_week_plan', () => {
     expect(after.today_routine_id).toBeNull()
     expect(after.today_routine_name).toBeNull()
     // The override is surfaced on the matching weekday entry.
-    const todayWd = new Date(FAKE_TODAY_ISO + 'T12:00:00Z').getDay()
+    const todayWd = fakeNow().getDay()
     expect(after.weekdays.find(d => d.weekday === todayWd).override_for_today_or_null).toBe('rest')
   })
 
@@ -892,7 +895,7 @@ describe('muscle_balance', () => {
   describe('the reported cutoff is a local date, like every other date in this API', () => {
     const TZ = process.env.TZ
     beforeAll(() => { process.env.TZ = 'Asia/Tokyo'; vi.setSystemTime(new Date('2026-07-27T08:00:00')) })
-    afterAll(() => { process.env.TZ = TZ; vi.setSystemTime(new Date(FAKE_TODAY_ISO + 'T12:00:00Z')) })
+    afterAll(() => { process.env.TZ = TZ; vi.setSystemTime(fakeNow()) })
 
     // Workouts imported without a clock (no w.start) fall back to their date at local noon, so
     // they are the probe for which calendar dates the window really accepts.
@@ -961,7 +964,7 @@ describe('shared: no-state fallback', () => {
 // beats the confirmed working weight, which beats the routine's own number — because getting
 // it backwards is how a coach ends up telling someone to squat a weight the app never shows.
 describe('preview_session', () => {
-  const WD = new Date(FAKE_TODAY_ISO + 'T12:00:00Z').getDay()
+  const WD = fakeNow().getDay()
 
   // One routine, one exercise, scheduled for the pinned "today". Nothing from the demo seed,
   // so the arithmetic below is checkable by hand.
