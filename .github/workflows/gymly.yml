@@ -118,4 +118,12 @@ jobs:
           cd release
           sha256sum -c images.sha256
           digest=$(cut -d ' ' -f 1 images.sha256)
-          ssh -i ~/.ssh/gymly -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "$DEPLOY_USER@$DEPLOY_HOST" "deploy $REVISION $digest" < images.tar.gz
+          for attempt in 1 2 3; do
+            status=0
+            ssh -i ~/.ssh/gymly -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "$DEPLOY_USER@$DEPLOY_HOST" "deploy $REVISION $digest" < images.tar.gz || status=$?
+            if [ "$status" -eq 0 ]; then break; fi
+            # Retry transport failures only. Application/validation failures need inspection.
+            if [ "$status" -ne 255 ] || [ "$attempt" -eq 3 ]; then exit "$status"; fi
+            echo "SSH transport failed; retrying in 10 seconds ($attempt/3)."
+            sleep 10
+          done

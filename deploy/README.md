@@ -76,6 +76,8 @@ The server keeps prior image tags, before-update data archives and failed-releas
 No global Docker pruning or automatic backup deletion is performed. The receiver stops
 before deployment if less than 3 GiB is free; review old Gymly backups/images deliberately.
 An image transfer failure happens before maintenance and leaves the current app running.
+The workflow retries SSH transport failures up to three times; application failures stop
+for inspection instead of repeatedly restarting the app.
 
 Deployment configuration changes in this directory need a reviewed bootstrap update on the
 server. A normal `main` push updates application images automatically; it cannot replace
