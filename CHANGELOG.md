@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Connect an AI assistant to your training data.** Settings → Account → **AI assistant access**
+  makes a read-only token for Claude Code, Claude Desktop, Cursor or another MCP client. The
+  assistant can read your routines, workouts, body weight, 1RMs and muscle balance, and change
+  nothing. Tokens expire after 90 days, can be revoked one by one, and all stop with "Sign out
+  everywhere". Setup: [docs/MCP.md](docs/MCP.md).
+
 ## v1.4.1 (2026-10-10)
 
 Bug fixes for v1.4.0, mostly the things you told us about on Discord and GitHub.

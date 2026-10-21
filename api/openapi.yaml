@@ -141,6 +141,11 @@ tags:
       links, which let another device of the same person add a passkey of its own.
   - name: data
     description: Per-user state sync (the whole app state as one JSON blob)
+  - name: mcp
+    description: >-
+      Read-only access for an MCP client (an AI assistant such as Claude Code) to the token
+      owner's own training data. The owner makes and revokes tokens with a session; the MCP
+      route takes only an MCP token (`mcpToken`), and an MCP token is accepted nowhere else.
   - name: push
     description: Web Push (VAPID) subscriptions, rest-timer and test pushes
   - name: activity
@@ -1409,6 +1414,181 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: "credential already registered", code: "credential-exists" }
         '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /api/account/mcp-tokens:
+    get:
+      tags: [mcp]
+      operationId: listMcpTokens
+      summary: This profile's MCP tokens
+      description: >-
+        Name, scope, dates and the token's last four characters (`hint`). Never the token,
+        never its hash. Expired tokens are dropped from the list.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The list, newest first, and how many a profile may hold.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tokens, max]
+                properties:
+                  tokens: { type: array, items: { $ref: '#/components/schemas/McpToken' } }
+                  max: { type: integer, example: 10 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [mcp]
+      operationId: createMcpToken
+      summary: Make a read-only MCP token
+      description: |
+        Answers with the token once; only a SHA-256 of it is stored. Scope `read`: it opens
+        `GET /api/mcp/v1/state` for this profile and nothing else. It stops working when it
+        expires, when it is revoked, and when the profile's sessions end — "sign out
+        everywhere", a new password, an admin's password reset, a disable or a delete.
+        Audited as `auth.mcp.create` with the token's name. A request whose session ends
+        (sign-out everywhere, disable, password change) while its body is still arriving gets
+        401 and no token. Control, bidi and line-separator characters are removed from `name`.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 60, description: 'What it is for. Defaults to "MCP client".' }
+                days: { type: integer, minimum: 1, maximum: 365, default: 90, description: Days until it expires. }
+      responses:
+        '201':
+          description: Made. `token` is shown here and nowhere else, ever.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/McpToken'
+                  - type: object
+                    required: [token]
+                    properties:
+                      token: { type: string, pattern: '^gymly_mcp_[A-Za-z0-9_-]{43}$' }
+        '400':
+          description: '`name` is not text or too long (`mcp-token-name`), or `days` is out of range (`mcp-token-days`).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: The profile already holds as many tokens as it may (`mcp-token-limit`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many token requests from this address (shares the sign-in burst budget, 60 a minute).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [mcp]
+      operationId: revokeMcpToken
+      summary: Revoke one MCP token
+      description: >-
+        Takes effect on the token's next request. Another profile's token id answers 404,
+        exactly like an id that never existed. Audited as `auth.mcp.revoke`.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: The token's `id` from the list.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Revoked. The list as it is now.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  tokens: { type: array, items: { $ref: '#/components/schemas/McpToken' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: No token of this profile has that id (`mcp-token-unknown`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many token requests from this address.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/mcp/v1/state:
+    get:
+      tags: [mcp]
+      operationId: getMcpState
+      summary: The token owner's training data, for an MCP client
+      description: |
+        The profile document of the token's owner — no parameter picks a profile. Fields an
+        assistant has no use for are withheld: gym membership cards (`gymCards`,
+        `lastGymCardId`), the AI Coach record (`coach`), `reminder`, `hints`, and the server's
+        own sync notes. `user` carries the id, name and creation date only.
+
+        Only `Authorization: Bearer gymly_mcp_…` is read: a session cookie or a session bearer
+        token is refused here, and a token in the query string is ignored. Counted per address
+        (120 a minute). Send the last `ETag` as `If-None-Match` to get a 304 while nothing
+        changed. A refused token is audited as `auth.mcp.fail`, at a capped rate.
+      security:
+        - mcpToken: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: The document. `state` is null for a profile that never synced.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, scope, rev, state]
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      created: { type: [string, 'null'] }
+                  scope: { type: string, enum: [read] }
+                  rev: { type: integer }
+                  state: { type: [object, 'null'] }
+        '304':
+          description: Unchanged since the `If-None-Match` revision.
+        '401':
+          description: No MCP token, or one that is wrong, expired or revoked (`mcp-token-invalid`).
+          headers:
+            WWW-Authenticate: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many requests from this address; `Retry-After` says for how long.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: The profile's document exists but cannot be read.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /api/data:
     get:
@@ -2972,6 +3152,12 @@ components:
         The same signed session token, carried as `Authorization: Bearer <token>` by
         the paired mobile app (obtained from `POST /api/pair/redeem`). Bearer requests
         skip the CSRF origin check; a browser never attaches this header on its own.
+    mcpToken:
+      type: http
+      scheme: bearer
+      description: >-
+        A read-only MCP token (`gymly_mcp_…`, from `POST /api/account/mcp-tokens`). Accepted
+        by `/api/mcp/v1/*` only; refused by every route that takes a session.
 
   responses:
     Unauthorized:
@@ -3099,6 +3285,17 @@ components:
           example: { error: "that code is wrong, used or expired", code: "link-invalid" }
 
   schemas:
+    McpToken:
+      type: object
+      required: [id, name, scope, created, exp, lastUsed, hint]
+      properties:
+        id: { type: string, description: Public id; revoke with it. }
+        name: { type: string }
+        scope: { type: string, enum: [read] }
+        created: { type: integer, description: Epoch ms. }
+        exp: { type: integer, description: Epoch ms. }
+        lastUsed: { type: [integer, 'null'], description: 'Epoch ms, noted at most every ten minutes.' }
+        hint: { type: string, description: The token's last four characters. }
     Error:
       type: object
       required: [error]

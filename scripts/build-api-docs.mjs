@@ -128,6 +128,7 @@ const TAGS = {
   password: { title: 'Password', side: 'Optional name &amp; password (PASSWORD_LOGIN)' },
   passkeys: { title: 'Passkeys', side: 'More passkeys &amp; device links' },
   data: { title: 'Data', side: 'State sync' },
+  mcp: { title: 'MCP', side: 'Read-only access for AI assistants' },
   push: { title: 'Push', side: 'Notifications &amp; rest timer' },
   activity: { title: 'Activity', side: 'Live presence' },
   media: { title: 'Media', side: 'Photos &amp; videos of your exercises &amp; workouts' },

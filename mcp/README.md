@@ -1,14 +1,20 @@
 # openGym MCP server
 
 A [Model Context Protocol](https://modelcontextprotocol.io) bridge that lets an external LLM
-application (Claude Desktop, Cursor, Cline, Continue, etc.) read your openGym profile —
-routines, workouts, body-weight log, estimated 1RMs, and muscle balance — directly from your
-self-hosted `./data` directory.
+application (Claude Code, Claude Desktop, Cursor, Cline, Continue, etc.) read your Gymly profile:
+routines, workouts, body-weight log, estimated 1RMs, and muscle balance.
 
-It is read-only, runs locally as a stdio process spawned by the LLM client, adds no new
-container, and requires no extra authentication. The LLM never sees passkeys, VAPID keys, or
-session secrets — it can only read the same `state-<uid>.json` files the openGym api already
-writes.
+It is read-only and runs locally as a stdio process spawned by the LLM client, with no new
+container. It has two modes:
+
+- **Remote mode** (`GYMLY_URL`): reads your profile from a Gymly server over HTTPS, with a
+  personal read-only token you make in **Settings → AI assistant access**. Use this when Gymly
+  runs on a server and your AI client on your laptop. **Setup guide: [docs/MCP.md](../docs/MCP.md).**
+- **Local mode** (default): reads the `./data` directory directly, for an MCP server on the same
+  machine as the data. It needs no authentication; the filesystem is the boundary.
+
+The LLM never sees passkeys, VAPID keys, or session secrets, and in remote mode it never sees
+gym membership cards or the AI Coach record either (the server withholds them).
 
 The numbers it answers with are computed by the **same pure functions the React UI uses**
 (`frontend/src/lib/*.js`) — `estimate1RM`, `loadOfWorkouts`, `effectiveRoutine`, etc. — so a
@@ -17,7 +23,9 @@ The numbers it answers with are computed by the **same pure functions the React 
 > Phase 1 of a multi-phase plan. Read-only today; long-lived token auth + write tools are
 > planned but not shipped yet. See **Roadmap** below.
 
-## Quick start
+## Quick start (local mode)
+
+Remote mode, against a Gymly server: follow [docs/MCP.md](../docs/MCP.md) instead.
 
 ### 1. Install
 
@@ -110,16 +118,27 @@ dependencies landed in `frontend/`, no public exports changed.
 - **One runtime dependency beyond the MCP SDK:** none. No database driver, no HTTP framework.
 - **No new container.** stdio transport is spawned by the LLM client; nothing to add to
   `docker-compose.yml`.
-- **No new auth.** The filesystem is the boundary — same as `docker compose` running on the
-  user's box. No passkey material, VAPID keys, or session secrets ever cross it.
-- **No telemetry, no network.** Reads `./data/*.json` and exits when the LLM client
-  disconnects.
+- **Local mode needs no auth.** The filesystem is the boundary, same as `docker compose`
+  running on the user's box. No passkey material, VAPID keys, or session secrets ever cross it.
+- **Remote mode uses its own credential.** A read-only, single-profile, expiring, revocable
+  token (`api/mcp-access.js`), stored server-side only as a hash. It is accepted by
+  `GET /api/mcp/v1/state` and refused by every other route. The client reads it from a 0600
+  file, sends it only over HTTPS, never follows a redirect, and never prints it (`src/remote.js`).
+- **No telemetry.** Local mode makes no network call at all; remote mode talks only to
+  `GYMLY_URL`. The process exits when the LLM client disconnects.
 
 ## Tests
 
 ```bash
 cd mcp && npm test
 ```
+
+The suite expects `TZ=UTC`, as CI sets it; a few date-sensitive cases in `tools.test.js` fail
+in timezones far from UTC. `remote.test.js` covers remote mode against a stub of the server's
+route: configuration refusals, token-file permissions, conditional fetches, revocation,
+redirects, and that no error or tool result carries the token. `stdio-remote.test.js` drives
+the real stdio server with the SDK's client, and, when `api/` has its dependencies installed,
+runs it against a real `api/server.js`, including revoking the token mid-session.
 
 58 cases seeding state from `frontend/src/lib/demoSeed.js` (the same deterministic fixture
 the public demo runs on). Pins JSON shape and the user-facing edge cases: rest-day override,
@@ -130,13 +149,14 @@ their own 92 tests in `frontend/src/lib/*.test.js`.
 
 ## Roadmap
 
-- **Done (Phase 1):** read-only stdio, 8 tools, direct `./data` access.
+- **Done (Phase 1):** read-only stdio, direct `./data` access.
 - **Done (Phase 1.5):** `preview_session` — the policy's next prescription, the opening set
   rows it produces, and which of plan / confirmed weight / history each number came from.
-- **Phase 2:** read+write over stdio. Requires a long-lived token auth path minted from the
-  admin dashboard (new `./data/tokens.json`) and a write-lock against the web UI's read-modify-
-  write of `state-<uid>.json`. Tools: `log_workout`, `add_bodyweight`, `edit_routine`,
-  `assign_weekday`, `override_day`.
+- **Done (Phase 1.6):** remote mode. Per-profile read-only tokens made in Settings,
+  `GET /api/mcp/v1/state`, HTTPS-only client.
+- **Phase 2:** proposals, not writes: the assistant files a change list, and the owner accepts
+  it in Gymly through the AI Coach's review and apply pipeline. Design and remaining steps:
+  [docs/dev/MCP_WRITES.md](../docs/dev/MCP_WRITES.md).
 - **Phase 3:** Streamable HTTP transport, opt-in 4th container in `docker-compose.yml`. Same
   tool implementations, second transport — the MCP SDK supports both behind one tool registration.
 

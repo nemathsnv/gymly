@@ -18,8 +18,9 @@ api/       backend — server.js (Node, no framework), deps: @simplewebauthn/ser
            coach/ is the optional AI coach; openapi.yaml documents every route.
 web/       multi-stage Dockerfile (builds frontend → nginx) + nginx.conf.template (serves app, proxies /api).
 mcp/       optional MCP server — read-only stdio bridge exposing a user's workouts/1RM/muscle
-           balance to LLM clients (Claude Desktop, Cursor…). Not part of the Docker build; only
-           runs when an LLM client spawns it.
+           balance to LLM clients (Claude Code, Claude Desktop, Cursor…), from ./data (local
+           mode) or from a Gymly server with a read-only MCP token (remote mode, docs/MCP.md).
+           Not part of the Docker build; only runs when an LLM client spawns it.
 media/     exercise img/gif, gitignored, fetched at runtime by the `media` compose service.
 website/   static project site (plain HTML/CSS/JS), deployed separately.
 kubernetes/ example manifests (docs/SELF_HOSTING_KUBERNETES.md).
@@ -110,11 +111,14 @@ auto-generated into `data/vapid.json`) drives rest-timer-over and day-reminder n
 ### MCP server (`mcp/src`)
 
 Read-only stdio MCP bridge (`@modelcontextprotocol/sdk`) that lets an LLM client read a single
-user's routines/workouts/body-weight/1RM/muscle-balance directly from the same `DATA_DIR` the API
-writes to — no network call, no extra container. `state.js` loads/derives the data, `tools.js`
-defines the exposed MCP tools (zod-validated schemas), `labels.js` maps internal keys to
-human-readable labels, `index.js` wires it together. See `mcp/README.md` for the client-config
-side (Claude Desktop / Cursor).
+user's routines/workouts/body-weight/1RM/muscle-balance. Local mode reads the same `DATA_DIR`
+the API writes to; remote mode (`GYMLY_URL`, `remote.js`) fetches `GET /api/mcp/v1/state` with
+a read-only MCP token. `state.js` loads/derives the data, `tools.js` defines the exposed MCP
+tools (zod-validated schemas), `labels.js` maps internal keys to human-readable labels,
+`index.js` wires it together. Tokens live server-side in `api/mcp-access.js` (hashed, scope
+`read`, refused by `sessionOf`). They are made and revoked in Settings
+(`components/McpTokens.jsx`). Writes are designed, not built: `docs/dev/MCP_WRITES.md`. User
+setup: `docs/MCP.md`.
 
 ### Passkeys and self-hosting constraints
 

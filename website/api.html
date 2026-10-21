@@ -218,6 +218,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <a class="side-link" href="#password"><b>Password</b><span>Optional name &amp; password (PASSWORD_LOGIN)</span></a>
   <a class="side-link" href="#passkeys"><b>Passkeys</b><span>More passkeys &amp; device links</span></a>
   <a class="side-link" href="#data"><b>Data</b><span>State sync</span></a>
+  <a class="side-link" href="#mcp"><b>MCP</b><span>Read-only access for AI assistants</span></a>
   <a class="side-link" href="#push"><b>Push</b><span>Notifications &amp; rest timer</span></a>
   <a class="side-link" href="#activity"><b>Activity</b><span>Live presence</span></a>
   <a class="side-link" href="#media"><b>Media</b><span>Photos &amp; videos of your exercises &amp; workouts</span></a>
@@ -245,7 +246,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>69 endpoints</span>
+    <span>73 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -1563,6 +1564,173 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+  </div>
+</section>
+
+<section class="api-sec" id="mcp">
+  <h2>MCP</h2>
+  <p class="sub">Read-only access for an MCP client (an AI assistant such as Claude Code) to the token owner's own training data. The owner makes and revokes tokens with a session; the MCP route takes only an MCP token (<code>mcpToken</code>), and an MCP token is accepted nowhere else.</p>
+  <div class="eps">
+
+<details class="ep" id="op-listMcpTokens">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/account/mcp-tokens</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">This profile's MCP tokens</span>
+  </summary>
+  <div class="ep-body">
+<p>Name, scope, dates and the token's last four characters (<code>hint</code>). Never the token, never its hash. Expired tokens are dropped from the list.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The list, newest first, and how many a profile may hold.<span class="r-sig">{ tokens: <a href="#schema-McpToken">McpToken</a>[], max: integer }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-createMcpToken">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/account/mcp-tokens</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Make a read-only MCP token</span>
+  </summary>
+  <div class="ep-body">
+<p>Answers with the token once; only a SHA-256 of it is stored. Scope <code>read</code>: it opens <code>GET /api/mcp/v1/state</code> for this profile and nothing else. It stops working when it expires, when it is revoked, and when the profile's sessions end — &quot;sign out everywhere&quot;, a new password, an admin's password reset, a disable or a delete. Audited as <code>auth.mcp.create</code> with the token's name. A request whose session ends (sign-out everywhere, disable, password change) while its body is still arriving gets 401 and no token. Control, bidi and line-separator characters are removed from <code>name</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">name</span>
+    <span class="p-type">string <span class="p-hint">(&le; 60 chars)</span></span>
+    <span class="p-desc">What it is for. Defaults to &quot;MCP client&quot;.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">days</span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;365, default 90)</span></span>
+    <span class="p-desc">Days until it expires.</span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">201</span>
+    <span class="p-desc">Made. <code>token</code> is shown here and nowhere else, ever.<span class="r-sig">object</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc"><code>name</code> is not text or too long (<code>mcp-token-name</code>), or <code>days</code> is out of range (<code>mcp-token-days</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">The profile already holds as many tokens as it may (<code>mcp-token-limit</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many token requests from this address (shares the sign-in burst budget, 60 a minute).</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-revokeMcpToken">
+  <summary>
+    <span class="m delete">DELETE</span>
+    <span class="ep-path"><code>/api/account/mcp-tokens</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Revoke one MCP token</span>
+  </summary>
+  <div class="ep-body">
+<p>Takes effect on the token's next request. Another profile's token id answers 404, exactly like an id that never existed. Audited as <code>auth.mcp.revoke</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">The token's <code>id</code> from the list.</span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Revoked. The list as it is now.<span class="r-sig">{ ok: always true, tokens: <a href="#schema-McpToken">McpToken</a>[] }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">No token of this profile has that id (<code>mcp-token-unknown</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many token requests from this address.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getMcpState">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/mcp/v1/state</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">The token owner's training data, for an MCP client</span>
+  </summary>
+  <div class="ep-body">
+<p>The profile document of the token's owner — no parameter picks a profile. Fields an assistant has no use for are withheld: gym membership cards (<code>gymCards</code>, <code>lastGymCardId</code>), the AI Coach record (<code>coach</code>), <code>reminder</code>, <code>hints</code>, and the server's own sync notes. <code>user</code> carries the id, name and creation date only.</p>
+<p>Only <code>Authorization: Bearer gymly_mcp_…</code> is read: a session cookie or a session bearer token is refused here, and a token in the query string is ignored. Counted per address (120 a minute). Send the last <code>ETag</code> as <code>If-None-Match</code> to get a 304 while nothing changed. A refused token is audited as <code>auth.mcp.fail</code>, at a capped rate.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">If-None-Match <span class="p-hint">(header)</span></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The document. <code>state</code> is null for a profile that never synced.<span class="r-sig">{ user: object, scope: &quot;read&quot;, rev: integer, state: object | null } &middot; sets <code>ETag</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s3">304</span>
+    <span class="p-desc">Unchanged since the <code>If-None-Match</code> revision.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No MCP token, or one that is wrong, expired or revoked (<code>mcp-token-invalid</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many requests from this address; <code>Retry-After</code> says for how long.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">The profile's document exists but cannot be read.</span>
   </div>
     </div>
   </div>
@@ -3165,6 +3333,54 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
        is <b>representative, not enforced</b>: the server stores it opaquely and the app
        grows it over time.</p>
     <div class="eps">
+
+<details class="ep sch" id="schema-McpToken">
+  <summary>
+    <span class="sch-name"><code>McpToken</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum"></span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Public id; revoke with it.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">name<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">scope<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;read&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">created<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer</span>
+    <span class="p-desc">Epoch ms.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">exp<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer</span>
+    <span class="p-desc">Epoch ms.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">lastUsed<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer | null</span>
+    <span class="p-desc">Epoch ms, noted at most every ten minutes.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">hint<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">The token's last four characters.</span>
+  </div>
+</div>
+  </div>
+</details>
 
 <details class="ep sch" id="schema-Error">
   <summary>
