@@ -46,7 +46,10 @@ services:
     volumes:
       - /opt/gymly/edge:/etc/nginx/conf.d:ro
     read_only: true
-    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    tmpfs:
+      - /var/cache/nginx:uid=101,gid=101,mode=0755
+      - /var/run:uid=101,gid=101,mode=0755
+      - /tmp:uid=101,gid=101,mode=1777
     mem_limit: 64m
     cpus: 0.25
     pids_limit: 32
