@@ -261,7 +261,7 @@ export async function printHtml(html, name) {
   await Print.printHtml({ html, name })
 }
 
-// "Auto-backup on changes" (Settings): a dated snapshot dropped into Documents/openGym/ —
+// "Auto-backup on changes" (Settings): a dated snapshot dropped into Documents/Gymly/ —
 // visible in Files (iOS) / a file manager (Android), unlike the private mirror nativeSave keeps
 // — so whatever the user points at that folder (a sync app, a manual copy) always has something
 // recent. One file per day; later triggers the same day just overwrite it.
@@ -272,7 +272,7 @@ export async function printHtml(html, name) {
 // The root is never pruned: a manual export saved there carries the same name, and nothing
 // tells it apart from an old automatic copy, so those stay for the person to clear (Import
 // backup still reads either kind).
-export const AUTO_BACKUP_DIR = 'openGym'
+export const AUTO_BACKUP_DIR = 'Gymly'
 export const AUTO_BACKUP_KEEP = 14
 // Only the exact names writeAutoBackup gives its files are ever pruned; anything else someone
 // keeps in the folder is theirs.
@@ -335,8 +335,8 @@ async function pruneAutoBackups({ Filesystem, Directory }, written) {
    and never in S: S syncs and exports, and a content:// address means nothing anywhere else.
 
    { uri, label }       the chosen folder, and its name as the picker showed it
-   { lost, lostLabel }  the folder stopped accepting copies; they go to Documents/openGym again
-   {}                   the default, Documents/openGym */
+   { lost, lostLabel }  the folder stopped accepting copies; they go to Documents/Gymly again
+   {}                   the default, Documents/Gymly */
 export const BACKUP_FOLDER_FILE = 'opengym-backup-folder.json'
 
 // The plugin proxy lives here and is never handed through a promise: a Capacitor plugin proxy
@@ -383,7 +383,7 @@ export async function chooseBackupFolder() {
   return next
 }
 
-/** Back to Documents/openGym; also how the warning about a lost folder is put away. */
+/** Back to Documents/Gymly; also how the warning about a lost folder is put away. */
 export async function resetBackupFolder() {
   const before = await backupFolder()
   if (before.uri) await releaseFolder(before.uri)

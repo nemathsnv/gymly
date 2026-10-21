@@ -40,7 +40,7 @@ const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
 const RP_ID = process.env.RP_ID || 'localhost';
 const ORIGIN = process.env.ORIGIN || 'http://localhost:8080';
-const RP_NAME = process.env.RP_NAME || 'openGym';
+const RP_NAME = process.env.RP_NAME || 'Gymly';
 // Admin dashboard (issue): admins are matched by uid (or the admin flag FIRST_USER_ADMIN sets);
 // INVITE_ONLY gates new signups behind a code the admin generates. Off by default, so a fresh
 // self-hosted instance stays open.

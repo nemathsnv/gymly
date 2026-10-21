@@ -4,7 +4,7 @@
 //
 // Write-only, and only on request: the user turns it on in Settings, on each phone. Every record
 // carries a client id of its own (a workout's id, a weigh-in's day), so writing it again replaces
-// it instead of adding a second one, and anything openGym wrote can be found and removed again.
+// it instead of adding a second one, and anything Gymly wrote can be found and removed again.
 import { workoutText } from './workout-text.js'
 import { modeForEntry, hasCompletedWork } from './workout-model.js'
 import { isoOf } from './format.js'
@@ -109,7 +109,7 @@ export function recordKey(rec) {
 /**
  * What a sync has to do, given the records now and `written`, what this phone wrote before
  * ({ [id]: { k: 'session' | 'weight', h: recordKey } }). New and changed records are written,
- * records that are gone from openGym (a deleted workout, a removed weigh-in) are removed.
+ * records that are gone from Gymly (a deleted workout, a removed weigh-in) are removed.
  * Returns { sessions, weights, remove: { sessions: [id], weights: [id] }, written } — `written`
  * being what the phone has written once the sync went through.
  */
@@ -135,7 +135,7 @@ export function planSync({ sessions, weights }, written = {}) {
   return out
 }
 
-/** Every record this phone wrote, by type — what "remove what openGym wrote" takes away. */
+/** Every record this phone wrote, by type — what "remove what Gymly wrote" takes away. */
 export function writtenIds(written = {}) {
   const out = { sessions: [], weights: [] }
   for (const [id, was] of Object.entries(written || {})) {

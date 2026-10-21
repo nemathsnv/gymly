@@ -73,6 +73,7 @@ const swStamp = {
     if (!existsSync(html) || !existsSync(sw)) return
     const stamp = createHash('sha256').update(readFileSync(html)).digest('hex').slice(0, 10)
     writeFileSync(sw, stampSw(readFileSync(sw, 'utf8'), { stamp, lazy }))
+    writeFileSync(join(outDir, 'version.json'), JSON.stringify({ name: 'Gymly', version: appVersion, revision: process.env.APP_BUILD || 'dev' }) + '\n')
   }
 }
 

@@ -1,0 +1,121 @@
+name: Gymly checks and deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+env:
+  TZ: UTC
+permissions:
+  contents: read
+concurrency:
+  group: gymly-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [frontend, api, mcp]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - name: Verify deployment recovery paths
+        if: matrix.project == 'api'
+        run: python3 -m unittest discover -s deploy -p 'test_*.py' -v
+      - run: npm ci --ignore-scripts --omit=optional
+        if: matrix.project == 'api'
+        working-directory: api
+      - run: npm ci --ignore-scripts
+        if: matrix.project != 'api'
+        working-directory: ${{ matrix.project }}
+      - run: npm test
+        working-directory: ${{ matrix.project }}
+      - run: npm run build && node scripts/check-locales.mjs
+        if: matrix.project == 'frontend'
+        working-directory: frontend
+      - run: npm run check:node-loadable
+        if: matrix.project == 'mcp'
+        working-directory: mcp
+  build:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the exact revision
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          docker build --target default --build-arg VCS_REF="$REVISION" -t "gymly-api:$REVISION" ./api
+          docker build --build-arg VCS_REF="$REVISION" --build-arg APP_BUILD="$REVISION" -f web/Dockerfile -t "gymly-web:$REVISION" .
+      - name: Boot and verify the built images
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          docker network create gymly-smoke
+          trap 'docker rm -f gymly-smoke-web gymly-smoke-api >/dev/null 2>&1 || true; docker network rm gymly-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name gymly-smoke-api --network gymly-smoke --network-alias api -e RP_NAME=Gymly "gymly-api:$REVISION"
+          docker run -d --name gymly-smoke-web --network gymly-smoke -e BACKEND=api -e NGINX_PORT=8080 -p 127.0.0.1:8090:8080 "gymly-web:$REVISION"
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8090/api/health > /tmp/gymly-health.json && break
+            sleep 2
+          done
+          jq -e '.ok == true and .writable == true' /tmp/gymly-health.json
+          curl -fsS http://127.0.0.1:8090/ | grep -q '<title>Gymly</title>'
+          curl -fsS http://127.0.0.1:8090/version.json | jq -e --arg sha "$REVISION" '.revision == $sha and .name == "Gymly"'
+      - name: Package release
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          mkdir release
+          docker save "gymly-api:$REVISION" "gymly-web:$REVISION" | gzip -1 > release/images.tar.gz
+          cd release
+          sha256sum images.tar.gz > images.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gymly-${{ github.sha }}
+          path: release/
+          retention-days: 7
+          compression-level: 0
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://gymly.churntech.com
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gymly-${{ github.sha }}
+          path: release
+      - name: Send verified release to KVM2
+        env:
+          DEPLOY_KEY: ${{ secrets.GYMLY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.GYMLY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.GYMLY_SSH_HOST }}
+          DEPLOY_USER: ${{ vars.GYMLY_SSH_USER }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/gymly
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/gymly' EXIT
+          cd release
+          sha256sum -c images.sha256
+          digest=$(cut -d ' ' -f 1 images.sha256)
+          ssh -i ~/.ssh/gymly -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "$DEPLOY_USER@$DEPLOY_HOST" "deploy $REVISION $digest" < images.tar.gz

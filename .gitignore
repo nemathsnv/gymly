@@ -30,3 +30,12 @@ frontend/bundle-size.json
 
 # Local planning notes
 docs/superpowers/plans/
+
+# Gymly deployment state and credentials
+coach-auth/
+*.pem
+*.key
+release/
+
+__pycache__/
+*.pyc

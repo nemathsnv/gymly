@@ -1,0 +1,55 @@
+name: gymly
+services:
+  api:
+    image: gymly-api:${GYMLY_RELEASE:?Set GYMLY_RELEASE to the full commit SHA}
+    pull_policy: never
+    restart: unless-stopped
+    env_file: /etc/gymly/gymly.env
+    environment:
+      PORT: "3000"
+      DATA_DIR: /data
+      TRUST_PROXY: "1"
+    volumes:
+      - /opt/gymly/data:/data
+    mem_limit: 384m
+    cpus: 0.75
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  web:
+    image: gymly-web:${GYMLY_RELEASE:?Set GYMLY_RELEASE to the full commit SHA}
+    pull_policy: never
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      NGINX_PORT: "8080"
+      BACKEND: api
+      PORT: "3000"
+      RESOLVER: 127.0.0.11
+      CF_CONNECTING_IP: $$http_cf_connecting_ip
+      BASE_PATH: ""
+      MEDIA_UPLOAD_MAX: 48m
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+  edge:
+    image: ${GYMLY_EDGE_IMAGE:?Bootstrap pins the edge image digest}
+    restart: unless-stopped
+    user: "101:101"
+    ports: ["127.0.0.1:8090:8080"]
+    volumes:
+      - /opt/gymly/edge:/etc/nginx/conf.d:ro
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 32
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
