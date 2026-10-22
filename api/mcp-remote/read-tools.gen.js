@@ -2,6 +2,16 @@
    SPDX-License-Identifier: AGPL-3.0-or-later */
 import { z } from "zod";
 
+//#region mcp/src/private-keys.js
+const PRIVATE_KEYS = Object.freeze(["habitLog"]);
+function dropPrivate(S) {
+	if (!S || typeof S !== "object" || Array.isArray(S)) return S;
+	const out = { ...S };
+	for (const k of PRIVATE_KEYS) delete out[k];
+	return out;
+}
+
+//#endregion
 //#region mcp/src/hosted-state.js
 let _current = null;
 function defaultsShape() {
@@ -32,7 +42,7 @@ function defaultsShape() {
 function withState(S, user, fn) {
 	if (_current) throw new Error("withState is not re-entrant");
 	_current = {
-		state: S ? Object.assign({}, defaultsShape(), S) : null,
+		state: S ? Object.assign({}, defaultsShape(), dropPrivate(S)) : null,
 		user: {
 			id: user.id,
 			name: user.name,
@@ -92173,7 +92183,8 @@ const STAMPED_MAPS = [
 	"plates",
 	"dbLoad",
 	"dumbbells",
-	"dayNotes"
+	"dayNotes",
+	"habitLog"
 ];
 const RESET_MAPS = [
 	"exNotes",

@@ -39,6 +39,7 @@ const STATE_ONE = {
   bodyweight: [{ d: '2026-10-01', w: 80.4 }],
   gymCards: [{ id: 'card1', name: 'My gym', code: 'MEMBER-998877' }], lastGymCardId: 'card1',
   coach: { consent: { agreedAt: now, version: 1 }, pending: { summary: 'COACH-PRIVATE' } },
+  habitLog: { 'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', _ts: 5 } },
   reminder: { on: true, time: '07:00', tz: 'Europe/Lisbon' }, hints: { swipeSets: true },
   _unstamped: { x: 1 }, _prior: { y: 2 }, _wids: ['wid-1', 'wid-2']
 };
@@ -110,9 +111,9 @@ test('a session makes a token; the token reads its owner\'s data and only that',
   assert.deepEqual(body.state.routines, STATE_ONE.routines);
   assert.deepEqual(body.state.workouts, STATE_ONE.workouts);
   assert.deepEqual(body.state.bodyweight, STATE_ONE.bodyweight);
-  for (const k of ['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', '_unstamped', '_prior', '_wids', '_wid']) assert.ok(!(k in body.state), k);
+  for (const k of ['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', 'habitLog', '_unstamped', '_prior', '_wids', '_wid']) assert.ok(!(k in body.state), k);
   const text = JSON.stringify(body);
-  for (const leak of ['MEMBER-998877', 'COACH-PRIVATE', 'one@example.test', 'scrypt', 'TWO-SECRET-ROUTINE', 'u_two', 'Europe/Lisbon']) {
+  for (const leak of ['MEMBER-998877', 'COACH-PRIVATE', 'HABIT-PRIVATE', 'one@example.test', 'scrypt', 'TWO-SECRET-ROUTINE', 'u_two', 'Europe/Lisbon']) {
     assert.ok(!text.includes(leak), `response leaks ${leak}`);
   }
 

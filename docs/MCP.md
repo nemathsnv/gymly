@@ -41,7 +41,7 @@ edited elsewhere is refused, not forced (edits to other routines do not get in t
 undo never throws away a later edit of the same routine. Routines are templates: changing "tomorrow's bench press"
 changes that routine from tomorrow on, and the assistant says so.
 
-It cannot see or change your passkeys, password, gym cards, AI Coach settings or account, and
+It cannot see or change your passkeys, password, gym cards, habit log, AI Coach settings or account, and
 cannot delete logged workouts (other than one it logged itself, by undo).
 
 ### Connect ChatGPT
@@ -145,7 +145,7 @@ The token:
 - expires after 90 days, and can be revoked at any time in Settings;
 - stops working the moment you use **Sign out everywhere**, set a new password, or an admin
   disables or deletes the account;
-- is never sent your gym membership cards, your AI Coach record, or your reminder settings.
+- is never sent your gym membership cards, your habit log (alcohol-free days, drink counts and notes), your AI Coach record, or your reminder settings.
 
 ### Set it up (Claude Code)
 

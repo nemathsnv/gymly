@@ -46,6 +46,7 @@ Design notes for specific features, kept next to the code they describe:
 | Note | Covers |
 |---|---|
 | [Set types](dev/SET_TYPES.md) | Drop sets and rest-pause: the set-row model and how totals are counted |
+| [Daily habits](dev/HABITS.md) | The alcohol-free calendar: the day-log data model, streak rules, time-zone handling, and why it is withheld from MCP |
 | [Workout views](dev/LIST_VIEW.md) | The cards, list and compact layouts of the workout screen |
 | [Combine routines](dev/COMBINE_ROUTINES.md) | Spec for running more than one routine in a session |
 

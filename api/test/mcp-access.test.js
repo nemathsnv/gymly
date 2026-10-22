@@ -131,6 +131,7 @@ test('the MCP view keeps the training record and withholds what an assistant has
     gymCards: [{ id: 'c', code: '4006381333931', name: 'Gym' }], lastGymCardId: 'c',
     coach: { consent: { agreedAt: 'x' }, pending: { changes: [] } },
     reminder: { on: true, time: '07:00', tz: 'Europe/Lisbon' }, hints: { swipeSets: true },
+    habitLog: { 'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', _ts: 5 } },
     _rev: 4, _ts: 9, _wid: 'w', _wids: ['w'], _unstamped: { a: 1 }, _prior: { b: 2 }
   };
   const v = mcpView(S);
@@ -139,8 +140,9 @@ test('the MCP view keeps the training record and withholds what an assistant has
   assert.deepEqual(v.workouts, S.workouts);
   assert.equal(v.unit, 'kg');
   assert.ok(!JSON.stringify(v).includes('4006381333931'));
+  assert.ok(!JSON.stringify(v).includes('HABIT-PRIVATE'), 'the habit log is withheld');
   assert.ok(S.gymCards, 'the stored document is not touched');
   for (const bad of [null, undefined, [], 'x', 3]) assert.equal(mcpView(bad), null);
   // The list itself, so a change to it is a deliberate one.
-  assert.deepEqual([...MCP_WITHHELD].sort(), ['_prior', '_unstamped', '_wid', '_wids', 'coach', 'gymCards', 'hints', 'lastGymCardId', 'reminder']);
+  assert.deepEqual([...MCP_WITHHELD].sort(), ['_prior', '_unstamped', '_wid', '_wids', 'coach', 'gymCards', 'habitLog', 'hints', 'lastGymCardId', 'reminder']);
 });
