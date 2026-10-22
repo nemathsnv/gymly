@@ -41,11 +41,26 @@ in UTC, so daylight-saving changes neither add nor drop a day. "Today" is the de
 (`todayISO`). `tz` is only the zone of the device that last wrote the entry; the day sheet shows it
 when it differs from the device's current zone.
 
+A screen that logs "today" reads it through `useToday()` (`lib/use-today.js`), which re-checks the
+clock every 30 s, on return to the foreground and on focus: a page left open past midnight, or
+carried into another zone, says the new date and writes to it. (Read once at render, it kept
+writing to yesterday.)
+
 Flying west can leave this device's today *behind* an entry another device already wrote. Such an
 entry is kept, not counted or drawn, and the Habits screen says so; it counts when its day arrives.
 Flying east and skipping a day leaves a gap, which breaks the streak: the log never fills it in.
 
 ## Sync, backup, reset
+
+Concurrent edits to the *same* day on two devices that had not seen each other settle on the
+later whole entry, the same on both (status, drinks and note travel together; nothing is mixed or
+corrupted). The earlier of two truly simultaneous edits is replaced, as with day notes. A device
+that edited after seeing the other's write always wins, even if its clock runs behind.
+
+**Mixed versions.** Only app builds that know `habitLog` merge it per entry. A device still
+running an older build (an iPhone PWA not yet relaunched after a deploy, or after a rollback)
+treats it as an ordinary setting and, when it merges, can overwrite newer entries with its older
+copy. After deploying, relaunch every installed copy before logging on another device.
 
 `habitLog` is one of the stamped maps (`STAMPED_MAPS` in `frontend/src/lib/sync-merge.js` and
 `api/sync-stamps.js`), the same mechanism as `dayNotes`: each entry carries its own `_ts`, so two

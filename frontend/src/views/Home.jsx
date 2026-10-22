@@ -10,6 +10,7 @@ import { isPaused } from '../lib/workout-clock.js'
 import LineChart from '../components/LineChart.jsx'
 import HabitButtons from '../components/HabitButtons.jsx'
 import { habitStats } from '../lib/habits.js'
+import { useToday } from '../lib/use-today.js'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
 import { queueOf, queueView, weekTally, pinState } from '../lib/queue.js'
@@ -98,7 +99,9 @@ export default function Home() {
   const { done: doneThisWeek, planned: plannedPerWeek } = weekTally(S, todayISO())
   const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: b.t || new Date(b.d).getTime(), y: b.w, d: b.d }))
 
-  const habitStreak = S.habitsOn !== false ? habitStats(S, 'alcohol', todayISO()).current : 0
+  // Kept current, so a Home left open past midnight logs the new day, not the one before.
+  const habitToday = useToday()
+  const habitStreak = S.habitsOn !== false ? habitStats(S, 'alcohol', habitToday).current : 0
   // today's session shown right under the week strip
   const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
   // A chip on the coach week's progress row starts that one routine, in any order. A session
@@ -209,7 +212,7 @@ export default function Home() {
         </div>
         <Icon name="chevronRight" className="chev" />
       </div>
-      <HabitButtons iso={todayISO()} />
+      <HabitButtons iso={habitToday} />
     </div>}
 
     {!S.routines.length && !S.active && (

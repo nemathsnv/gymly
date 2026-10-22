@@ -356,6 +356,29 @@ describe('syncing two devices', () => {
     expect(at).toBeGreaterThan(900)
   })
 
+  it('two devices editing the same day at once: one whole entry survives, the same on both, never a mix', () => {
+    // neither had seen the other's write: the phone sets a note, the desktop sets drinks
+    const at = { today: TODAY, tz: 'UTC' }
+    const seed = withEntry({}, 'alcohol', '2026-10-20', { status: 'drank' }, { ...at, now: 10 })
+    const phone = base({ _ts: 100, habitLog: withEntry(seed, 'alcohol', '2026-10-20', { note: 'wedding' }, { ...at, now: 50 }) })
+    const desk = base({ _ts: 90, habitLog: withEntry(seed, 'alcohol', '2026-10-20', { count: 4 }, { ...at, now: 60 }) })
+    const a = mergeStates(phone, desk).habitLog['alcohol|2026-10-20']
+    const b = mergeStates(desk, phone).habitLog['alcohol|2026-10-20']
+    expect(a).toEqual(b)                              // both devices settle on the same entry
+    expect(a).toEqual(desk.habitLog['alcohol|2026-10-20'])   // the later write, whole: status and drinks intact
+    expect(readEntry('alcohol', a)).toMatchObject({ status: 'drank', count: 4 })
+  })
+
+  it('an edit made after seeing the other device\'s write wins even from a clock that runs behind', () => {
+    const at = { today: TODAY, tz: 'UTC' }
+    const server = base({ _ts: 1000, habitLog: withEntry({}, 'alcohol', '2026-10-20', { status: 'drank' }, { ...at, now: 900 }) })
+    const mine = clone(server)
+    mine.habitLog = withEntry(mine.habitLog, 'alcohol', '2026-10-20', { status: 'free' }, { ...at, now: 5 })
+    mine._ts = stampChange(server, mine, 5)
+    expect(mergeStates(mine, server).habitLog['alcohol|2026-10-20'].s).toBe('free')
+    expect(mergeStates(server, mine).habitLog['alcohol|2026-10-20'].s).toBe('free')
+  })
+
   it('"reset everything" names the habit entries it wipes', () => {
     const before = base({ _ts: 1000, habitLog: entry('2026-10-20', 'free', 900) })
     expect(resetIdsOf(before).habitLog).toEqual(['alcohol|2026-10-20'])

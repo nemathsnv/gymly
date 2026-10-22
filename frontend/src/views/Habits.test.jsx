@@ -130,3 +130,13 @@ describe('Habits screen', () => {
     expect(page().textContent).toContain('never shared with AI assistants')
   })
 })
+
+describe('Habits screen robustness', () => {
+  it.each([['a string', 'oops'], ['an array', [1, 2]], ['null', null], ['entries that are not objects', { 'alcohol|2026-10-20': 'free', 'alcohol|nonsense': { s: 'free' }, 'alcohol|2026-02-30': { s: 'free', _ts: 1 }, 'smoking|2026-10-20': { s: 'free' } }]])(
+    'renders with a habit log that is %s, counting none of it', (_, habitLog) => {
+      useStore.setState({ S: { ...S(), habitLog } })
+      const host = page()
+      expect(host.querySelectorAll('.habit-cell.free')).toHaveLength(0)
+      expect(host.querySelector('.habit-stat .big').textContent).toContain('0')
+    })
+})

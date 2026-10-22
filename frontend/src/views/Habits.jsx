@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { todayISO, fmtDate, localTZ } from '../lib/format.js'
+import { fmtDate, localTZ } from '../lib/format.js'
+import { useToday } from '../lib/use-today.js'
 import { t } from '../lib/i18n.js'
 import { NOTE_MAX } from '../lib/history.js'
 import { HABITS, COUNT_MAX, entryOf, habitStats, weekly, canLog } from '../lib/habits.js'
@@ -81,7 +82,7 @@ export default function Habits() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const [range, setRange] = useState(30)
-  const today = todayISO()
+  const today = useToday()
   const st = useMemo(() => habitStats(S, HABIT, today), [S.habitLog, today])
   const rows = useMemo(() => weekly(S, HABIT, 12, today), [S.habitLog, today])
   const ent = entryOf(S, HABIT, today)
