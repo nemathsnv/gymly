@@ -465,3 +465,41 @@ test('transport limits: foreign Origin, oversized body, batches, malformed JSON'
   assert.equal((await h.fetch('/api/data', { headers: { Authorization: 'Bearer ' + at } })).status, 401);
   assert.equal((await h.fetch('/api/mcp/v1/state', { headers: { Authorization: 'Bearer ' + at } })).status, 401);
 });
+
+test('a device with unsynced edits merges with an assistant\'s change: both survive, as between two devices', async t => {
+  const { mergeStates, stampChange, stampRoutines } = await import('../../frontend/src/lib/sync-merge.js');
+  const h = await startServer(t);
+  const { tokens: { access_token: at } } = await connect(h);
+
+  // The phone pulls, then edits offline: a weigh-in, and a rename of the Legs routine.
+  const pulled = await (await h.fetch('/api/data', { headers: cookie('u_one') })).json();
+  const prev = structuredClone(pulled.state);
+  const local = structuredClone(pulled.state);
+  local.bodyweight = [...local.bodyweight, { d: '2026-10-20', w: 79.6, t: Date.now() }];
+  local.routines[1].name = 'Legs (phone)';
+  local.routines = stampRoutines(prev.routines, local.routines, Date.now());
+  local._ts = stampChange(prev, local, Date.now());
+
+  // Meanwhile the assistant changes Push on the server.
+  const pv = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r1', exercise_id: '0025', sets: 4, weight: 60 }] });
+  assert.ok(!(await h.call(at, 'apply_routine_changes', { preview_id: pv.structuredContent.preview_id })).isError);
+
+  // The phone's push over the revision it read is a conflict, as with another device...
+  const json = { ...cookie('u_one'), 'Content-Type': 'application/json' };
+  const first = await h.fetch('/api/data', { method: 'PUT', headers: json, body: JSON.stringify({ state: local, baseRev: pulled.rev, stamped: true }) });
+  assert.equal(first.status, 409);
+  const conflict = await first.json();
+  // ...it merges with the app's own merge and pushes again.
+  const merged = mergeStates(local, conflict.state);
+  const second = await h.fetch('/api/data', { method: 'PUT', headers: json, body: JSON.stringify({ state: merged, baseRev: conflict.rev, stamped: true }) });
+  assert.equal(second.status, 200, await second.clone().text());
+
+  const S = h.state('u_one');
+  assert.deepEqual(S.routines[0].ex[0], { ...S.routines[0].ex[0], id: '0025', sets: 4, weight: 60 }, 'the assistant\'s change survived the merge');
+  assert.equal(S.routines[1].name, 'Legs (phone)', 'the phone\'s edit survived too');
+  assert.ok(S.bodyweight.some(b => b.d === '2026-10-20' && b.w === 79.6));
+  // And the assistant reads the merged plan, and its undo is now refused rather than overwriting the phone's work.
+  const changes = await h.call(at, 'list_recent_changes');
+  const undo = await h.call(at, 'undo_change', { change_id: changes.structuredContent.changes[0].change_id });
+  assert.equal(undo.structuredContent.error, 'stale');
+});

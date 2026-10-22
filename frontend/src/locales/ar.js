@@ -2321,4 +2321,5 @@ export default {
   'It loses access immediately.': 'يفقد الوصول فورًا.',
   'Disconnected': 'تم الفصل',
   'No assistants connected yet.': 'لا يوجد مساعدون متصلون بعد.',
+  'Read-only tokens': 'رموز للقراءة فقط',
 }

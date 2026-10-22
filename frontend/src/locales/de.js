@@ -2286,4 +2286,5 @@ export default {
   'It loses access immediately.': 'Er verliert sofort den Zugriff.',
   'Disconnected': 'Getrennt',
   'No assistants connected yet.': 'Noch keine Assistenten verbunden.',
+  'Read-only tokens': 'Tokens nur zum Lesen',
 }

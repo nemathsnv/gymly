@@ -2266,4 +2266,5 @@ export default {
   'It loses access immediately.': '즉시 접근 권한을 잃습니다.',
   'Disconnected': '연결 해제됨',
   'No assistants connected yet.': '아직 연결된 어시스턴트가 없습니다.',
+  'Read-only tokens': '읽기 전용 토큰',
 }

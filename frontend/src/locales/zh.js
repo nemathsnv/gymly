@@ -2266,4 +2266,5 @@ export default {
   'It loses access immediately.': '它会立即失去访问权限。',
   'Disconnected': '已断开',
   'No assistants connected yet.': '还没有连接的助手。',
+  'Read-only tokens': '只读令牌',
 }

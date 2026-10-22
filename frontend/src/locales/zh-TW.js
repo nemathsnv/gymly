@@ -2259,4 +2259,5 @@ export default {
   'It loses access immediately.': '它會立即失去存取權。',
   'Disconnected': '已中斷連線',
   'No assistants connected yet.': '還沒有連接的助理。',
+  'Read-only tokens': '唯讀權杖',
 }

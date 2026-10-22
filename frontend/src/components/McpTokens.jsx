@@ -32,10 +32,12 @@ const meta = tk => [
 // Assistants connected through OAuth to the hosted endpoint (api/mcp-remote): listed and
 // disconnected here. Shown only when the instance lets this profile connect one (MCP_OAUTH_USERS);
 // elsewhere the sheet is what it always was.
-function Connections() {
+function Connections({ onShown }) {
   const [d, setD] = useState(null)            // { enabled, endpoint, connections }
   useEffect(() => { api('/api/account/mcp-connections').then(setD).catch(() => setD(null)) }, [])
-  if (!d || (!d.enabled && !d.connections?.length)) return null
+  const shown = !!d && (d.enabled || d.connections?.length > 0)
+  useEffect(() => { onShown(shown) }, [shown])
+  if (!shown) return null
   const disconnect = c => confirmSheet({
     title: t('Disconnect this assistant?'), message: t('It loses access immediately.'),
     confirmText: t('Disconnect'), danger: true,
@@ -80,6 +82,7 @@ export function McpTokensSheet({ close }) {
   const [made, setMade] = useState(null)      // the one just created, token included — this sheet only
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+  const [hosted, setHosted] = useState(false)  // the Connections section is showing
   useEffect(() => { api('/api/account/mcp-tokens').then(setList).catch(e => setErr(e.message || t('Something went wrong'))) }, [])
 
   const create = async ev => {
@@ -111,11 +114,11 @@ export function McpTokensSheet({ close }) {
 
   return <>
     <h3>{t('AI assistant access')}</h3>
+    <Connections onShown={setHosted} />
+    {hosted && <div className="sect-t">{t('Read-only tokens')}</div>}
     <div className="muted small" style={{ marginBottom: 14 }}>
       {t('A token lets an AI assistant read this profile’s routines, workouts and progress over MCP. It cannot change anything, and it expires after 90 days. Signing out everywhere revokes every token.')}
     </div>
-
-    <Connections />
 
     {made && <>
       <div className="small" role="status" style={{ marginBottom: 8 }}>{t('Copy this token now: it is shown only once. Keep it in a file only you can read.')}</div>

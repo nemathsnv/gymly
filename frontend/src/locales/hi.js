@@ -2266,4 +2266,5 @@ export default {
   'It loses access immediately.': 'इसकी पहुँच तुरंत खत्म हो जाएगी।',
   'Disconnected': 'डिस्कनेक्ट हो गया',
   'No assistants connected yet.': 'अभी कोई असिस्टेंट जुड़ा नहीं है।',
+  'Read-only tokens': 'केवल पढ़ने वाले टोकन',
 }

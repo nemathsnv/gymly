@@ -46,13 +46,13 @@ h1{font-size:20px;margin:0 0 6px}p{margin:8px 0}.dim{color:var(--dim);font-size:
 ul{padding-left:20px;margin:8px 0}li{margin:4px 0}label{display:flex;gap:10px;align-items:flex-start;margin:12px 0;cursor:pointer}
 input[type=checkbox]{margin-top:4px;width:18px;height:18px}.row{display:flex;gap:10px;margin-top:18px}
 button,a.btn{flex:1;font:inherit;padding:11px 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;text-align:center;text-decoration:none}
-button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}code{font-size:13px;word-break:break-all}
+p.foot{text-align:center}button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}code{font-size:13px;word-break:break-all}
 `;
 
 function shell(title, body, nonce, script = '') {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>${esc(title)}</title><style nonce="${nonce}">${STYLE}</style></head>
-<body><main><div class="card">${body}</div><p class="dim" style="text-align:center">Gymly</p></main>${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
+<body><main><div class="card">${body}</div><p class="dim foot">Gymly</p></main>${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
 }
 
 /** The consent screen. `id` is the single-use request id; the form posts back to the same URL. */

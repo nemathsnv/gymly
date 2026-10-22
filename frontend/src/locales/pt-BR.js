@@ -1427,6 +1427,7 @@ export const PT_BR_OVERRIDES = {
   'It loses access immediately.': 'Ele perde o acesso imediatamente.',
   'Disconnected': 'Desconectado',
   'No assistants connected yet.': 'Ainda não há assistentes conectados.',
+  'Read-only tokens': 'Tokens somente leitura',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

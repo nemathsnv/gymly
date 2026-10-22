@@ -2270,4 +2270,5 @@ export default {
   'It loses access immediately.': 'Он сразу потеряет доступ.',
   'Disconnected': 'Отключено',
   'No assistants connected yet.': 'Пока нет подключённых ассистентов.',
+  'Read-only tokens': 'Токены только для чтения',
 }

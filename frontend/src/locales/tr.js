@@ -2266,4 +2266,5 @@ export default {
   'It loses access immediately.': 'Erişimini hemen kaybeder.',
   'Disconnected': 'Bağlantı kesildi',
   'No assistants connected yet.': 'Henüz bağlı asistan yok.',
+  'Read-only tokens': 'Salt okunur tokenlar',
 }

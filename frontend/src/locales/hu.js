@@ -2269,4 +2269,5 @@ export default {
   'It loses access immediately.': 'Azonnal elveszíti a hozzáférést.',
   'Disconnected': 'Leválasztva',
   'No assistants connected yet.': 'Még nincs csatlakoztatott asszisztens.',
+  'Read-only tokens': 'Csak olvasási tokenek',
 }

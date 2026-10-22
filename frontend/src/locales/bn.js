@@ -2345,4 +2345,5 @@ export default {
   'It loses access immediately.': 'এটি সঙ্গে সঙ্গে অ্যাক্সেস হারাবে।',
   'Disconnected': 'সংযোগ বিচ্ছিন্ন',
   'No assistants connected yet.': 'এখনও কোনো সহকারী যুক্ত নেই।',
+  'Read-only tokens': 'শুধু পড়ার টোকেন',
 }

@@ -2277,4 +2277,5 @@ export default {
   'It loses access immediately.': 'จะเสียสิทธิ์เข้าถึงทันที',
   'Disconnected': 'ยกเลิกการเชื่อมต่อแล้ว',
   'No assistants connected yet.': 'ยังไม่มีผู้ช่วยที่เชื่อมต่อ',
+  'Read-only tokens': 'โทเค็นแบบอ่านอย่างเดียว',
 }
