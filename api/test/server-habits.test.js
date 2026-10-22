@@ -101,3 +101,93 @@ test('the read-only MCP token\'s view of the profile has no habit log', async t 
   // the token is not a session: it cannot pull the document that does hold the log
   assert.equal((await h.req('GET', '/api/data', { Authorization: 'Bearer ' + made.token })).status, 401);
 });
+
+// --- habits of the user's own (frontend/src/lib/habits.js `habit|def`), and the server's guard
+// on the log (sync-stamps.js keepHabitLog) ---
+
+const HABIT_NAME = 'MY-PRIVATE-HABIT-NAME-4410';
+const custom = (extra = {}) => log(NOTE_ONE, {
+  'hread|def': { name: HABIT_NAME, icon: 'note', color: 'blue', kind: 'do', at: 30, _ts: 30 },
+  'hread|2026-10-21': { s: 'good', note: 'Chapter 3', tz: 'Europe/Lisbon', _ts: 31 },
+  'alcohol|def': { name: 'Wine', _ts: 32 },
+  ...extra
+});
+const put = async (h, body) => {
+  const r = await h.req('PUT', '/api/data', session('u_one'), body);
+  return { status: r.status, body: await r.json() };
+};
+const stored = h => JSON.parse(h.file('u_one'));
+
+test('habits of the user\'s own are stored and come back with their days', async t => {
+  const h = await start(t);
+  assert.equal((await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: custom() }, stamped: true })).status, 200);
+  const got = await (await h.req('GET', '/api/data', session('u_one'))).json();
+  assert.deepEqual(got.state.habitLog, custom());
+});
+
+test('an app from before habits, pushing over the current revision without the log, takes nothing away', async t => {
+  const h = await start(t);
+  const first = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: custom() }, stamped: true });
+  // a pre-habits build that stamps its own changes: it has no habitLog at all
+  const old = await put(h, { state: { unit: 'kg', routines: [], workouts: [], restSec: 120 }, baseRev: first.body.rev, stamped: true });
+  assert.equal(old.status, 200);
+  assert.deepEqual(stored(h).habitLog, custom());
+  assert.equal(stored(h).restSec, 120, 'its own change goes through');
+  // the stored copy is not the one it sent: it is a revision further, so its next push is a
+  // conflict, and the merge it then makes starts from the copy with the log
+  assert.equal(stored(h)._rev, old.body.rev + 1);
+  const next = await h.req('PUT', '/api/data', session('u_one'), { state: { unit: 'kg', routines: [], workouts: [] }, baseRev: old.body.rev, stamped: true });
+  assert.equal(next.status, 409);
+  assert.deepEqual((await next.json()).state.habitLog, custom());
+});
+
+test('an older copy of the log cannot set newer days or habits back, nor drop them', async t => {
+  const h = await start(t);
+  const now = custom({ 'hread|2026-10-22': { s: 'good', _ts: 40 } });
+  const first = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: now }, stamped: true });
+  // the copy an older app kept whole from before: an older version of a day, a habit missing,
+  // Alcohol's name missing — and one change of its own that is genuinely later
+  const stale = {
+    'alcohol|2026-10-20': { s: 'drank', tz: 'Europe/Lisbon', _ts: 5 },
+    'alcohol|2026-10-21': { s: 'drank', n: 3, note: NOTE_ONE, tz: 'Europe/Lisbon', _ts: 11 },
+    'alcohol|2026-10-19': { s: 'free', tz: 'Europe/Lisbon', _ts: 50 }
+  };
+  assert.equal((await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: stale }, baseRev: first.body.rev, stamped: true })).status, 200);
+  assert.deepEqual(stored(h).habitLog, { ...now, 'alcohol|2026-10-19': stale['alcohol|2026-10-19'] });
+});
+
+test('so can a writer that does not stamp (v1.3.9) or an API script', async t => {
+  const h = await start(t);
+  const first = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: custom() }, stamped: true });
+  assert.equal((await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: {} }, baseRev: first.body.rev })).status, 200);
+  assert.deepEqual(stored(h).habitLog, custom());
+  assert.equal((await put(h, { state: { unit: 'kg', routines: [], workouts: [] } })).status, 200);
+  assert.deepEqual(stored(h).habitLog, custom());
+});
+
+test('"Not logged" and an archived habit, written as stamped entries, are kept as written', async t => {
+  const h = await start(t);
+  const first = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: custom() }, stamped: true });
+  const next = custom({ 'hread|2026-10-21': { _ts: 60 }, 'hread|def': { name: HABIT_NAME, icon: 'note', color: 'blue', kind: 'do', at: 30, archived: true, _ts: 61 } });
+  assert.equal((await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: next }, baseRev: first.body.rev, stamped: true })).status, 200);
+  assert.deepEqual(stored(h).habitLog, next);
+});
+
+test('"Reset everything" starts the log over', async t => {
+  const h = await start(t);
+  const first = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: custom() }, stamped: true });
+  const r = await put(h, { state: { unit: 'kg', routines: [], workouts: [], habitLog: {}, resetAt: Date.now(), resetIds: { habitLog: Object.keys(custom()) } }, baseRev: first.body.rev, stamped: true });
+  assert.equal(r.status, 200);
+  assert.deepEqual(stored(h).habitLog, {});
+});
+
+test('a habit\'s name is withheld from the read-only MCP token like its days, and stays out of the other profile', async t => {
+  const h = await start(t);
+  await put(h, { state: { unit: 'kg', routines: [{ id: 'r1', name: 'A', ex: [] }], workouts: [], habitLog: custom() }, stamped: true });
+  const made = await (await h.req('POST', '/api/account/mcp-tokens', session('u_one'), { name: 'Claude Code' })).json();
+  const text = await (await h.req('GET', '/api/mcp/v1/state', { Authorization: 'Bearer ' + made.token })).text();
+  assert.ok(text.includes('"routines"'));
+  assert.ok(!text.includes(HABIT_NAME) && !text.includes('hread') && !text.includes('Chapter 3') && !text.includes('Wine'), 'a habit leaked into the MCP view');
+  const two = await (await h.req('GET', '/api/data', session('u_two'))).text();
+  assert.ok(!two.includes(HABIT_NAME) && !h.file('u_two').includes(HABIT_NAME));
+});

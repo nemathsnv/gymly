@@ -139,8 +139,8 @@ export function dropMcpTokens(db, userId) {
  *   gymCards / lastGymCardId — gym membership cards, i.e. barcodes and member numbers;
  *   coach   — the AI Coach's consent record, profile and pending proposals;
  *   reminder, hints — device-facing switches, nothing about training;
- *   habitLog — the daily habit log (alcohol-free days, drink counts, private notes): health data
- *     the owner kept for themselves. Not training data, and not opened to an assistant until that
+ *   habitLog — the daily habit log (Alcohol and the user's own habits: their names, every day,
+ *     drink counts, private notes): health and personal data the owner kept for themselves. Not training data, and not opened to an assistant until that
  *     is designed and consented to on its own (docs/dev/HABITS.md);
  *   _unstamped, _prior, _wids, _wid — the server's own sync notes (sync-stamps.js, PUT /api/data).
  * A denylist rather than an allowlist on purpose: the shared helpers (frontend/src/lib) read

@@ -459,6 +459,30 @@ function keepHeld(next, now) {
   }
 }
 
+// The habit log (frontend/src/lib/habits.js: each habit's days and its definition, `habit|def`)
+// is merged entry by entry here too, for every writer: an entry the stored copy holds that the
+// writer left out stays, and of a key both hold, the later stamp (the writer's on a tie). The app
+// never removes a key from it — "Not logged", a cleared note, a replaced backup's missing days all
+// are stamped empty entries — so nothing a device meant is lost, but an app from before habits (to
+// which the log is an ordinary setting it carries, and whose merge can keep its own older copy of
+// it whole), an API script that leaves it out, or any writer whose copy is older can no longer take
+// days or habits away, or set them back. A reset is the one exception: it starts the log over.
+// Returns whether anything of what the writer sent was kept or set back.
+export function keepHabitLog(cur, next) {
+  if (!isMap(cur?.habitLog)) return false;
+  const stored = cur.habitLog, sent = isMap(next.habitLog) ? next.habitLog : {};
+  const stamp = v => (isMap(v) ? Number(v._ts) || 0 : 0);
+  const out = { ...sent };
+  let changed = !isMap(next.habitLog) && Object.keys(stored).length > 0;
+  for (const [k, v] of Object.entries(stored)) {
+    if (k in sent && stamp(sent[k]) >= stamp(v)) continue;
+    out[k] = clone(v);
+    changed = true;
+  }
+  if (changed) next.habitLog = out;
+  return changed;
+}
+
 /**
  * PUT /api/data's stamping (see the top of this file). With `report`, `report.changed` says whether
  * the document stored differs from what a writer that does not stamp sent, beyond stamps: a field
@@ -506,6 +530,7 @@ export function stampPut(cur, next, { overRead = false, stamped = false, now = D
       if (rec) next._unstamped = rec;
     }
     if (before != null && content(next) !== before) report.changed = true;
+    if (keepHabitLog(cur, next) && report) report.changed = true;
   }
   keepHeld(next, t);
   if (cur && !reset) notePrior(cur, next);
