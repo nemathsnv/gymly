@@ -143,9 +143,11 @@ tags:
     description: Per-user state sync (the whole app state as one JSON blob)
   - name: mcp
     description: >-
-      Read-only access for an MCP client (an AI assistant such as Claude Code) to the token
-      owner's own training data. The owner makes and revokes tokens with a session; the MCP
-      route takes only an MCP token (`mcpToken`), and an MCP token is accepted nowhere else.
+      AI assistants (MCP clients). V1: read-only access with a personal token — the owner makes
+      and revokes tokens with a session; `/api/mcp/v1/state` takes only an MCP token
+      (`mcpToken`), and an MCP token is accepted nowhere else. Hosted: `/api/mcp`, a remote MCP
+      server with read and write tools, connected through OAuth 2.1 (`mcpOAuth`) and Gymly's own
+      consent screen; off unless the instance sets `MCP_OAUTH_USERS`.
   - name: push
     description: Web Push (VAPID) subscriptions, rest-timer and test pushes
   - name: activity
@@ -1589,6 +1591,266 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+
+  /api/mcp:
+    post:
+      tags: [mcp]
+      operationId: postMcp
+      summary: Hosted MCP endpoint (Streamable HTTP, read and write)
+      description: |
+        The remote MCP server: one JSON-RPC message per request, answered in JSON (stateless
+        Streamable HTTP, protocol 2025-11-25; no session id, no SSE). Off — a plain 404 — unless
+        the instance sets `MCP_OAUTH_USERS`. Takes only an OAuth access token (`mcpOAuth`) for
+        `https://<ORIGIN>/api/mcp`; a session, a V1 MCP token or a token for another resource is
+        refused with 401 and a `WWW-Authenticate` challenge naming
+        `/.well-known/oauth-protected-resource/api/mcp` (RFC 9728), which is how an MCP client
+        finds the authorization server. Discovery lives outside `/api`:
+        `GET /.well-known/oauth-protected-resource[/api/mcp]` and
+        `GET /.well-known/oauth-authorization-server` (RFC 8414).
+
+        Tools: the V1 read tools plus `search_exercises`, `get_training_progress` and
+        `list_recent_changes` (scope `gymly:read`); `preview_routine_changes`, `create_routine`,
+        `apply_routine_changes`, `apply_destructive_routine_changes`, `preview_workout_log`,
+        `log_workout` and `undo_change` (scope `gymly:write`). Changes are validated by the AI
+        Coach's validator, applied only by preview id, refused when the plan moved since the
+        preview, idempotent, journalled for undo and committed like a device's sync. A missing
+        scope is a tool error with `_meta["mcp/www_authenticate"]`.
+
+        Refused: an `Origin` other than ORIGIN (or `MCP_ALLOWED_ORIGINS`) with 403, a body over
+        256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a
+        minute per connection with 429. Writes: 30 per 10 minutes per profile.
+      security:
+        - mcpOAuth: [gymly:read]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: 'One JSON-RPC 2.0 request or notification.' }
+      responses:
+        '200':
+          description: The JSON-RPC response.
+          content:
+            application/json:
+              schema: { type: object }
+        '202':
+          description: A notification was accepted.
+        '400':
+          description: Malformed JSON or a batch.
+        '401':
+          description: No token, or one that is invalid, expired or revoked.
+          headers:
+            WWW-Authenticate: { schema: { type: string } }
+        '403':
+          description: A browser Origin that is not allowed.
+        '404':
+          description: Hosted MCP is not enabled on this instance.
+        '413':
+          description: Body over 256 KB.
+        '429':
+          description: Too many requests on this connection.
+    get:
+      tags: [mcp]
+      operationId: getMcp
+      summary: No server-initiated stream (405)
+      description: >-
+        The endpoint offers no SSE stream and no sessions, so GET answers 405 with
+        `Allow: POST` (404 while off).
+      responses:
+        '405':
+          description: Not offered.
+    delete:
+      tags: [mcp]
+      operationId: deleteMcp
+      summary: No sessions to end (405)
+      description: >-
+        Stateless — there is no session to delete. 405 with `Allow: POST` (404 while off).
+      responses:
+        '405':
+          description: Not offered.
+
+  /api/oauth/authorize:
+    get:
+      tags: [mcp]
+      operationId: oauthAuthorize
+      summary: OAuth authorization endpoint (sign-in and consent page)
+      description: |
+        Authorization code flow with PKCE (S256 only). Checks `client_id` (a registered client,
+        or an https Client ID Metadata Document URL), `redirect_uri` (exact, or a loopback http
+        one on any port), `response_type=code`, `code_challenge`, `state` and `resource` (this
+        server's `/api/mcp`, optional). An unknown client or redirect URI is shown as an error
+        page and never redirected; other errors redirect with `error`, `state` and `iss`.
+
+        Without a session it shows Gymly's passkey sign-in; for a profile not in
+        `MCP_OAUTH_USERS` a 403 page; otherwise the consent screen, naming the client (marked
+        unverified unless its metadata document is on a known host), where the answer goes, and
+        an opt-out for write access. HTML, `no-store`, its own CSP with `frame-ancestors 'none'`.
+      parameters:
+        - { name: response_type, in: query, required: true, schema: { type: string, enum: [code] } }
+        - { name: client_id, in: query, required: true, schema: { type: string } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: scope, in: query, required: false, schema: { type: string, example: 'gymly:read gymly:write' } }
+        - { name: resource, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: The sign-in page or the consent screen.
+          content:
+            text/html: {}
+        '302':
+          description: An error the client may hear about, sent to its redirect URI with `iss`.
+        '400':
+          description: Unknown client, unregistered redirect URI or malformed request (an HTML page).
+        '403':
+          description: This profile may not connect assistants (an HTML page).
+        '404':
+          description: Hosted MCP is not enabled on this instance.
+    post:
+      tags: [mcp]
+      operationId: oauthDecide
+      summary: The consent screen's answer
+      description: |
+        Form post from the consent screen (`request_id`, `decision=allow|deny`, `allow_write=1`).
+        Needs the session of the profile the screen was shown to — the request id is bound to it
+        and single-use — and passes the same-origin check of every state-changing browser request.
+        Answers 303 to the client's redirect URI with `code` (five minutes, single use, bound to
+        the PKCE challenge, client, redirect URI and resource) or `error=access_denied`, plus
+        `state` and `iss` (RFC 9207). Audited as `auth.mcp.consent` / `auth.mcp.declined`.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                request_id: { type: string }
+                decision: { type: string, enum: [allow, deny] }
+                allow_write: { type: string, enum: ['1'] }
+      responses:
+        '303':
+          description: Back to the client.
+        '400':
+          description: Expired, already answered, or another profile's request (an HTML page).
+        '401':
+          description: Not signed in.
+        '403':
+          description: Cross-origin form post refused.
+
+  /api/oauth/token:
+    post:
+      tags: [mcp]
+      operationId: oauthToken
+      summary: OAuth token endpoint
+      description: |
+        `grant_type=authorization_code` (with `code`, `redirect_uri`, `code_verifier`) or
+        `grant_type=refresh_token`. Clients authenticate with `none` (PKCE only),
+        `client_secret_basic` or `client_secret_post`. Access tokens (`gymly_oat_…`) live an hour;
+        refresh tokens (`gymly_ort_…`) 30 days and rotate on every use; a spent refresh token
+        presented again after a one-minute grace, or by another client, ends the connection
+        (`auth.mcp.reuse`). A connection lasts at most 180 days. Tokens are opaque and stored
+        only as hashes. Form-encoded or JSON body, 16 KB at most; 120 requests a minute per address.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema: { type: object }
+      responses:
+        '200':
+          description: '`access_token`, `token_type: Bearer`, `expires_in`, `refresh_token`, `scope`.'
+        '400':
+          description: '`invalid_grant`, `invalid_target`, `invalid_scope`, `unsupported_grant_type`.'
+        '401':
+          description: '`invalid_client`.'
+        '404':
+          description: Hosted MCP is not enabled on this instance.
+        '429':
+          description: Too many requests from this address.
+
+  /api/oauth/register:
+    post:
+      tags: [mcp]
+      operationId: oauthRegister
+      summary: Dynamic client registration (RFC 7591)
+      description: |
+        Open registration for MCP clients that do not use a Client ID Metadata Document. 1-10
+        `redirect_uris` (https, loopback http, or an app scheme; no fragment);
+        `token_endpoint_auth_method` `none`, `client_secret_basic` (default) or
+        `client_secret_post`. A registration unused for a day expires; a used one lasts 180 days
+        from its last connection. Registering grants nothing: every connection still needs a
+        listed profile's consent. 20 an hour per address, 200 an hour in all.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: The client, with `client_secret` for a confidential one (shown once).
+        '400':
+          description: '`invalid_redirect_uri` or `invalid_client_metadata`.'
+        '404':
+          description: Hosted MCP is not enabled on this instance.
+        '429':
+          description: Too many registrations.
+
+  /api/oauth/revoke:
+    post:
+      tags: [mcp]
+      operationId: oauthRevoke
+      summary: Token revocation (RFC 7009)
+      description: >-
+        Any access or refresh token of a connection ends the whole connection, if it belongs to
+        the authenticated client. Always 200 for an authenticated client, known token or not.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema: { type: object, properties: { token: { type: string } } }
+      responses:
+        '200':
+          description: Revoked, or nothing to revoke.
+        '401':
+          description: '`invalid_client`.'
+        '404':
+          description: Hosted MCP is not enabled on this instance.
+
+  /api/account/mcp-connections:
+    get:
+      tags: [mcp]
+      operationId: listMcpConnections
+      summary: Assistants connected through OAuth
+      description: >-
+        The caller's connected assistants (client name, scopes, created, last used, expiry) —
+        never a token. `enabled` says whether this profile may connect one, `endpoint` is the URL
+        to give an assistant.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The list.
+        '401':
+          description: Not signed in.
+    delete:
+      tags: [mcp]
+      operationId: deleteMcpConnection
+      summary: Disconnect an assistant
+      description: '`?id=` from the list. Ends its tokens at once. Another profile''s id answers 404.'
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Disconnected; the remaining list.
+        '401':
+          description: Not signed in.
+        '404':
+          description: No such connection (`mcp-connection-unknown`).
 
   /api/data:
     get:
@@ -3152,6 +3414,19 @@ components:
         The same signed session token, carried as `Authorization: Bearer <token>` by
         the paired mobile app (obtained from `POST /api/pair/redeem`). Bearer requests
         skip the CSRF origin check; a browser never attaches this header on its own.
+    mcpOAuth:
+      type: oauth2
+      description: >-
+        OAuth 2.1 for the hosted MCP endpoint: authorization code with PKCE (S256), dynamic
+        registration or a Client ID Metadata Document, resource-bound opaque tokens.
+      flows:
+        authorizationCode:
+          authorizationUrl: /api/oauth/authorize
+          tokenUrl: /api/oauth/token
+          refreshUrl: /api/oauth/token
+          scopes:
+            'gymly:read': Read routines, the week plan, workouts, body weight and progress
+            'gymly:write': Change routines and the week plan, log workouts, undo those changes
     mcpToken:
       type: http
       scheme: bearer

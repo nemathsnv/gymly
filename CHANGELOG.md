@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **ChatGPT and Claude can work with your plan.** Add `https://<your Gymly>/api/mcp` as a custom
+  connector (MCP) in ChatGPT, Claude or Claude Code, approve it on Gymly's own sign-in page, and
+  the assistant can read your training and, if you allow it, change your routines, schedule a
+  week, or log a workout — always showing you the change first, applying it only when you agree,
+  and able to undo it. Removing exercises or routines asks for an extra confirmation. Off on a
+  server until its operator lists who may connect (`MCP_OAUTH_USERS`); connected assistants are
+  listed and disconnected in Settings → Account → AI assistant access. Setup: [docs/MCP.md](docs/MCP.md).
 - **Connect an AI assistant to your training data.** Settings → Account → **AI assistant access**
   makes a read-only token for Claude Code, Claude Desktop, Cursor or another MCP client. The
   assistant can read your routines, workouts, body weight, 1RMs and muscle balance, and change

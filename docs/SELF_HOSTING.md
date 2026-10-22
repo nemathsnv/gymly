@@ -228,6 +228,36 @@ out and locked out everywhere until you re-enable it), and — with `INVITE_ONLY
 revoking invite codes. Existing accounts keep working when you switch invite-only on. Admin access
 is gated by your passkey and enforced server-side, so it needs no separate login.
 
+### AI assistants over MCP (optional)
+
+Gymly can act as a remote MCP server at `https://<your domain>/api/mcp`, so ChatGPT, Claude or
+Claude Code can read a profile's training data and, with its owner's approval, change its
+routines (setup for users: [MCP.md](MCP.md)). It is off until you name who may connect:
+
+```bash
+MCP_OAUTH_USERS=youruserid     # comma-separated profile ids (Settings → Account → Account ID)
+MCP_ALLOWED_ORIGINS=           # optional: browser origins of web-based MCP clients (inspectors)
+```
+
+Requirements:
+
+- `ORIGIN` is your public `https://` address with no path (plain `http://localhost` works for
+  development). It becomes the OAuth issuer, and `ORIGIN/api/mcp` the resource every token is
+  bound to; change it and every connection has to be approved again.
+- The web container (or your own reverse proxy) passes `/.well-known/oauth-protected-resource`
+  and `/.well-known/oauth-authorization-server` to the API, as the bundled nginx does. Under a
+  `BASE_PATH` the feature is not supported: OAuth discovery has to live at the root.
+- Behind Cloudflare, skip bot challenges for `/api/mcp`, `/api/oauth/*` and
+  `/.well-known/oauth-*`; assistants call them from their own servers.
+
+Client metadata documents (how ChatGPT and Claude Code identify themselves) are fetched only
+from public addresses; `ALLOWED_PRIVATE_IPS` does not apply to them. Nothing else is needed: no
+new port, container or database. Connections live in `db.json`
+(`mcpClients`, `mcpGrants`, tokens hashed), the per-profile change journal used for undo in
+`data/mcp-journal-<id>.json`, and both are covered by your normal backup of `./data`. Remove a
+profile from `MCP_OAUTH_USERS` and its connections stop on their next request; unset the
+variable and every hosted MCP route answers 404 again. The read-only V1 tokens are unaffected.
+
 ### Default language
 
 An instance whose people share a language can start everyone in it:

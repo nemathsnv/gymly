@@ -51,6 +51,23 @@ No administrator is automatically assigned. After the owner creates a profile, u
 Settings → Account ID to set `ADMIN_UIDS` in `/etc/gymly/gymly.env`, if admin access is wanted,
 and recreate only Gymly's API. Do not enable `FIRST_USER_ADMIN` on a public instance.
 
+## Hosted MCP (ChatGPT / Claude connector)
+
+Off until enabled. After a release containing it is deployed and verified, add the owner's
+profile id to `/etc/gymly/gymly.env` and recreate only the API:
+
+```sh
+MCP_OAUTH_USERS=<founder profile id>
+```
+
+Then check from outside: `curl -fsS https://gymly.churntech.com/.well-known/oauth-authorization-server`
+answers JSON with `"issuer": "https://gymly.churntech.com"`, and an unauthenticated
+`POST /api/mcp` answers 401 with a `WWW-Authenticate: Bearer resource_metadata=…` header. No
+tunnel, port or edge change is needed: the web image routes the two discovery paths to the API.
+To switch it off again, remove the line and recreate the API; connections stay in `db.json`
+but are refused while the variable is unset. Connections and the undo journal
+(`data/mcp-journal-*.json`) are part of the normal data snapshot.
+
 ## Failed deployments and recovery
 
 Before the new release can receive traffic, the receiver gates edge with HTTP 503, stops old

@@ -33,3 +33,22 @@ test('every root-level module server.js needs is on the Dockerfile COPY line', (
   assert.deepEqual(missing, [], `add ${missing.join(', ')} to the COPY line in api/Dockerfile`);
   for (const f of copied) assert.ok(fs.existsSync(path.join(API, f)), `${f} is copied but does not exist`);
 });
+
+// Directories server.js reaches into (`./coach/…`, `./mcp-remote/…`) are copied whole; each has to
+// be on a COPY line, and whatever their modules import from the api root (`../durable.js`) has to
+// be on the root COPY line too.
+test('every directory server.js imports from is copied, with the root modules it needs', () => {
+  const docker = read('Dockerfile');
+  const rootLine = docker.split('\n').find(l => /^COPY\s+server\.js\b/.test(l));
+  const copied = new Set(rootLine.trim().split(/\s+/).slice(1, -1));
+  const dirs = new Set([...read('server.js').matchAll(/(?:from\s+|import\s*\(\s*)['"]\.\/([^'"/]+)\/[^'"]+['"]/g)].map(m => m[1]));
+  assert.ok(dirs.has('mcp-remote'), 'the walk finds the hosted MCP modules');
+  for (const d of dirs) {
+    assert.match(docker, new RegExp(`^COPY\\s+${d}\\s+\\./${d}\\s*$`, 'm'), `COPY ${d} ./${d} is missing from api/Dockerfile`);
+    for (const f of fs.readdirSync(path.join(API, d)).filter(x => x.endsWith('.js'))) {
+      for (const m of read(path.join(d, f)).matchAll(/(?:from\s+|import\s*\(\s*)['"]\.\.\/([^'"/]+\.js)['"]/g)) {
+        assert.ok(copied.has(m[1]), `${d}/${f} imports ../${m[1]}, which is not on the root COPY line`);
+      }
+    }
+  }
+});

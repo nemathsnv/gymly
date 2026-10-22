@@ -218,7 +218,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <a class="side-link" href="#password"><b>Password</b><span>Optional name &amp; password (PASSWORD_LOGIN)</span></a>
   <a class="side-link" href="#passkeys"><b>Passkeys</b><span>More passkeys &amp; device links</span></a>
   <a class="side-link" href="#data"><b>Data</b><span>State sync</span></a>
-  <a class="side-link" href="#mcp"><b>MCP</b><span>Read-only access for AI assistants</span></a>
+  <a class="side-link" href="#mcp"><b>MCP</b><span>AI assistants: tokens, OAuth &amp; the hosted endpoint</span></a>
   <a class="side-link" href="#push"><b>Push</b><span>Notifications &amp; rest timer</span></a>
   <a class="side-link" href="#activity"><b>Activity</b><span>Live presence</span></a>
   <a class="side-link" href="#media"><b>Media</b><span>Photos &amp; videos of your exercises &amp; workouts</span></a>
@@ -246,7 +246,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>73 endpoints</span>
+    <span>83 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -1573,7 +1573,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 
 <section class="api-sec" id="mcp">
   <h2>MCP</h2>
-  <p class="sub">Read-only access for an MCP client (an AI assistant such as Claude Code) to the token owner's own training data. The owner makes and revokes tokens with a session; the MCP route takes only an MCP token (<code>mcpToken</code>), and an MCP token is accepted nowhere else.</p>
+  <p class="sub">AI assistants (MCP clients). V1: read-only access with a personal token — the owner makes and revokes tokens with a session; <code>/api/mcp/v1/state</code> takes only an MCP token (<code>mcpToken</code>), and an MCP token is accepted nowhere else. Hosted: <code>/api/mcp</code>, a remote MCP server with read and write tools, connected through OAuth 2.1 (<code>mcpOAuth</code>) and Gymly's own consent screen; off unless the instance sets <code>MCP_OAUTH_USERS</code>.</p>
   <div class="eps">
 
 <details class="ep" id="op-listMcpTokens">
@@ -1731,6 +1731,380 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s5">503</span>
     <span class="p-desc">The profile's document exists but cannot be read.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-postMcp">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/mcp</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Hosted MCP endpoint (Streamable HTTP, read and write)</span>
+  </summary>
+  <div class="ep-body">
+<p>The remote MCP server: one JSON-RPC message per request, answered in JSON (stateless Streamable HTTP, protocol 2025-11-25; no session id, no SSE). Off — a plain 404 — unless the instance sets <code>MCP_OAUTH_USERS</code>. Takes only an OAuth access token (<code>mcpOAuth</code>) for <code>https://&lt;ORIGIN&gt;/api/mcp</code>; a session, a V1 MCP token or a token for another resource is refused with 401 and a <code>WWW-Authenticate</code> challenge naming <code>/.well-known/oauth-protected-resource/api/mcp</code> (RFC 9728), which is how an MCP client finds the authorization server. Discovery lives outside <code>/api</code>: <code>GET /.well-known/oauth-protected-resource[/api/mcp]</code> and <code>GET /.well-known/oauth-authorization-server</code> (RFC 8414).</p>
+<p>Tools: the V1 read tools plus <code>search_exercises</code>, <code>get_training_progress</code> and <code>list_recent_changes</code> (scope <code>gymly:read</code>); <code>preview_routine_changes</code>, <code>create_routine</code>, <code>apply_routine_changes</code>, <code>apply_destructive_routine_changes</code>, <code>preview_workout_log</code>, <code>log_workout</code> and <code>undo_change</code> (scope <code>gymly:write</code>). Changes are validated by the AI Coach's validator, applied only by preview id, refused when the plan moved since the preview, idempotent, journalled for undo and committed like a device's sync. A missing scope is a tool error with <code>_meta[&quot;mcp/www_authenticate&quot;]</code>.</p>
+<p>Refused: an <code>Origin</code> other than ORIGIN (or <code>MCP_ALLOWED_ORIGINS</code>) with 403, a body over 256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a minute per connection with 429. Writes: 30 per 10 minutes per profile.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The JSON-RPC response.<span class="r-sig">object</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s2">202</span>
+    <span class="p-desc">A notification was accepted.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Malformed JSON or a batch.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No token, or one that is invalid, expired or revoked.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">A browser Origin that is not allowed.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Hosted MCP is not enabled on this instance.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">413</span>
+    <span class="p-desc">Body over 256 KB.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many requests on this connection.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getMcp">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/mcp</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">No server-initiated stream (405)</span>
+  </summary>
+  <div class="ep-body">
+<p>The endpoint offers no SSE stream and no sessions, so GET answers 405 with <code>Allow: POST</code> (404 while off).</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s4">405</span>
+    <span class="p-desc">Not offered.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-deleteMcp">
+  <summary>
+    <span class="m delete">DELETE</span>
+    <span class="ep-path"><code>/api/mcp</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">No sessions to end (405)</span>
+  </summary>
+  <div class="ep-body">
+<p>Stateless — there is no session to delete. 405 with <code>Allow: POST</code> (404 while off).</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s4">405</span>
+    <span class="p-desc">Not offered.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-oauthAuthorize">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/oauth/authorize</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">OAuth authorization endpoint (sign-in and consent page)</span>
+  </summary>
+  <div class="ep-body">
+<p>Authorization code flow with PKCE (S256 only). Checks <code>client_id</code> (a registered client, or an https Client ID Metadata Document URL), <code>redirect_uri</code> (exact, or a loopback http one on any port), <code>response_type=code</code>, <code>code_challenge</code>, <code>state</code> and <code>resource</code> (this server's <code>/api/mcp</code>, optional). An unknown client or redirect URI is shown as an error page and never redirected; other errors redirect with <code>error</code>, <code>state</code> and <code>iss</code>.</p>
+<p>Without a session it shows Gymly's passkey sign-in; for a profile not in <code>MCP_OAUTH_USERS</code> a 403 page; otherwise the consent screen, naming the client (marked unverified unless its metadata document is on a known host), where the answer goes, and an opt-out for write access. HTML, <code>no-store</code>, its own CSP with <code>frame-ancestors 'none'</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">response_type<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;code&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">client_id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">redirect_uri<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">code_challenge<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">code_challenge_method<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;S256&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">state</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">scope</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">resource</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The sign-in page or the consent screen.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s3">302</span>
+    <span class="p-desc">An error the client may hear about, sent to its redirect URI with <code>iss</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Unknown client, unregistered redirect URI or malformed request (an HTML page).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">This profile may not connect assistants (an HTML page).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Hosted MCP is not enabled on this instance.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-oauthDecide">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/oauth/authorize</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">The consent screen's answer</span>
+  </summary>
+  <div class="ep-body">
+<p>Form post from the consent screen (<code>request_id</code>, <code>decision=allow|deny</code>, <code>allow_write=1</code>). Needs the session of the profile the screen was shown to — the request id is bound to it and single-use — and passes the same-origin check of every state-changing browser request. Answers 303 to the client's redirect URI with <code>code</code> (five minutes, single use, bound to the PKCE challenge, client, redirect URI and resource) or <code>error=access_denied</code>, plus <code>state</code> and <code>iss</code> (RFC 9207). Audited as <code>auth.mcp.consent</code> / <code>auth.mcp.declined</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s3">303</span>
+    <span class="p-desc">Back to the client.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Expired, already answered, or another profile's request (an HTML page).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">Not signed in.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Cross-origin form post refused.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-oauthToken">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/oauth/token</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">OAuth token endpoint</span>
+  </summary>
+  <div class="ep-body">
+<p><code>grant_type=authorization_code</code> (with <code>code</code>, <code>redirect_uri</code>, <code>code_verifier</code>) or <code>grant_type=refresh_token</code>. Clients authenticate with <code>none</code> (PKCE only), <code>client_secret_basic</code> or <code>client_secret_post</code>. Access tokens (<code>gymly_oat_…</code>) live an hour; refresh tokens (<code>gymly_ort_…</code>) 30 days and rotate on every use; a spent refresh token presented again after a one-minute grace, or by another client, ends the connection (<code>auth.mcp.reuse</code>). A connection lasts at most 180 days. Tokens are opaque and stored only as hashes. Form-encoded or JSON body, 16 KB at most; 120 requests a minute per address.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc"><code>access_token</code>, <code>token_type: Bearer</code>, <code>expires_in</code>, <code>refresh_token</code>, <code>scope</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc"><code>invalid_grant</code>, <code>invalid_target</code>, <code>invalid_scope</code>, <code>unsupported_grant_type</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc"><code>invalid_client</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Hosted MCP is not enabled on this instance.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many requests from this address.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-oauthRegister">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/oauth/register</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Dynamic client registration (RFC 7591)</span>
+  </summary>
+  <div class="ep-body">
+<p>Open registration for MCP clients that do not use a Client ID Metadata Document. 1-10 <code>redirect_uris</code> (https, loopback http, or an app scheme; no fragment); <code>token_endpoint_auth_method</code> <code>none</code>, <code>client_secret_basic</code> (default) or <code>client_secret_post</code>. A registration unused for a day expires; a used one lasts 180 days from its last connection. Registering grants nothing: every connection still needs a listed profile's consent. 20 an hour per address, 200 an hour in all.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">201</span>
+    <span class="p-desc">The client, with <code>client_secret</code> for a confidential one (shown once).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc"><code>invalid_redirect_uri</code> or <code>invalid_client_metadata</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Hosted MCP is not enabled on this instance.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Too many registrations.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-oauthRevoke">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/oauth/revoke</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Token revocation (RFC 7009)</span>
+  </summary>
+  <div class="ep-body">
+<p>Any access or refresh token of a connection ends the whole connection, if it belongs to the authenticated client. Always 200 for an authenticated client, known token or not.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Revoked, or nothing to revoke.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc"><code>invalid_client</code>.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Hosted MCP is not enabled on this instance.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-listMcpConnections">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/account/mcp-connections</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Assistants connected through OAuth</span>
+  </summary>
+  <div class="ep-body">
+<p>The caller's connected assistants (client name, scopes, created, last used, expiry) — never a token. <code>enabled</code> says whether this profile may connect one, <code>endpoint</code> is the URL to give an assistant.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The list.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">Not signed in.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-deleteMcpConnection">
+  <summary>
+    <span class="m delete">DELETE</span>
+    <span class="ep-path"><code>/api/account/mcp-connections</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Disconnect an assistant</span>
+  </summary>
+  <div class="ep-body">
+<p><code>?id=</code> from the list. Ends its tokens at once. Another profile's id answers 404.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Disconnected; the remaining list.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">Not signed in.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">No such connection (<code>mcp-connection-unknown</code>).</span>
   </div>
     </div>
   </div>

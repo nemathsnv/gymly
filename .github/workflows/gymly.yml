@@ -41,6 +41,10 @@ jobs:
       - run: npm run build && node scripts/check-locales.mjs
         if: matrix.project == 'frontend'
         working-directory: frontend
+      # The hosted MCP endpoint runs a committed bundle of mcp/src and frontend/src/lib; a change
+      # to either without regenerating it would ship numbers the app no longer computes.
+      - run: node scripts/build-mcp-hosted.mjs --check
+        if: matrix.project == 'frontend'
       - run: npm run check:node-loadable
         if: matrix.project == 'mcp'
         working-directory: mcp
