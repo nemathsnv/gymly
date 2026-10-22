@@ -2350,7 +2350,7 @@ describe('workout view header menu', () => {
     const menu = await openMenu()
     expect(menu.sections.map(g => g.title)).toEqual([undefined, 'Add', 'This workout', undefined])
     expect(menuItemsOf(menu).map(it => it.label)).toEqual([
-      'Workout settings', 'Add exercise', 'Add routine', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression', 'Discard workout',
+      'Workout settings', 'Add exercise', 'Add routine', 'Workout timer', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression', 'Discard workout',
     ])
     expect(item(menu, 'Workout settings').sub).toBe('1:30 rest · Silent')
     expect(item(menu, 'Discard workout').danger).toBe(true)
@@ -3441,5 +3441,72 @@ describe('the workout screen chrome (v1.3.11)', () => {
     await unmount()
     await mount([exercise('plain-bench', [false])], 0, { gifSize: 'mini', active: { workoutView: 'compact' } })
     expect(container.querySelector('.wthumb')).toBeNull()
+  })
+})
+
+describe('the workout timer in the header', () => {
+  const MIN = 60_000
+  const click = async el => { await act(async () => { el.dispatchEvent(new dom.Event('click', { bubbles: true })) }) }
+  const pill = () => container.querySelector('button.wclock')
+  const lastMenu = () => mocks.menuSheet.mock.calls.at(-1)[0]
+  const lastConfirm = () => mocks.confirmSheet.mock.calls.at(-1)[0]
+  const item = label => menuItemsOf(lastMenu()).find(it => it.label === label)
+
+  it('is a stopwatch pill of its own, apart from the rest countdown, and opens Pause and Restart', async () => {
+    await mount([exercise('plain-bench', [true, false])], 0, { active: { start: Date.now() - 3 * MIN } })
+    expect(pill()).toBeTruthy()
+    expect(pill().classList.contains('paused')).toBe(false)
+    expect(pill().textContent).toContain('Workout timer')   // named for screen readers
+    expect(pill().textContent).toMatch(/3:0\d/)
+    expect(container.querySelector('.wpaused')).toBeNull()
+    await click(pill())
+    expect(lastMenu().title).toBe('Workout timer')
+    expect(menuItemsOf(lastMenu()).map(it => it.label)).toEqual(['Pause timer', 'Restart timer'])
+    item('Pause timer').onClick()
+    expect(Number.isFinite(mocks.S.active.pausedAt)).toBe(true)
+  })
+
+  it('paused, holds its time, says so under the header and resumes from there', async () => {
+    const start = Date.now() - 30 * MIN
+    await mount([exercise('plain-bench', [true, false])], 0, { active: { start, pausedAt: start + 5 * MIN } })
+    expect(pill().classList.contains('paused')).toBe(true)
+    expect(pill().textContent).toContain('5:00')
+    const banner = container.querySelector('.wpaused')
+    expect(banner.textContent).toContain('Workout paused')
+    await click(banner.querySelector('button'))
+    expect(mocks.S.active.pausedAt).toBeUndefined()
+    expect(mocks.S.active.pauses).toEqual([[start + 5 * MIN, expect.any(Number)]])
+  })
+
+  it('restarts at 0:00 only after a confirm, keeping the exercises and logged sets', async () => {
+    await mount([exercise('plain-bench', [true, true, false])], 0, { active: { start: Date.now() - 50 * MIN } })
+    const before = structuredClone(mocks.S.active.entries)
+    await click(pill())
+    item('Restart timer').onClick()
+    expect(lastConfirm().title).toBe('Restart the workout timer?')
+    expect(mocks.S.active.start).toBeLessThan(Date.now() - 49 * MIN)   // nothing yet
+    lastConfirm().onConfirm()
+    expect(Date.now() - mocks.S.active.start).toBeLessThan(1000)
+    expect(mocks.S.active.entries).toEqual(before)
+  })
+
+  it('discards an accidental session after a confirm that says nothing will be saved', async () => {
+    await mount([exercise('plain-bench', [false])])
+    finishWorkoutSheet.mockClear()
+    await click(container.querySelector('.whdr-finish'))
+    finishWorkoutSheet.mock.calls[0][0].onDiscard()
+    expect(lastConfirm().message).toBe('Nothing was logged, so nothing is saved to your history.')
+    expect(mocks.S.active).not.toBeNull()
+    lastConfirm().onConfirm()
+    expect(mocks.S.active).toBeNull()
+    expect(mocks.S.workouts).toEqual([])
+    expect(mocks.nav).toHaveBeenCalledWith('/home')
+  })
+
+  it('has no clock for a past workout being logged or a saved one being edited', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { active: { d: '2026-08-29', backfill: { durationMin: 60, replaceId: null } } })
+    expect(pill()).toBeNull()
+    await mount([exercise('plain-bench', [true])], 0, { active: { editingWorkoutId: 'saved' } })
+    expect(pill()).toBeNull()
   })
 })

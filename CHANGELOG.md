@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Pause, resume and restart the workout timer.** Tap the clock in the workout header (or ⋯ →
+  Workout timer). Paused time doesn't count, so a phone call or a wait for a machine no longer
+  stretches the session, and the saved workout's duration is the time you actually trained. A
+  running rest is held while you're paused. The pause survives the app going to the background,
+  a reload, or the phone closing the app. **Restart** sets the clock back to 0:00 after a
+  confirm; every exercise and logged set stays as it was. The workout clock now has its own
+  stopwatch pill, so it can't be mistaken for the rest countdown at the bottom.
+- **Discard a session started by accident, from Home.** A session in progress can be discarded
+  from Home without opening it. Nothing is saved to History, and the streak and the week's
+  count are unchanged.
 - **ChatGPT and Claude can work with your plan.** Add `https://<your Gymly>/api/mcp` as a custom
   connector (MCP) in ChatGPT, Claude or Claude Code, approve it on Gymly's own sign-in page, and
   the assistant can read your training and, if you allow it, change your routines, schedule a

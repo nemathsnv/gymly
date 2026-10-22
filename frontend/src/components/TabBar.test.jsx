@@ -115,3 +115,26 @@ describe('the tab icons and labels', () => {
     } finally { vi.useRealTimers() }
   })
 })
+
+// Away from the workout screen the Start button shows the session's running time: the workout
+// clock, paused time left out, held still while paused (lib/workout-clock.js).
+describe('the session clock on the Resume button', () => {
+  it('runs from the timestamps and holds still while the workout is paused', () => {
+    vi.useFakeTimers()
+    try {
+      const start = Date.now() - 12 * 60_000
+      useStore.setState(s => ({ S: { ...s.S, active: { id: 'a', name: 'Push', start, cur: 0, entries: [] } } }))
+      act(() => { root.render(<TabBar onStart={() => {}} />) })
+      const time = () => host.querySelector('.tab-time')
+      expect(time().textContent).toBe('12:00')
+      act(() => { vi.advanceTimersByTime(5000) })
+      expect(time().textContent).toBe('12:05')
+
+      act(() => { useStore.setState(s => ({ S: { ...s.S, active: { ...s.S.active, pausedAt: Date.now() } } })) })
+      expect(time().classList.contains('paused')).toBe(true)
+      expect(host.querySelector('button.start').getAttribute('aria-label')).toBe('Resume, Paused')
+      act(() => { vi.advanceTimersByTime(10 * 60_000) })
+      expect(time().textContent).toBe('12:05')
+    } finally { vi.useRealTimers() }
+  })
+})

@@ -1428,6 +1428,18 @@ export const PT_BR_OVERRIDES = {
   'Disconnected': 'Desconectado',
   'No assistants connected yet.': 'Ainda não há assistentes conectados.',
   'Read-only tokens': 'Tokens somente leitura',
+  'Workout timer': 'Cronômetro do treino',
+  'Times the whole session. The rest between sets has its own countdown.': 'Conta a sessão toda. O descanso entre séries tem sua própria contagem regressiva.',
+  'Pause timer': 'Pausar cronômetro',
+  'Resume timer': 'Retomar cronômetro',
+  'Restart timer': 'Reiniciar cronômetro',
+  'Back to 0:00. Your sets stay logged.': 'Volta para 0:00. Suas séries continuam registradas.',
+  'Restart the workout timer?': 'Reiniciar o cronômetro do treino?',
+  'The timer goes back to 0:00. Your exercises and logged sets stay as they are.': 'O cronômetro volta para 0:00. Seus exercícios e as séries registradas continuam como estão.',
+  'Restart': 'Reiniciar',
+  'Workout paused': 'Treino pausado',
+  '{0} (paused)': '{0} (pausado)',
+  'Nothing was logged, so nothing is saved to your history.': 'Nada foi registrado, então nada é salvo no seu histórico.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }
