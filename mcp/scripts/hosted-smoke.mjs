@@ -64,6 +64,8 @@ const provider = {
   codeVerifier: () => store.verifier,
   redirectToAuthorization: async url => {
     store.authUrl = url
+    // A session cookie only ever goes to the server named by --url, whatever its metadata says.
+    if (COOKIE && url.origin !== endpoint.origin) { console.error(`refusing to send the session cookie to ${url.origin}`); process.exit(1) }
     if (!COOKIE) { console.log('\nOpen this URL, sign in to Gymly and select Allow:\n\n  ' + url.href + '\n'); return }
     const page = await fetch(url, { headers: { Cookie: COOKIE }, redirect: 'manual' })
     const html = await page.text()

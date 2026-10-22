@@ -64,6 +64,7 @@ export function consentPage({ id, request, user, nonce }) {
   const body = `<h1>Connect an assistant</h1>
 <p>${intro}</p>
 <p class="dim">Signed in as <b>${esc(user.name)}</b>. After you answer, you go back to <b>${esc(describeRedirect(request.redirectUri))}</b>.</p>
+<p class="warn">Only continue if you started connecting ${esc(c.client_name)} to Gymly yourself, just now. Someone who sends you this link could be trying to connect their own assistant to your data.</p>
 <form method="post" action="/api/oauth/authorize">
 <input type="hidden" name="request_id" value="${esc(id)}">
 <p><b>It will be able to:</b></p>
@@ -116,7 +117,7 @@ const REASONS = {
   not_available: ['Not available for this profile', 'Connecting assistants is not enabled for this Gymly profile. Ask the person who runs this Gymly server.'],
   disabled: ['Not available', 'This Gymly server does not accept assistant connections.']
 };
-export function errorPage(reason, nonce) {
+export function errorPage(reason, nonce, detail) {
   const [title, text] = REASONS[reason] || REASONS.bad_request;
-  return shell(title + ' · Gymly', `<h1>${esc(title)}</h1><p>${esc(text)}</p>`, nonce);
+  return shell(title + ' · Gymly', `<h1>${esc(title)}</h1><p>${esc(text)}</p>${detail ? `<p class="dim">${esc(detail)}</p>` : ''}`, nonce);
 }

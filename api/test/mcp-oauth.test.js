@@ -234,3 +234,57 @@ test('the challenge names the resource metadata and strips quotes from the descr
   const c = bearerChallenge({ issuer: ISSUER, resource: RESOURCE }, 'invalid_token', 'say "hi"\\');
   assert.equal(c, `Bearer resource_metadata="${ISSUER}/.well-known/oauth-protected-resource/api/mcp", scope="gymly:read gymly:write", error="invalid_token", error_description="say hi"`);
 });
+
+/* ----- regressions from the security review ----- */
+
+test('review 1: spending the metadata-fetch budget on other hosts cannot lock out a connected CIMD client', async () => {
+  const docs = { [DOC_URL]: DOC };
+  const s = setup({ docs });
+  const tok = await s.connect(DOC_URL);
+  // An attacker burns fetches on hosts of their own, and the good document's cache goes stale.
+  for (let i = 0; i < 200; i++) await s.o.clientFor(`https://attacker${i % 30}.example/c${i}.json`);
+  s.tick(2 * 3600000);
+  // Refresh never needs the document; a new authorization is served the last good copy.
+  const r = await s.o.token(s.q({ grant_type: 'refresh_token', refresh_token: tok.refresh_token, client_id: DOC_URL }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.ok(await s.o.clientFor(DOC_URL), 'served from the last good copy');
+  // One host gets at most ten fetches per window.
+  const before = s.fetched.length;
+  for (let i = 0; i < 30; i++) await s.o.clientFor(`https://one.example/x${i}.json`);
+  assert.ok(s.fetched.length - before <= 10);
+});
+
+test('review 2: no error before consent is redirected, whatever the registered redirect URI', async () => {
+  const s = setup();
+  const cl = s.o.register({ client_name: 'X', redirect_uris: ['https://evil.example/phish'], token_endpoint_auth_method: 'none' }).body;
+  for (const extra of [{ response_type: 'token' }, { code_challenge_method: 'plain' }, { code_challenge: '' }, { resource: 'https://other.example/' }]) {
+    const r = await s.o.checkAuthorize(s.q({ response_type: 'code', client_id: cl.client_id, redirect_uri: 'https://evil.example/phish', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'x'.repeat(1000), ...extra }));
+    assert.equal(r.ok, false);
+    assert.equal(r.redirect, undefined, JSON.stringify(extra));
+    assert.equal(r.page, 'bad_request');
+  }
+});
+
+test('review 3: an unused registration stays out of db.json, expires within the hour, and URIs are bounded', async () => {
+  const s = setup();
+  const cl = s.o.register({ client_name: 'Claude', redirect_uris: ['https://claude.ai/api/mcp/auth_callback'], token_endpoint_auth_method: 'none' }).body;
+  assert.equal(s.db.mcpClients.length, 0);
+  assert.equal(s.saves(), 0, 'registering writes nothing');
+  assert.equal(s.o.register({ redirect_uris: ['https://a.example/' + 'x'.repeat(600)], token_endpoint_auth_method: 'none' }).status, 400);
+  await s.connect(cl.client_id, { redirect: 'https://claude.ai/api/mcp/auth_callback' });
+  assert.equal(s.db.mcpClients.length, 1, 'kept once used for a connection');
+  const idle = s.o.register({ client_name: 'Idle', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'none' }).body;
+  s.tick(3600001);
+  assert.equal(await s.o.clientFor(idle.client_id), null);
+});
+
+test('review 7: "verified" means exact known client ids or redirect targets, never a host suffix', async () => {
+  const sub = 'https://community.openai.com/raw/123/client.json';
+  const s = setup({ docs: { [DOC_URL]: DOC, [sub]: { client_id: sub, client_name: 'ChatGPT', redirect_uris: ['https://evil.example/cb'] } } });
+  assert.equal((await s.o.clientFor(DOC_URL)).verified, true);
+  assert.equal((await s.o.clientFor(sub)).verified, false);
+  const claude = s.o.register({ client_name: 'Claude', redirect_uris: ['https://claude.ai/api/mcp/auth_callback'], token_endpoint_auth_method: 'none' }).body;
+  assert.equal((await s.o.clientFor(claude.client_id)).verified, true);
+  const fake = s.o.register({ client_name: 'Claude', redirect_uris: ['https://claude.ai.evil.example/api/mcp/auth_callback'], token_endpoint_auth_method: 'none' }).body;
+  assert.equal((await s.o.clientFor(fake.client_id)).verified, false);
+});

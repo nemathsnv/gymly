@@ -301,9 +301,16 @@ test('a stale preview is refused, a destructive one needs the stronger confirmat
   await h.call(at, 'undo_change', { change_id: logged.structuredContent.change_id });
   assert.equal(h.state('u_one').workouts.length, 1);
 
-  // Undo is refused once the plan moved on after the change (the program came after the removal).
+  // Undo is about what the change touched: the program (other routines, the week) does not stand
+  // in the way of undoing the removal in Push, but a later edit of Push does, until it is undone.
+  const later = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r1', exercise_id: '0025', reps: 6 }] });
+  const laterApplied = await h.call(at, 'apply_routine_changes', { preview_id: later.structuredContent.preview_id });
   const refused = await h.call(at, 'undo_change', { change_id: done.structuredContent.change_id });
   assert.equal(refused.structuredContent.error, 'stale');
+  assert.ok(!(await h.call(at, 'undo_change', { change_id: laterApplied.structuredContent.change_id })).isError);
+  assert.ok(!(await h.call(at, 'undo_change', { change_id: done.structuredContent.change_id })).isError);
+  assert.deepEqual(h.state('u_one').routines[0].ex.map(e => e.id), ['0025', '0289']);
+  assert.equal(h.state('u_one').routines.length, 6, 'the program stays');
 });
 
 test('invalid operations are refused by Gymly\'s own validation, with nothing saved', async t => {
@@ -321,6 +328,11 @@ test('invalid operations are refused by Gymly\'s own validation, with nothing sa
   assert.equal(huge.isError, true);
   const unknownOp = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'replace_document', state: {} }] });
   assert.equal(unknownOp.isError, true);
+  // Object keys are not exercises (review 4).
+  for (const bad of ['__proto__', 'constructor', 'toString']) {
+    const wl = await h.call(at, 'preview_workout_log', { date: '2026-10-10', duration_min: 30, exercises: [{ exercise_id: bad, sets: [{ reps: 5, weight: 100 }] }] });
+    assert.equal(wl.isError, true, bad);
+  }
   assert.equal(h.state('u_one')._rev, 3);
 });
 
@@ -375,11 +387,15 @@ test('the authorize endpoint never redirects to an unregistered address and insi
   assert.equal(evil.status, 400);
   assert.equal(evil.headers.get('location'), null);
   assert.equal((await go({ ...base, client_id: 'nope' })).status, 400);
+  // Even for a registered client, errors before consent are shown, not redirected: registration
+  // is open, so the redirect URI is still the requester's choice (no open redirect).
   const plain = await go({ ...base, code_challenge_method: 'plain' });
-  assert.equal(plain.status, 302);
-  assert.equal(new URL(plain.headers.get('location')).searchParams.get('error'), 'invalid_request');
+  assert.equal(plain.status, 400);
+  assert.equal(plain.headers.get('location'), null);
+  assert.match(await plain.text(), /S256/);
   const otherResource = await go({ ...base, resource: 'https://other.example/mcp' });
-  assert.equal(new URL(otherResource.headers.get('location')).searchParams.get('error'), 'invalid_target');
+  assert.equal(otherResource.status, 400);
+  assert.equal(otherResource.headers.get('location'), null);
   // The consent screen cannot be framed and carries its own CSP.
   const page = await go(base);
   assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'none'/);
@@ -498,8 +514,22 @@ test('a device with unsynced edits merges with an assistant\'s change: both surv
   assert.deepEqual(S.routines[0].ex[0], { ...S.routines[0].ex[0], id: '0025', sets: 4, weight: 60 }, 'the assistant\'s change survived the merge');
   assert.equal(S.routines[1].name, 'Legs (phone)', 'the phone\'s edit survived too');
   assert.ok(S.bodyweight.some(b => b.d === '2026-10-20' && b.w === 79.6));
-  // And the assistant reads the merged plan, and its undo is now refused rather than overwriting the phone's work.
+  // The assistant's undo takes back its own change and nothing of the phone's.
   const changes = await h.call(at, 'list_recent_changes');
   const undo = await h.call(at, 'undo_change', { change_id: changes.structuredContent.changes[0].change_id });
-  assert.equal(undo.structuredContent.error, 'stale');
+  assert.ok(!undo.isError, JSON.stringify(undo));
+  const U = h.state('u_one');
+  assert.deepEqual(U.routines[0].ex[0], { ...U.routines[0].ex[0], sets: 3, weight: 55 });
+  assert.equal(U.routines[1].name, 'Legs (phone)');
+  assert.ok(U.bodyweight.some(b => b.d === '2026-10-20'));
+  // A phone edit to the routine the assistant changed, though, does block its undo.
+  const p2 = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r2', exercise_id: '0043', sets: 5 }] });
+  const a2 = await h.call(at, 'apply_routine_changes', { preview_id: p2.structuredContent.preview_id });
+  const pull2 = await (await h.fetch('/api/data', { headers: cookie('u_one') })).json();
+  const edit = structuredClone(pull2.state);
+  edit.routines[1].ex[0].reps = 7;
+  edit.routines = stampRoutines(pull2.state.routines, edit.routines, Date.now());
+  assert.equal((await h.fetch('/api/data', { method: 'PUT', headers: json, body: JSON.stringify({ state: edit, baseRev: pull2.rev, stamped: true }) })).status, 200);
+  const blocked = await h.call(at, 'undo_change', { change_id: a2.structuredContent.change_id });
+  assert.equal(blocked.structuredContent.error, 'stale');
 });

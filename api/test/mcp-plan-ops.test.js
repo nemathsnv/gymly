@@ -28,9 +28,9 @@ test('an ordinary edit previews as one before → after line and applies exactly
   assert.equal(p.tier, 'ordinary');
   assert.deepEqual(p.lines, ['“Push” · Barbell Bench Press: 3 × 5 · 55 kg → 4 × 8 · 60 kg']);
   assert.deepEqual(p.changes.map(c => c.type), ['sets', 'reps', 'weight']);
-  const { next, afterHash } = applyPlan(S, p);
+  const { next } = applyPlan(S, p);
   assert.deepEqual(next.routines[0].ex[0], { id: '0025', sets: 4, reps: 8, weight: 60 });
-  assert.equal(afterHash, p.afterHash, 'the preview showed the plan the apply produced');
+  assert.deepEqual(p.scope, { ids: ['r1'], week: false });
   assert.deepEqual(S, S0(), 'the input is never mutated');
 });
 
@@ -111,24 +111,42 @@ test('limits and no-ops', () => {
   assert.equal(cleanName(' Push‮\u0000 Day  '), 'Push Day');
 });
 
-test('apply refuses a moved plan; undo is exact and refuses once the plan moved on', () => {
+test('apply refuses a moved routine but not an unrelated one; undo is exact and scoped', () => {
   const S = S0();
   const p = previewPlan(S, [{ op: 'remove_routine', routine_id: 'r2' }]);
-  const moved = S0();
-  moved.routines[0].ex[0].reps = 6;
+  assert.deepEqual(p.scope, { ids: ['r2'], week: true });
+  // Another routine edited meanwhile: still applies.
+  const other = S0();
+  other.routines[0].ex[0].reps = 6;
+  assert.doesNotThrow(() => applyPlan(other, p));
+  // The routine itself (any field, even its icon) or the week edited meanwhile: stale.
+  const moved = S0(); moved.routines[1].emoji = 'legs';
   assert.throws(() => applyPlan(moved, p), StaleError);
+  const week = S0(); week.week[5] = ['r1'];
+  assert.throws(() => applyPlan(week, p), StaleError);
+  // Sync stamps alone do not count as an edit.
+  const stamped = S0(); stamped.routines[1]._ts = 123; stamped.routines[1]._f = { name: 123 };
+  assert.doesNotThrow(() => applyPlan(stamped, p));
 
-  const { next, undo, afterHash } = applyPlan(S, p);
+  const { next, undo, afterKey } = applyPlan(S, p);
   assert.equal(next.dayPlan['2099-03-02'], undefined, 'its reschedule went with it');
   assert.deepEqual(next.week, { 1: ['r1'] });
-  const back = undoPlan(next, { undo, afterHash });
-  assert.deepEqual(back.routines, S.routines);
+  const back = undoPlan(next, { undo, afterKey });
+  assert.deepEqual(back.routines, S.routines, 'back in its place');
   assert.deepEqual(back.week, S.week);
   assert.deepEqual(back.dayPlan, S.dayPlan);
   assert.equal(planHashOf(back), planHashOf(S));
-  const later = structuredClone(next);
-  later.routines[0].name = 'Push renamed';
-  assert.throws(() => undoPlan(later, { undo, afterHash }), StaleError);
+  // An unrelated later edit survives the undo; a later edit of the scope blocks it.
+  const unrelated = structuredClone(next);
+  unrelated.routines[0].name = 'Push renamed';
+  assert.equal(undoPlan(unrelated, { undo, afterKey }).routines[0].name, 'Push renamed');
+  const related = structuredClone(next);
+  related.week[2] = ['r1'];
+  assert.throws(() => undoPlan(related, { undo, afterKey }), StaleError);
+  // A routine the change created is removed again by its undo.
+  const c = previewPlan(S, [{ op: 'create_routine', name: 'New', exercises: [{ exercise_id: '0025' }] }], { newId: () => 'rnew' });
+  const ap = applyPlan(S, c);
+  assert.deepEqual(undoPlan(ap.next, ap).routines.map(r => r.id), ['r1', 'r2']);
 });
 
 test('logging a workout: validated, filed in date order, added once, undone by id', () => {

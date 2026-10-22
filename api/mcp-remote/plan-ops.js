@@ -46,6 +46,37 @@ export const cleanName = v => String(v == null ? '' : v)
 
 export const planHashOf = S => hashPlan(canonicalPlan(S || {}));
 
+/* ---------- what a change is about, and whether it moved ----------
+   A preview is checked against, and an undo restores, only what its changes touch: the routines
+   they name (or create, or schedule) and, when one reschedules or removes a routine, the week.
+   Two previews about different routines therefore do not invalidate each other, while any edit
+   to a routine a preview is about — in the app, on another device, by another assistant — makes
+   it stale. The comparison is the whole routine as stored (name, icon, every exercise field, notes,
+   set types), not the Coach's plan fingerprint, which leaves some of those out; only the sync
+   stamps (`_ts`, `_f`, `_u`), which the commit adds, are ignored. */
+const STAMP_KEYS = new Set(['_ts', '_f', '_u']);
+const bare = v => JSON.stringify(v, (k, x) => (STAMP_KEYS.has(k) ? undefined : x));
+const weekOf = S => {
+  const w = {};
+  for (let d = 0; d < 7; d++) { const ids = [].concat(isObj(S?.week) ? S.week[d] ?? [] : []); if (ids.length) w[d] = ids; }
+  return w;
+};
+export function scopeOf(changes) {
+  const ids = new Set();
+  let week = false;
+  for (const c of changes) {
+    if (c.target?.routineId) ids.add(c.target.routineId);
+    if (c.type === 'add-routine' && c.after?.id) ids.add(c.after.id);
+    if (c.type === 'week') { week = true; if (typeof c.after === 'string' && c.after !== 'rest') ids.add(c.after); }
+    if (c.type === 'remove-routine') week = true;
+  }
+  return { ids: [...ids].sort(), week };
+}
+export function scopeKey(S, scope) {
+  const rs = Array.isArray(S?.routines) ? S.routines : [];
+  return bare({ r: scope.ids.map(id => rs.find(r => r && r.id === id) || null), w: scope.week ? weekOf(S) : null });
+}
+
 function scratchOf(S) {
   const s = { routines: clone(Array.isArray(S?.routines) ? S.routines.filter(isObj) : []), week: clone(isObj(S?.week) ? S.week : {}), dayPlan: clone(isObj(S?.dayPlan) ? S.dayPlan : {}), customEx: Array.isArray(S?.customEx) ? S.customEx : [], unit: S?.unit };
   for (const r of s.routines) if (!Array.isArray(r.ex)) r.ex = [];
@@ -237,8 +268,8 @@ export function previewPlan(S, ops, { newId = helpers.uid } = {}) {
     tier: tierOf(applied, diff),
     schedule: scheduleOf(S, s, diff.touchedIds),
     notes,
-    baseHash: planHashOf(S),
-    afterHash: planHashOf(s)
+    scope: scopeOf(applied),
+    baseKey: scopeKey(S, scopeOf(applied))
   };
 }
 
@@ -354,30 +385,47 @@ export class StaleError extends Error {
 
 /** The document after `preview` is applied, with what an undo needs. Throws StaleError. */
 export function applyPlan(S, preview) {
-  if (planHashOf(S) !== preview.baseHash) {
-    throw new StaleError('the plan changed since this preview (edited in the app, on another device or by another assistant) — preview the change again');
+  const scope = preview.scope;
+  if (scopeKey(S, scope) !== preview.baseKey) {
+    throw new StaleError('what this preview changes was edited since (in the app, on another device or by another assistant) — preview the change again');
   }
   const next = clone(S || {});
   const dayBefore = clone(isObj(next.dayPlan) ? next.dayPlan : {});
   applyChanges(next, preview.changes);
   const dayPlanDropped = {};
   for (const [iso, v] of Object.entries(dayBefore)) if (!(iso in next.dayPlan)) dayPlanDropped[iso] = v;
+  const rs = Array.isArray(S?.routines) ? S.routines : [];
+  const before = {};
+  for (const id of scope.ids) {
+    const index = rs.findIndex(r => r && r.id === id);
+    before[id] = index < 0 ? null : { index, routine: clone(rs[index]) };
+  }
   return {
     next,
-    undo: { routines: clone(S?.routines || []), week: clone(isObj(S?.week) ? S.week : {}), dayPlanDropped },
-    afterHash: planHashOf(next)
+    undo: { scope, before, ...(scope.week ? { week: clone(isObj(S?.week) ? S.week : {}) } : {}), dayPlanDropped },
+    afterKey: scopeKey(next, scope)
   };
 }
 
-/** The document with a plan change taken back, or a StaleError when the plan moved on since. */
+/** The document with a plan change taken back, or a StaleError when what it touched moved on since. */
 export function undoPlan(S, record) {
-  if (planHashOf(S) !== record.afterHash) {
-    throw new StaleError('the plan has changed since this change was applied, so undoing it would also throw away those later edits — undo the later changes first, or make the edit again by hand');
+  const { scope, before } = record.undo;
+  if (scopeKey(S, scope) !== record.afterKey) {
+    throw new StaleError('what this change touched has been edited since, so undoing it would also throw away those later edits — undo the later changes first, or make the edit again by hand');
   }
   const next = clone(S || {});
-  next.routines = clone(record.undo.routines);
-  next.week = clone(record.undo.week);
-  next.dayPlan = { ...(isObj(next.dayPlan) ? next.dayPlan : {}), ...(record.undo.dayPlanDropped || {}) };
+  if (!Array.isArray(next.routines)) next.routines = [];
+  for (const id of scope.ids) {
+    const at = next.routines.findIndex(r => r && r.id === id);
+    const was = before[id];
+    if (!was) { if (at >= 0) next.routines.splice(at, 1); continue; }
+    if (at >= 0) next.routines[at] = clone(was.routine);
+    else next.routines.splice(Math.min(was.index, next.routines.length), 0, clone(was.routine));
+  }
+  if (scope.week) next.week = clone(record.undo.week);
+  if (!isObj(next.dayPlan)) next.dayPlan = {};
+  // Reschedules the change dropped come back, unless the day has been planned anew since.
+  for (const [iso, v] of Object.entries(record.undo.dayPlanDropped || {})) if (!(iso in next.dayPlan)) next.dayPlan[iso] = v;
   return next;
 }
 

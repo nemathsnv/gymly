@@ -27,9 +27,10 @@ reasoning behind it.
     (ChatGPT, Claude) ask the user before running a non-read-only tool;
   - removals and bulk edits (more than 16 changes, or more than 3 existing routines) need a
     separate tool annotated `destructiveHint` and a confirmation phrase;
-  - the apply refuses a plan that moved since the preview (the Coach's plan hash), is
-    idempotent, and is journalled with the plan before it, so `undo_change` restores it exactly
-    (and refuses when a later edit would be overwritten);
+  - the apply refuses when anything it touches (the routines it names, and the week when it
+    reschedules or removes a routine) changed since the preview — compared field for field, sync
+    stamps aside — is idempotent, and is journalled with what it touched, so `undo_change`
+    restores exactly that (and refuses when a later edit of the same routine would be overwritten);
   - the write goes through the same commit as `PUT /api/data` (`commitState`: stamps, revision,
     write id), as a writer that read the current revision, so every device merges it like an edit
     made elsewhere — no second writer with its own rules.

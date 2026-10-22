@@ -250,7 +250,9 @@ Requirements:
 - Behind Cloudflare, skip bot challenges for `/api/mcp`, `/api/oauth/*` and
   `/.well-known/oauth-*`; assistants call them from their own servers.
 
-Nothing else is needed: no new port, container or database. Connections live in `db.json`
+Client metadata documents (how ChatGPT and Claude Code identify themselves) are fetched only
+from public addresses; `ALLOWED_PRIVATE_IPS` does not apply to them. Nothing else is needed: no
+new port, container or database. Connections live in `db.json`
 (`mcpClients`, `mcpGrants`, tokens hashed), the per-profile change journal used for undo in
 `data/mcp-journal-<id>.json`, and both are covered by your normal backup of `./data`. Remove a
 profile from `MCP_OAUTH_USERS` and its connections stop on their next request; unset the

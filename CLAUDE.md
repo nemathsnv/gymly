@@ -128,7 +128,7 @@ with read *and* write tools, behind an OAuth 2.1 server in the API (`oauth.js`: 
 resource-bound hashed tokens in `db.mcpGrants`, consent page `consent.js`). Off unless
 `MCP_OAUTH_USERS` lists profile ids. Writes: `plan-ops.js` turns operations into the Coach's
 change contract and validates them with `coach/core/validate.js`; preview → apply-by-id
-(`tools.js`), plan-hash staleness, journal for undo (`journal.js`), committed through
+(`tools.js`), staleness scoped to the touched routines (`scopeKey`), journal for undo (`journal.js`), committed through
 `commitState` in server.js (the same path as `PUT /api/data`). `plan-apply.js` is a hand copy of
 the Coach's `CHANGE_APPLY` pinned by `frontend/src/lib/mcp-apply-parity.test.js`.
 `read-tools.gen.js` is GENERATED (`node scripts/build-mcp-hosted.mjs`) from `mcp/src/hosted.js`

@@ -92285,7 +92285,12 @@ const mondayOf = (iso) => {
 };
 const round1 = (v) => Math.round(v * 10) / 10;
 const customOf = (id, S) => (S.customEx || []).find((ex) => ex && ex.id === id);
-const exerciseOf = (id, S) => customOf(id, S) || exOr(id);
+const inCatalogue = (id) => typeof id === "string" && Object.hasOwn(EXIDX, id);
+const exerciseOf = (id, S) => customOf(id, S) || (inCatalogue(id) ? EXIDX[id] : {
+	id,
+	n: "Unknown exercise",
+	missing: true
+});
 const noState = () => ({
 	error: "no synced state yet — sign in at least once from a device so Gymly can save this profile",
 	unit: "kg"
@@ -92450,7 +92455,7 @@ const helpers = {
 		const ex = exerciseOf(id, S || {});
 		return ex && !ex.missing ? ex.n : null;
 	},
-	isKnownExercise: (id, S) => !!customOf(id, S || {}) || !exOr(id).missing,
+	isKnownExercise: (id, S) => !!customOf(id, S || {}) || inCatalogue(id),
 	isCardio: (id) => isCardio(id),
 	isPerSide: (cfg) => isPerSide(cfg),
 	prescription: (cfg, unit) => exLine(cfg, unit),

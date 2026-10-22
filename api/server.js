@@ -271,9 +271,9 @@ function isAllowedPrivateAddr(v) {
   return family !== null && ALLOWED_PRIVATE_IPS.check(v.replace(/%.*$/, ''), family);
 }
 
-function isPrivateAddr(ip) {
+function isPrivateAddr(ip, operatorExceptions = true) {
   const v = String(ip).toLowerCase();
-  if (isAllowedPrivateAddr(v)) return false;
+  if (operatorExceptions && isAllowedPrivateAddr(v)) return false;
   const m4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(v);
   if (m4) {
     const a = +m4[1], b = +m4[2];
@@ -292,7 +292,7 @@ function isPrivateAddr(ip) {
   const g = ipv6Groups(v);
   if (!g) return false;
   if (g.slice(0, 5).every(x => x === 0) && g[5] === 0xffff) {     // IPv4-mapped IPv6
-    return isPrivateAddr(`${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`);
+    return isPrivateAddr(`${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`, operatorExceptions);
   }
   if (g.slice(0, 7).every(x => x === 0) && g[7] <= 1) return true; // unspecified, loopback
   if ((g[0] & 0xffc0) === 0xfe80) return true;                    // link-local fe80::/10
@@ -1995,12 +1995,24 @@ if (MCP_OAUTH_USERS.size && !MCP_HOSTED) console.warn('MCP_OAUTH_USERS is set, b
 const MCP_ALLOWED_ORIGINS = new Set([MCP_ISSUER, ...(process.env.MCP_ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean)]);
 const mcpOAuthAllowed = user => !!user && !user.disabled && MCP_OAUTH_USERS.has(user.id);
 
-// A client's metadata document (CIMD): fetched over https from a public address only (the same
-// guarded resolver push delivery uses), no redirects, at most 10 KB and 5 seconds.
+// A client's metadata document (CIMD): fetched over https from a public address only, checked at
+// connect time like push delivery's, but without the operator's ALLOWED_PRIVATE_IPS exceptions —
+// those are for push services on the LAN, and anyone can make this server fetch a client_id.
+// No redirects, JSON only, at most 10 KB and 5 seconds.
+function strictLookup(hostname, options, cb) {
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (err) return cb(err);
+    const list = Array.isArray(address) ? address : [{ address, family }];
+    if (list.some(a => isPrivateAddr(a.address, false))) return cb(Object.assign(new Error('refusing a private address: ' + hostname), { code: 'EBLOCKED' }));
+    cb(null, address, family);
+  });
+}
+const CIMD_AGENT = new https.Agent({ lookup: strictLookup, keepAlive: false });
 function fetchClientMetadata(url) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { agent: PUSH_AGENT, headers: { Accept: 'application/json', 'User-Agent': 'Gymly-MCP/1.0' }, timeout: 5000 }, res => {
+    const req = https.get(url, { agent: CIMD_AGENT, headers: { Accept: 'application/json', 'User-Agent': 'Gymly-MCP/1.0' }, timeout: 5000 }, res => {
       if (res.statusCode !== 200) { res.resume(); return reject(new Error('status ' + res.statusCode)); }
+      if (!/^application\/([a-z.+-]*\+)?json\b/i.test(String(res.headers['content-type'] || ''))) { res.resume(); return reject(new Error('not json')); }
       let size = 0; const chunks = [];
       res.on('data', d => { size += d.length; if (size > 10240) { req.destroy(); reject(new Error('too large')); } else chunks.push(d); });
       res.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (e) { reject(e); } });
@@ -2040,11 +2052,13 @@ setInterval(() => { for (const w of [MCP_GRANT_BURST, OAUTH_BURST, OAUTH_REGISTE
 
 // The MCP tools and the HTTP transport are loaded on first use: they carry the bundled app code
 // (read-tools.gen.js, ~1.6 MB), which an instance that never enables the feature need not hold.
+// The promise is what is cached, so two first requests at once share one preview store.
 let mcpHttp = null;
-async function mcpModules() {
+function mcpModules() {
   if (!mcpHttp) {
-    const [{ handleMcpPost }, { createPreviewStore }] = await Promise.all([import('./mcp-remote/http.js'), import('./mcp-remote/tools.js')]);
-    mcpHttp = { handleMcpPost, previews: createPreviewStore() };
+    mcpHttp = Promise.all([import('./mcp-remote/http.js'), import('./mcp-remote/tools.js')])
+      .then(([{ handleMcpPost }, { createPreviewStore }]) => ({ handleMcpPost, previews: createPreviewStore() }));
+    mcpHttp.catch(() => { mcpHttp = null; });
   }
   return mcpHttp;
 }
@@ -2500,8 +2514,7 @@ const routes = {
     if (wait) return tooMany(res, wait);
     const q = new URL(req.url, 'http://x').searchParams;
     const check = await MCP_OAUTH.checkAuthorize(q);
-    if (!check.ok && check.redirect) { res.writeHead(302, { Location: check.redirect, 'Cache-Control': 'no-store' }); return res.end(); }
-    if (!check.ok) return mcpPage(res, 400, errorPage(check.page === 'bad_request' ? 'bad_request' : check.page, nonce), nonce);
+    if (!check.ok) return mcpPage(res, 400, errorPage(check.page, nonce, check.description), nonce);
     const user = readSession(req);
     if (!user) return mcpPage(res, 200, signInPage({ nonce, appUrl: MCP_ISSUER + '/' }), nonce);
     if (!mcpOAuthAllowed(user)) {

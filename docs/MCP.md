@@ -36,8 +36,9 @@ Every change works the same way: the assistant **previews** it (nothing is saved
 exact before → after, and only applies it when you agree. Removing exercises or routines, or
 changing many things at once, needs an extra, explicit confirmation. Changes are checked by the
 same validation as the AI Coach's, reach your phone on its next sync like an edit on another
-device, and can be undone (`undo_change`). A change computed against a plan you have since
-edited elsewhere is refused, not forced. Routines are templates: changing "tomorrow's bench press"
+device, and can be undone (`undo_change`). A change previewed against a routine you have since
+edited elsewhere is refused, not forced (edits to other routines do not get in the way), and an
+undo never throws away a later edit of the same routine. Routines are templates: changing "tomorrow's bench press"
 changes that routine from tomorrow on, and the assistant says so.
 
 It cannot see or change your passkeys, password, gym cards, AI Coach settings or account, and
@@ -93,8 +94,10 @@ not been used for 30 days, and at most 180 days; then you approve it again.
 - OAuth 2.1 authorization code flow with PKCE (S256 only), resource indicators (tokens are bound
   to `/api/mcp` and accepted nowhere else), issuer identification (`iss`) on every answer.
 - You sign in with your passkey on Gymly's own page; the assistant never sees a password or a
-  session. The consent screen names the client (marked unverified unless it comes from a known
-  host), shows where the answer goes, and cannot be framed.
+  session. The consent screen names the client, marks it verified only when the code can go
+  nowhere but ChatGPT's or Claude's own callback, shows where the answer goes, warns you not to
+  approve a link someone sent you, and cannot be framed. Errors before you approve are shown on
+  Gymly's page, never redirected.
 - Access tokens last an hour; refresh tokens rotate on every use, and a stolen one used again
   ends the whole connection. Tokens are random, stored only as hashes, and never logged.
 - Every tool checks the scope it needs and acts on your profile only; no tool takes a profile or

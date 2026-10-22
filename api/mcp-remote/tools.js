@@ -9,9 +9,10 @@
  * Reads are V1's tools (read-tools.gen.js), answered from the profile's stored document.
  * Writes follow the preview → confirm pattern: a preview tool validates the change, stores it for
  * 15 minutes under an id bound to this connection and returns exactly what would change; an apply
- * tool takes only that id, so what is applied is what the person was shown. Applying checks the
- * plan has not moved since (plan hash), is idempotent (a second apply of the same preview answers
- * with the first one's result), records an undo entry, and writes through the same commit path a
+ * tool takes only that id, so what is applied is what the person was shown. Applying checks that
+ * the routines (and the week) it touches have not moved since (plan-ops.js scopeKey), is
+ * idempotent (a second apply of the same preview answers with the first one's result), records
+ * an undo entry, and writes through the same commit path a
  * device's sync uses. Removals and bulk edits need the separate apply_destructive_routine_changes,
  * annotated destructive and taking a confirmation phrase, so a client shows the stronger prompt.
  *
@@ -83,7 +84,9 @@ const titleOf = name => name.split('_').map((w, i) => (i ? w : w[0].toUpperCase(
 
 /* ---------- input schemas ---------- */
 
-const id = () => z.string().trim().min(1).max(64);
+// Ids are the app's (uid(), catalogue numbers): letters, digits and a few separators — never a
+// key like `__proto__` that means something to an object.
+const id = () => z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/, 'not an id');
 const exId = () => id().describe('Exercise id (from get_routine, get_workout or search_exercises).');
 const routineId = () => id().describe('Routine id (from list_routines or get_week_plan).');
 const sets = () => z.number().int().min(1).max(10);
@@ -294,21 +297,21 @@ export function buildServer(actor, deps) {
     const limited = budget(); if (limited) return limited;
     // Synchronous from here to the commit: nothing else runs in between.
     const cur = state();
-    const { next, undo, afterHash } = applyPlan(cur || {}, pv.plan);
+    const { next, undo, afterKey } = applyPlan(cur || {}, pv.plan);
     const changeId = 'gymly_ch_' + crypto.randomBytes(12).toString('base64url');
     deps.journal.append(actor.user.id, {
       id: changeId, at: Date.now(), kind: 'plan', client, grantId: actor.grant.id, previewId: pv.id,
-      tier: pv.tier, lines: pv.plan.lines, changes: pv.plan.changes.length, undo, afterHash, undone: null
+      tier: pv.tier, lines: pv.plan.lines, changes: pv.plan.changes.length, undo, afterKey, undone: null
     });
     const { rev } = deps.commit(actor.user, cur, next);
-    const result = { applied: true, change_id: changeId, changed: pv.plan.lines, rev, undo_hint: 'undo_change with this change_id puts the plan back, as long as it has not been edited since.' };
+    const result = { applied: true, change_id: changeId, changed: pv.plan.lines, rev, undo_hint: 'undo_change with this change_id puts what it changed back, as long as that has not been edited since.' };
     pv.status = 'applied'; pv.result = result; pv.keepUntil = Date.now() + APPLIED_KEEP_MS;
     deps.audit('mcp.write.plan', { user: actor.user, msg: `${client}: ${pv.plan.changes.length} change(s), ${pv.tier}` });
     return ok(`Applied: ${pv.plan.lines.join(' | ')}`, result);
   };
 
   register('apply_routine_changes', {
-    description: 'Apply a routine/schedule preview the user agreed to, by its preview_id. Applies exactly what the preview showed; refuses if the plan was edited since (preview again) and refuses removals or bulk edits (those need apply_destructive_routine_changes). Calling it twice with the same preview_id does not apply twice.',
+    description: 'Apply a routine/schedule preview the user agreed to, by its preview_id. Applies exactly what the preview showed; refuses if what it changes was edited since (preview again) and refuses removals or bulk edits (those need apply_destructive_routine_changes). Calling it twice with the same preview_id does not apply twice.',
     inputSchema: z.object({ preview_id: PREVIEW_ID }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, 'gymly:write', ({ preview_id }) => applyPlanPreview(preview_id, { destructive: false }));
@@ -343,7 +346,7 @@ export function buildServer(actor, deps) {
   });
 
   register('undo_change', {
-    description: 'Undo a change an assistant applied (change_id from an apply result or list_recent_changes): puts the routines and schedule back as they were, or removes the logged workout. Refuses when the plan was edited after that change (undo the newer ones first). Undoing twice does nothing more.',
+    description: 'Undo a change an assistant applied (change_id from an apply result or list_recent_changes): puts the routines and schedule back as they were, or removes the logged workout. Refuses when what it changed was edited afterwards (undo the newer change first). Undoing twice does nothing more.',
     inputSchema: z.object({ change_id: z.string().trim().min(10).max(80) }),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
   }, 'gymly:write', ({ change_id }) => {

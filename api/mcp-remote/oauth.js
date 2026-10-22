@@ -36,7 +36,11 @@ export const MAX_GRANT_DAYS = 180;
 export const REQUEST_TTL_MS = 10 * 60000;
 export const CODE_TTL_MS = 5 * 60000;
 export const REUSE_GRACE_MS = 60000;
-export const DCR_UNUSED_MS = 86400000;
+// A registration nobody has completed a connection with lives in memory only, for an hour: open
+// registration must not be a way to grow db.json, which every sign-in rewrites.
+export const DCR_UNUSED_MS = 3600000;
+export const MAX_PENDING_CLIENTS = 1000;
+export const REDIRECT_URI_MAX = 512;
 export const DCR_USED_MS = 180 * 86400000;
 export const MAX_GRANTS_PER_USER = 10;
 export const MAX_CLIENTS = 500;
@@ -63,7 +67,7 @@ export const cleanText = (v, n = 100) => String(v == null ? '' : v)
 const BAD_SCHEMES = new Set(['javascript:', 'data:', 'file:', 'vbscript:', 'about:', 'blob:', 'ftp:', 'ws:', 'wss:', 'http:', 'https:']);
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 export function validRedirectUri(raw) {
-  if (typeof raw !== 'string' || !raw || raw.length > 2000) return false;
+  if (typeof raw !== 'string' || !raw || raw.length > REDIRECT_URI_MAX) return false;
   let u;
   try { u = new URL(raw); } catch { return false; }
   if (u.hash || u.username || u.password || raw.includes('#')) return false;
@@ -83,8 +87,15 @@ export function redirectUriMatches(registered, presented) {
       && a.pathname === b.pathname && a.search === b.search;
   });
 }
-const VERIFIED_HOSTS = ['claude.ai', 'claude.com', 'chatgpt.com', 'chat.openai.com', 'openai.com'];
-const hostVerified = h => VERIFIED_HOSTS.some(v => h === v || h.endsWith('.' + v));
+// "Verified" on the consent screen means: the code can only go to that service. Decided by exact
+// redirect targets (and exact metadata-document URLs), never by host suffix: any page some user
+// can publish under a big domain could otherwise serve a document calling itself ChatGPT.
+const KNOWN_CLIENT_IDS = new Set(['https://chatgpt.com/oauth/client.json', 'https://claude.ai/oauth/claude-code-client-metadata']);
+const KNOWN_CLIENT_ID_RE = /^https:\/\/chatgpt\.com\/oauth\/[A-Za-z0-9_-]{1,64}\/client\.json$/;
+const KNOWN_REDIRECTS = new Set(['https://chatgpt.com/connector_platform_oauth_redirect', 'https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback']);
+const KNOWN_REDIRECT_RE = /^https:\/\/chatgpt\.com\/connector\/oauth\/[A-Za-z0-9_-]{1,64}$/;
+export const knownRedirect = u => KNOWN_REDIRECTS.has(u) || KNOWN_REDIRECT_RE.test(u);
+export const knownClientId = id => KNOWN_CLIENT_IDS.has(id) || KNOWN_CLIENT_ID_RE.test(id);
 /** Where an answer goes, as a person reads it on the consent screen. */
 export function describeRedirect(uri) {
   try {
@@ -125,8 +136,9 @@ export function createOAuth(deps) {
   const { issuer, resource } = deps.config;
   const requests = new Map();   // request id -> pending consent
   const codes = new Map();      // sha(code) -> issued code
-  const cimd = new Map();       // client_id url -> { client, exp } | { fail, exp }
-  let cimdBudget = { at: 0, n: 0 };
+  const cimd = new Map();       // client_id url -> { client, fresh } | { fail, exp }
+  const pending = new Map();    // client_id -> a registration not yet used for a connection
+  const budget = { at: 0, all: 0, host: new Map() };
 
   const db = () => {
     const d = deps.getDb();
@@ -139,7 +151,8 @@ export function createOAuth(deps) {
     const t = now();
     for (const [k, v] of requests) if (v.exp < t) requests.delete(k);
     for (const [k, v] of codes) if (v.exp < t) codes.delete(k);
-    for (const [k, v] of cimd) if (v.exp < t) cimd.delete(k);
+    for (const [k, v] of cimd) if (v.fail && v.exp < t) cimd.delete(k);
+    for (const [k, v] of pending) if (v.exp < t) pending.delete(k);
     const d = db();
     const before = d.mcpClients.length + d.mcpGrants.length;
     d.mcpClients = d.mcpClients.filter(c => c && c.exp > t);
@@ -149,25 +162,45 @@ export function createOAuth(deps) {
 
   /* ----- clients ----- */
 
+  // Fetches of metadata documents an anonymous authorize link can ask for: at most 10 per host and
+  // 120 in all per 10 minutes. A document once read good is kept and served even when it cannot be
+  // fetched again (budget spent, the host down), so nobody can lock ChatGPT or Claude Code out by
+  // spending the budget on hosts of their own.
+  function mayFetch(clientId) {
+    const t = now();
+    if (t - budget.at > 600000) { budget.at = t; budget.all = 0; budget.host.clear(); }
+    let host = '';
+    try { host = new URL(clientId).hostname; } catch { return false; }
+    const n = (budget.host.get(host) || 0) + 1;
+    if (n > 10 || budget.all >= 120) return false;
+    budget.host.set(host, n);
+    budget.all++;
+    return true;
+  }
+
   async function clientFor(clientId) {
     if (typeof clientId !== 'string' || !clientId || clientId.length > 512) return null;
     if (clientId.startsWith('https://')) {
       if (!validMetadataUrl(clientId)) return null;
       const hit = cimd.get(clientId);
-      if (hit && hit.exp > now()) return hit.client || null;
-      // A failing or hostile document is not fetched again for five minutes, and all fetches
-      // share a budget: an anonymous authorize link must not turn this server into a fetcher.
-      const t = now();
-      if (t - cimdBudget.at > 600000) cimdBudget = { at: t, n: 0 };
-      if (++cimdBudget.n > 60) return null;
+      if (hit?.client && hit.fresh > now()) return hit.client;
+      if (hit?.fail && hit.exp > now()) return null;
+      if (!mayFetch(clientId)) return hit?.client || null;
       let doc;
       try { doc = await deps.fetchMetadata(clientId); } catch { doc = null; }
       const client = metadataClient(clientId, doc);
-      cimd.set(clientId, client ? { client, exp: now() + 3600000 } : { fail: true, exp: now() + 300000 });
-      return client;
+      if (client) {
+        cimd.set(clientId, { client, fresh: now() + 3600000 });
+        // Good documents are few; bounded all the same.
+        if (cimd.size > 500) for (const [k, v] of cimd) { if (v.fail) cimd.delete(k); if (cimd.size <= 400) break; }
+        return client;
+      }
+      if (hit?.client) return hit.client;
+      cimd.set(clientId, { fail: true, exp: now() + 300000 });
+      return null;
     }
-    const c = db().mcpClients.find(x => x.client_id === clientId && x.exp > now());
-    return c ? { ...c, cimd: false } : null;
+    const c = db().mcpClients.find(x => x.client_id === clientId && x.exp > now()) || pending.get(clientId);
+    return c && c.exp > now() ? { ...c, cimd: false, verified: c.redirect_uris.every(knownRedirect) } : null;
   }
 
   function metadataClient(clientId, doc) {
@@ -176,10 +209,8 @@ export function createOAuth(deps) {
     const name = cleanText(doc.client_name);
     const uris = Array.isArray(doc.redirect_uris) ? doc.redirect_uris : [];
     if (!name || !uris.length || uris.length > 10 || !uris.every(validRedirectUri)) return null;
-    let host = '';
-    try { host = new URL(clientId).hostname; } catch { /* checked above */ }
     // A metadata document is public; such a client authenticates with PKCE alone.
-    return { client_id: clientId, client_name: name, redirect_uris: uris, auth_method: 'none', cimd: true, verified: hostVerified(host) };
+    return { client_id: clientId, client_name: name, redirect_uris: uris, auth_method: 'none', cimd: true, verified: knownClientId(clientId) };
   }
 
   /** RFC 7591. → { status, body }. */
@@ -198,6 +229,7 @@ export function createOAuth(deps) {
     if (!Array.isArray(responses) || responses.some(r => r !== 'code')) return { status: 400, body: { error: 'invalid_client_metadata', error_description: 'response_types may only be code' } };
     const d = db();
     if (d.mcpClients.length >= MAX_CLIENTS) return { status: 503, body: { error: 'temporarily_unavailable', error_description: 'too many registered clients; try again later' } };
+    while (pending.size >= MAX_PENDING_CLIENTS) pending.delete(pending.keys().next().value);
     const t = now();
     const client = {
       client_id: crypto.randomBytes(18).toString('base64url'),
@@ -208,8 +240,7 @@ export function createOAuth(deps) {
     };
     let secret = null;
     if (method !== 'none') { secret = mint('secret'); client.secretHash = sha(secret); }
-    d.mcpClients.push(client);
-    deps.save();
+    pending.set(client.client_id, client);
     return {
       status: 201,
       body: {
@@ -247,7 +278,10 @@ export function createOAuth(deps) {
     if (!redirectUriMatches(client.redirect_uris, redirectUri)) return { ok: false, page: 'bad_redirect' };
     const state = one('state');
     if (state === undefined || (state && state.length > 1024)) return { ok: false, page: 'bad_request' };
-    const back = (error, description) => ({ ok: false, redirect: errorRedirect(redirectUri, state, error, description) });
+    // Shown here, not redirected: registration is open, so until the person approves on the
+    // consent screen the redirect URI is the requester's own choice, and an automatic redirect
+    // would make this endpoint an open redirector (RFC 9700 §4.11.2).
+    const back = (error, description) => ({ ok: false, page: 'bad_request', error, description });
     if (one('response_type') !== 'code') return back('unsupported_response_type', 'response_type must be code');
     if (one('code_challenge_method') !== 'S256') return back('invalid_request', 'PKCE with code_challenge_method=S256 is required');
     const challenge = one('code_challenge');
@@ -318,7 +352,12 @@ export function createOAuth(deps) {
       if (id && id !== bid) return { error: oauthError(401, 'invalid_client', 'client_id disagrees with the Basic credentials', { 'WWW-Authenticate': 'Basic' }) };
       id = bid; secret = bsecret;
     }
-    const client = await clientFor(id);
+    // A metadata-document client is public by definition (it authenticates with PKCE, or with the
+    // refresh token bound to it), so the token and revocation endpoints need not fetch its document:
+    // they must keep working for a connected client whatever happens to that fetch.
+    const client = typeof id === 'string' && id.startsWith('https://')
+      ? (validMetadataUrl(id) ? { client_id: id, auth_method: 'none', cimd: true } : null)
+      : await clientFor(id);
     const fail = oauthError(401, 'invalid_client', 'unknown client or bad credentials', basic ? { 'WWW-Authenticate': 'Basic' } : undefined);
     if (!client) return { error: fail };
     if (client.auth_method === 'none') {
@@ -390,7 +429,9 @@ export function createOAuth(deps) {
       const body = issue(g);
       d.mcpGrants.push(g);
       if (!client.cimd) {
-        const reg = d.mcpClients.find(x => x.client_id === client.client_id);
+        // A registration that has now been used for a connection is kept, in db.json.
+        let reg = d.mcpClients.find(x => x.client_id === client.client_id);
+        if (!reg && pending.has(client.client_id)) { reg = pending.get(client.client_id); pending.delete(client.client_id); d.mcpClients.push(reg); }
         if (reg) { reg.lastUsed = t; reg.exp = t + DCR_USED_MS; }
       }
       deps.save();
@@ -500,7 +541,7 @@ export function createOAuth(deps) {
   return {
     register, checkAuthorize, openRequest, peekRequest, decide, token, revoke, resolve,
     listGrants, revokeGrant, dropGrants, sweep, clientFor,
-    _codes: codes, _requests: requests
+    _codes: codes, _requests: requests, _pending: pending
   };
 }
 

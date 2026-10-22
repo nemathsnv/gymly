@@ -82,3 +82,12 @@ describe('helpers for the write side', () => {
     expect(todayFor({ reminder: { tz: 'Not/AZone' } }, t)).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })
+
+describe('object keys are not exercises', () => {
+  it('isKnownExercise and exerciseName refuse __proto__, constructor and friends', () => {
+    for (const id of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      expect(helpers.isKnownExercise(id, ONE), id).toBe(false)
+      expect(helpers.exerciseName(id, ONE), id).toBe(null)
+    }
+  })
+})
