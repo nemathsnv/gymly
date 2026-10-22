@@ -206,9 +206,9 @@ function Shell() {
           {!authed ? <Login /> : needsMobileOnboarding ? <MobileOnboarding /> : (
             <Routes>
               <Route path="/home" element={<Home />} />
-              {/* Gym check-in — switched off in Settings, the route falls through to the
-                  catch-all redirect below. */}
-              {S.checkIn !== false && <Route path="/checkin" element={<CheckIn />} />}
+              {/* Gym check-in. Settings → On Home hides its Home card (S.checkIn); the screen
+                  itself stays reachable either way. */}
+              <Route path="/checkin" element={<CheckIn />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/plan/r/:id" element={<RoutineEdit />} />
               <Route path="/workout" element={<Workout />} />

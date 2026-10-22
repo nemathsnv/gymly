@@ -194,8 +194,8 @@ export const DEF = {
   // you have more than one gym). Holds a gymCards id, or null before any card exists / is chosen;
   // a stale id (card since removed) is simply ignored by the view.
   lastGymCardId: null,
-  // Whether the check-in feature is on at all (Settings toggle). Off hides the Home
-  // card and the /checkin route; the saved gymCards stay so turning it back on restores them.
+  // Whether Home shows the "At the gym / Check in" card (Settings → On Home). Off hides the card
+  // only; the /checkin screen and the saved gymCards stay as they are.
   // Defaults on; an older profile without the key reads as on (`!== false`).
   checkIn: true,
   // Whether the body-weight summary card is shown on Home. Off only hides that card: existing

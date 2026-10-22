@@ -2310,4 +2310,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'इस डिवाइस पर कुछ प्रविष्टियों की तारीख आज के बाद की है, किसी दूसरे समय क्षेत्र के कारण। उनका दिन आने पर वे गिनी जाएँगी।',
   'Starts with the next alcohol-free day you log': 'आपके अगले दर्ज शराब-मुक्त दिन से शुरू होता है',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'आपका आदत लॉग आपकी प्रोफ़ाइल के साथ सिंक होता है और बैकअप में शामिल है। इसे AI सहायकों या कोच के साथ कभी साझा नहीं किया जाता।',
+  // --- home cards ---
+  'At the gym / Check in': 'जिम में / चेक इन',
 }

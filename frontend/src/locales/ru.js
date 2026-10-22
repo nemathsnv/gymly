@@ -2314,4 +2314,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'Некоторые записи датированы позже сегодняшнего дня на этом устройстве из-за другого часового пояса. Они засчитаются, когда наступит их день.',
   'Starts with the next alcohol-free day you log': 'Начнётся со следующего дня без алкоголя, который вы отметите',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'Журнал привычек синхронизируется с вашим профилем и входит в резервные копии. Он никогда не передаётся ИИ-ассистентам и Коучу.',
+  // --- home cards ---
+  'At the gym / Check in': 'В зале / Отметиться',
 }

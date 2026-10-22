@@ -2321,4 +2321,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'บางรายการในอุปกรณ์นี้มีวันที่หลังวันนี้ เพราะเขตเวลาอื่น จะนับเมื่อถึงวันนั้น',
   'Starts with the next alcohol-free day you log': 'เริ่มจากวันปลอดแอลกอฮอล์ถัดไปที่คุณบันทึก',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'บันทึกนิสัยของคุณซิงก์กับโปรไฟล์และรวมอยู่ในข้อมูลสำรอง จะไม่แชร์กับผู้ช่วย AI หรือโค้ช',
+  // --- home cards ---
+  'At the gym / Check in': 'ที่ยิม / เช็คอิน',
 }

@@ -2365,4 +2365,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'بعض الإدخالات مؤرخة بعد اليوم على هذا الجهاز بسبب منطقة زمنية أخرى. ستُحتسب عند حلول يومها.',
   'Starts with the next alcohol-free day you log': 'تبدأ من أول يوم بلا كحول تسجله',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'يتزامن سجل عاداتك مع ملفك الشخصي ويُدرج في النسخ الاحتياطية. لا يُشارك أبدًا مع مساعدي الذكاء الاصطناعي أو المدرّب.',
+  // --- home cards ---
+  'At the gym / Check in': 'في الجيم / تسجيل الدخول',
 }

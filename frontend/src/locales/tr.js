@@ -2310,4 +2310,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'Bazı kayıtlar bu cihazda bugünden sonraki bir tarihle görünüyor; başka bir saat diliminden geliyor. Günü geldiğinde sayılırlar.',
   'Starts with the next alcohol-free day you log': 'Kaydedeceğin bir sonraki alkolsüz günle başlar',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'Alışkanlık kaydın profilinle eşitlenir ve yedeklere dahildir. Yapay zekâ asistanlarıyla veya Koç ile asla paylaşılmaz.',
+  // --- home cards ---
+  'At the gym / Check in': 'Salonda / Giriş yap',
 }

@@ -2310,4 +2310,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'Algunas entradas tienen fecha posterior a hoy en este dispositivo, por otra zona horaria. Cuentan cuando llegue su día.',
   'Starts with the next alcohol-free day you log': 'Empieza con el próximo día sin alcohol que registres',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'Tu registro de hábitos se sincroniza con tu perfil y se incluye en las copias de seguridad. Nunca se comparte con asistentes de IA ni con el Coach.',
+  // --- home cards ---
+  'At the gym / Check in': 'En el gimnasio / Registrarse',
 }

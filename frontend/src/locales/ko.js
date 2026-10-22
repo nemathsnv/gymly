@@ -2310,4 +2310,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': '이 기기에서 일부 항목이 다른 시간대 때문에 오늘 이후 날짜로 되어 있습니다. 해당 날짜가 되면 집계됩니다.',
   'Starts with the next alcohol-free day you log': '다음으로 기록하는 금주일부터 시작됩니다',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': '습관 기록은 프로필과 동기화되며 백업에 포함됩니다. AI 어시스턴트나 코치와는 절대 공유되지 않습니다.',
+  // --- home cards ---
+  'At the gym / Check in': '헬스장에서 / 체크인',
 }

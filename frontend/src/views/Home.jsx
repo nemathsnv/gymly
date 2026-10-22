@@ -184,7 +184,7 @@ export default function Home() {
     </div>
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
-        arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}
+        arrival at the gym; Settings → On Home → "At the gym / Check in" hides it (the screen stays). */}
     {S.checkIn !== false && (
       <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/checkin'))}>
         <div className="row between">

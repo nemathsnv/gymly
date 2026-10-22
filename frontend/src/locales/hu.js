@@ -2313,4 +2313,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'Néhány bejegyzés ezen az eszközön a mai napnál későbbi dátumú, egy másik időzóna miatt. Akkor számítanak, amikor eljön a napjuk.',
   'Starts with the next alcohol-free day you log': 'A következő rögzített alkoholmentes nappal indul',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'A szokásnaplód szinkronizálódik a profilodkal, és benne van a biztonsági mentésekben. Soha nem osztjuk meg MI-asszisztensekkel vagy az Edzővel.',
+  // --- home cards ---
+  'At the gym / Check in': 'A teremben / Bejelentkezés',
 }

@@ -752,15 +752,18 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
       </Section>
       <Section title={t('On Home')}>
-        {/* Membership QR codes on Home (views/CheckIn.jsx); off = no Home card, no route. */}
-        <Row icon="qr" iconTint="var(--blue)" title={t('Gym check-in')}
+        {/* The "At the gym / Check in" card on Home (views/CheckIn.jsx). Off hides the card only:
+            the check-in screen, its route and the membership cards stay as they are. Named after
+            the card it hides, in the card's own words. */}
+        <Row icon="qr" iconTint="var(--blue)" title={t('At the gym / Check in')}
           subtitle={t('Show a card on Home with your membership QR codes.')}>
-          <Switch checked={S.checkIn !== false} onChange={v => update(s => { s.checkIn = v })} />
+          <Switch checked={S.checkIn !== false} aria-label={t('At the gym / Check in')}
+            onChange={v => update(s => { s.checkIn = v })} />
         </Row>
         {/* Daily habits (views/Habits.jsx); off = no Home card, no route. The log stays. */}
         <Row icon="heart" iconTint="var(--teal)" title={t('Habits')}
           subtitle={t('Show the alcohol-free check-in on Home. Your log is kept either way.')}>
-          <Switch checked={S.habitsOn !== false} onChange={v => update(s => { s.habitsOn = v })} />
+          <Switch checked={S.habitsOn !== false} aria-label={t('Habits')} onChange={v => update(s => { s.habitsOn = v })} />
         </Row>
         {/* The Home summary is optional; hiding it leaves weight logging, history and Stats intact. */}
         <Row icon="scale" iconTint="var(--green)" title={t('Body weight')}

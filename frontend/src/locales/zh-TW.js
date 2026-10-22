@@ -2303,4 +2303,6 @@ export default {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': '此裝置上有些項目的日期晚於今天，來自另一個時區。到了那天才會計入。',
   'Starts with the next alcohol-free day you log': '從你記錄的下一個無酒精日開始',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': '你的習慣記錄會隨個人資料同步，並包含在備份中。不會與 AI 助理或教練分享。',
+  // --- home cards ---
+  'At the gym / Check in': '到達健身房 / 入場報到',
 }

@@ -1471,6 +1471,8 @@ export const PT_BR_OVERRIDES = {
   'Some entries are dated after today on this device, from another time zone. They count once their day arrives.': 'Algumas entradas têm data posterior a hoje neste dispositivo, por causa de outro fuso horário. Elas contam quando o dia chegar.',
   'Starts with the next alcohol-free day you log': 'Começa com o próximo dia sem álcool que você registrar',
   'Your habit log syncs with your profile and is included in backups. It is never shared with AI assistants or the Coach.': 'Seu registro de hábitos sincroniza com seu perfil e está incluído nos backups. Nunca é compartilhado com assistentes de IA nem com o Coach.',
+  // --- home cards ---
+  'At the gym / Check in': 'Na academia / Check-in',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }
