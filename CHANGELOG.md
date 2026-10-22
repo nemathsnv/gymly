@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Habits: an alcohol-free calendar.** A new Habits section (Home card → Open) logs each day in one
+  tap as **No alcohol**, **Drank alcohol** or **Not logged**, with an optional drink count and a
+  private note. A 30/90-day calendar shows each status differently, with your current and best
+  streak, alcohol-free days in the last 30 days and a 12-week trend. Days you don't log are never
+  counted as alcohol-free, and future days can't be logged. Past days are editable. A day stays the
+  day you logged it when you travel across time zones. The log syncs with your profile, is in your
+  backups, and is never shared with AI assistants (MCP) or the Coach. Switch the Home card off in
+  Settings → On Home. Design: [docs/dev/HABITS.md](docs/dev/HABITS.md).
 - **Pause, resume and restart the workout timer.** Tap the clock in the workout header (or ⋯ →
   Workout timer). Paused time doesn't count, so a phone call or a wait for a machine no longer
   stretches the session, and the saved workout's duration is the time you actually trained. A

@@ -120,3 +120,29 @@ describe('the "which profile?" error is a config message, not a roster', () => {
     })
   }
 })
+
+describe('the habit log never reaches a tool', () => {
+  const doc = { unit: 'kg', routines: [], workouts: [], habitLog: { 'alcohol|2026-10-01': { s: 'drank', note: 'HABIT-PRIVATE', _ts: 1 } } }
+
+  test('local mode drops it when the profile is read from ./data, on the first read and after a change', async () => {
+    const dir = mk({ 'db.json': DB, 'state-alex.json': JSON.stringify(doc) })
+    const { getState } = await load(dir)
+    expect(getState().unit).toBe('kg')
+    expect(getState()).not.toHaveProperty('habitLog')
+    expect(JSON.stringify(getState())).not.toContain('HABIT-PRIVATE')
+    fs.writeFileSync(path.join(dir, 'state-alex.json'), JSON.stringify({ ...doc, unit: 'lb' }))
+    const later = new Date(Date.now() + 5000)
+    fs.utimesSync(path.join(dir, 'state-alex.json'), later, later)
+    expect(getState().unit).toBe('lb')
+    expect(getState()).not.toHaveProperty('habitLog')
+  })
+
+  test('dropPrivate leaves the rest alone and does not touch what it is given', async () => {
+    const { dropPrivate, PRIVATE_KEYS } = await import('../src/private-keys.js')
+    expect(PRIVATE_KEYS).toContain('habitLog')
+    const out = dropPrivate(doc)
+    expect(out).toEqual({ unit: 'kg', routines: [], workouts: [] })
+    expect(doc).toHaveProperty('habitLog')
+    for (const x of [null, undefined, [1], 'x']) expect(dropPrivate(x)).toBe(x)
+  })
+})

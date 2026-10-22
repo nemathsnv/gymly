@@ -91,6 +91,12 @@ export const DEF = {
   // A note per day off (#261): { [iso]: { tag, text, _ts } } (lib/day-notes.js). A noted day is
   // excused from the missed-day nudge; each day merges on its own stamp (lib/sync-merge.js).
   dayNotes: {},
+  // Daily habits (lib/habits.js): the alcohol-free calendar. One entry per habit and day,
+  // { 'alcohol|2026-10-08': { s: 'free' | 'drank', n?, note?, tz?, _ts } }, merged across devices
+  // on each entry's own stamp (lib/sync-merge.js). Private to the profile: never part of what an
+  // MCP client or the Coach is sent (api/mcp-access.js MCP_WITHHELD). habitsOn: the Home card and
+  // the Habits screen; off hides them and keeps the log (an older profile reads as on).
+  habitLog: {}, habitsOn: true,
   // Body measurements (#82): one check-in per day, values in cm whatever the weight unit
   // (lib/measurements.js); merged across devices like weigh-ins (lib/sync-merge.js).
   measurements: [], measurementEnabled: null, customMeasurements: [],

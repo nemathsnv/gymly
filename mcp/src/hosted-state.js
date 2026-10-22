@@ -8,6 +8,8 @@
    runs the handler and clears it with nothing awaited in between, so no other call can read the
    profile one call set. A handler that ever becomes async has to stop using this. */
 
+import { dropPrivate } from './private-keys.js'
+
 let _current = null
 
 // Same defaults state.js merges in, so a document saved before a field existed reads the same here.
@@ -25,7 +27,7 @@ function defaultsShape() {
 export function withState(S, user, fn) {
   if (_current) throw new Error('withState is not re-entrant')
   _current = {
-    state: S ? Object.assign({}, defaultsShape(), S) : null,
+    state: S ? Object.assign({}, defaultsShape(), dropPrivate(S)) : null,
     user: { id: user.id, name: user.name, created: user.created || null }
   }
   try {

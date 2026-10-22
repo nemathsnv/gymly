@@ -43,7 +43,8 @@ const STATE_ONE = {
   workouts: [{ id: 'w1', d: '2026-10-01', start: 1, end: 3600001, name: 'Push Day', routineIds: ['r1'], entries: [{ id: '0025', sets: [{ w: 55, r: 5, done: true }] }] }],
   bodyweight: [{ d: '2026-10-01', w: 80.4 }],
   gymCards: [{ id: 'card1', name: 'My gym', code: 'MEMBER-998877' }],
-  coach: { pending: { summary: 'COACH-PRIVATE' } }
+  coach: { pending: { summary: 'COACH-PRIVATE' } },
+  habitLog: { 'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', tz: 'Europe/Lisbon', _ts: 5 } }
 };
 const STATE_TWO = { unit: 'lb', _rev: 1, routines: [{ id: 'rz', name: 'TWO-SECRET-ROUTINE', ex: [] }], workouts: [] };
 
@@ -192,7 +193,11 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   const progress = await h.call(at, 'get_training_progress', { weeks: 52 });
   assert.equal(progress.structuredContent.lifts[0].id, '0025');
   // Withheld from every answer: gym cards and the Coach record.
-  assert.doesNotMatch(JSON.stringify([routines, workout, progress]), /MEMBER-998877|COACH-PRIVATE/);
+  assert.doesNotMatch(JSON.stringify([routines, workout, progress]), /MEMBER-998877|COACH-PRIVATE|HABIT-PRIVATE|alcohol/);
+  // …and the habit log (alcohol, drink counts, private notes) is in no read tool's answer, nor any tool's listing.
+  const week = await h.call(at, 'get_week_plan');
+  const recent = await h.call(at, 'list_workouts');
+  assert.doesNotMatch(JSON.stringify([week, recent, list.body.result]), /HABIT-PRIVATE|habitLog|alcohol|drank/i);
 
   // "Change bench press to 4 sets of 8 at 60 kg."
   const pv = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r1', exercise_id: '0025', sets: 4, reps: 8, weight: 60 }] });
@@ -214,6 +219,8 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   // Everything else untouched.
   assert.deepEqual(after.workouts, STATE_ONE.workouts);
   assert.deepEqual(after.gymCards, STATE_ONE.gymCards);
+  // An assistant's change to a routine leaves the habit log as it was.
+  assert.deepEqual(after.habitLog, STATE_ONE.habitLog);
   // A device sees it on its next pull.
   const pulled = await (await h.fetch('/api/data', { headers: cookie('u_one') })).json();
   assert.equal(pulled.rev, after._rev);
@@ -231,6 +238,7 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   assert.ok(!undo.isError, JSON.stringify(undo));
   assert.deepEqual(h.state('u_one').routines[0].ex[0].weight, 55);
   assert.deepEqual(h.state('u_one').routines[0].ex[0].sets, 3);
+  assert.deepEqual(h.state('u_one').habitLog, STATE_ONE.habitLog, 'undo leaves the habit log alone');
   const twice = await h.call(at, 'undo_change', { change_id: ap.structuredContent.change_id });
   assert.equal(twice.structuredContent.replayed, true);
 

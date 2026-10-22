@@ -139,12 +139,15 @@ export function dropMcpTokens(db, userId) {
  *   gymCards / lastGymCardId — gym membership cards, i.e. barcodes and member numbers;
  *   coach   — the AI Coach's consent record, profile and pending proposals;
  *   reminder, hints — device-facing switches, nothing about training;
+ *   habitLog — the daily habit log (alcohol-free days, drink counts, private notes): health data
+ *     the owner kept for themselves. Not training data, and not opened to an assistant until that
+ *     is designed and consented to on its own (docs/dev/HABITS.md);
  *   _unstamped, _prior, _wids, _wid — the server's own sync notes (sync-stamps.js, PUT /api/data).
  * A denylist rather than an allowlist on purpose: the shared helpers (frontend/src/lib) read
  * settings all over the document, and a field the app adds later must not silently break the
  * numbers the MCP tools compute. Anything secret-shaped that is ever added to the document has to
  * be added here too — api/test/mcp-access.test.js names this list. */
-export const MCP_WITHHELD = Object.freeze(['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', '_unstamped', '_prior', '_wids', '_wid']);
+export const MCP_WITHHELD = Object.freeze(['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', 'habitLog', '_unstamped', '_prior', '_wids', '_wid']);
 
 export function mcpView(S) {
   if (!S || typeof S !== 'object' || Array.isArray(S)) return null;

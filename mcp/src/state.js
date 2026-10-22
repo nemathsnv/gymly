@@ -10,6 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { remoteConfig, createRemoteSource } from './remote.js'
+import { dropPrivate } from './private-keys.js'
 
 const DATA_DIR = process.env.OPENGYM_DATA || path.join(process.cwd(), 'data')
 
@@ -145,7 +146,7 @@ export function init() {
   const file = stateFile(_uid)
   if (fs.existsSync(file)) {
     _state = readJsonOrNull(file)
-    if (_state) _state = Object.assign({}, defaultsShape(), _state)
+    if (_state) _state = Object.assign({}, defaultsShape(), dropPrivate(_state))
     try { _loadedMtime = fs.statSync(file).mtimeMs } catch {}
   }
   if (_watcher) _watcher.close()
@@ -188,7 +189,7 @@ export function getState() {
     if (fresh) {
       // Same shape the frontend builds on pullState — defaults merged with stored state so any
       // field the app added since the snapshot was last saved shows up undefined-safe.
-      _state = Object.assign({}, defaultsShape(), fresh)
+      _state = Object.assign({}, defaultsShape(), dropPrivate(fresh))
       _loadedMtime = mtime
     } else if (_state === undefined) {
       _state = null  // no state file at all — never signed in on a device

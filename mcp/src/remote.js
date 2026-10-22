@@ -18,7 +18,7 @@ import fs from 'node:fs'
 export const TOKEN_RE = /^gymly_mcp_[A-Za-z0-9_-]{43}$/
 // Kept in step with MCP_WITHHELD in api/mcp-access.js, which is what actually decides. Applied
 // again here so a server from before that list existed still sends the assistant none of it.
-export const WITHHELD = Object.freeze(['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', '_unstamped', '_prior', '_wids', '_wid'])
+export const WITHHELD = Object.freeze(['gymCards', 'lastGymCardId', 'coach', 'reminder', 'hints', 'habitLog', '_unstamped', '_prior', '_wids', '_wid'])
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
 export const DEFAULT_TTL_MS = 15000
 const TIMEOUT_MS = 15000
