@@ -8,14 +8,14 @@ import React, { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { useStore } from '../store/useStore.js'
-import { startFlow } from '../sheets.jsx'
+import { startFlow, confirmSheet } from '../sheets.jsx'
 import Home from './Home.jsx'
 
 const nav = vi.fn()
 vi.mock('react-router-dom', () => ({ useNavigate: () => nav }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), bwSheet: vi.fn(), goalSheet: vi.fn(), dayOverrideSheet: vi.fn(),
-  calendarSheet: vi.fn(), startFlow: vi.fn(), bwDeltaColor: () => '', weighInsSheet: vi.fn(),
+  calendarSheet: vi.fn(), startFlow: vi.fn(), bwDeltaColor: () => '', weighInsSheet: vi.fn(), confirmSheet: vi.fn(),
 }))
 
 const routines = [{ id: 'r1', name: 'Push', emoji: null, ex: [{ id: '0025' }] }]
@@ -82,5 +82,45 @@ describe('Home — the way to the Start screen when a plan already owns today', 
     const row = host.querySelector('.today-row')
     expect(row.querySelector('.ttl').textContent).toBe('Push (in progress)')
     expect(row.querySelector('.tag').textContent).toBe('Resume')
+  })
+})
+
+// A session started by accident can go from Home without opening it: nothing reaches the history,
+// so the week strip, the streak and the count stay as they were.
+describe('Home — discarding the session in progress', () => {
+  const discard = () => [...host.querySelectorAll('button')].find(b => b.textContent.includes('Discard workout'))
+  const done = { id: 'w0', d: '2026-10-14', start: 1, end: 2, routineIds: ['r1'], entries: [{ id: '0025', sets: [{ w: 60, r: 8, done: true }] }] }
+
+  it('offers Discard for a running session, and only after a confirm drops it, history untouched', () => {
+    confirmSheet.mockClear()
+    setS({ workouts: [done], active: { id: 'a', name: 'Push', start: Date.now(), cur: 0, entries: [{ id: '0025', sets: [{ w: 60, r: 8 }] }] } })
+    mount()
+    act(() => { discard().dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    const ask = confirmSheet.mock.calls.at(-1)[0]
+    expect(ask.title).toBe('Discard workout?')
+    expect(ask.message).toBe('Nothing was logged, so nothing is saved to your history.')
+    expect(useStore.getState().S.active).not.toBeNull()
+    act(() => { ask.onConfirm() })
+    expect(useStore.getState().S.active).toBeNull()
+    expect(useStore.getState().S.workouts).toEqual([done])
+    expect(host.querySelector('.today-row .ttl').textContent).toBe('Push')
+    expect(discard()).toBeFalsy()
+  })
+
+  it('warns that logged sets go with it', () => {
+    confirmSheet.mockClear()
+    setS({ active: { id: 'a', name: 'Push', start: Date.now(), cur: 0, entries: [{ id: '0025', sets: [{ w: 60, r: 8, done: true }] }] } })
+    mount()
+    act(() => { discard().dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    expect(confirmSheet.mock.calls.at(-1)[0].message).toBe('The sets you logged in this session will be lost.')
+  })
+
+  it('offers no Discard for an open edit of a saved workout, and says when the session is paused', () => {
+    setS({ active: { id: 'w', name: 'Push', start: 1000, cur: 0, entries: [], editingWorkoutId: 'w' } })
+    mount()
+    expect(discard()).toBeFalsy()
+    setS({ active: { id: 'a', name: 'Push', start: Date.now() - 60_000, pausedAt: Date.now(), cur: 0, entries: [] } })
+    mount()
+    expect(host.querySelector('.today-row .ttl').textContent).toBe('Push (paused)')
   })
 })

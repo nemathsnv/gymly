@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCompletedWorkout, sessionEnd, FORGOTTEN_GAP_MS } from './finish-workout.js'
+import { buildCompletedWorkout, sessionEnd, activeEnd, FORGOTTEN_GAP_MS } from './finish-workout.js'
 import { cascadeWeight } from './history.js'
 import { buildSessionEntries } from './session-start.js'
 import { makeSideSet, setSideField, toggleSide, WEIGHT_ORIGIN_MANUAL } from './workout-model.js'
@@ -328,5 +328,64 @@ describe('sessionEnd: a workout finished long after its last set', () => {
       sides: { L: { w: 20, r: 8, done: true }, R: { w: 20, r: 8, done: false } },
     }] }] }
     expect(sessionEnd(active, T0 + FORGOTTEN_GAP_MS + 1)).toBe(T0)
+  })
+})
+
+// A paused session (lib/workout-clock.js): the pause is a break the athlete declared, so it is no
+// forgotten gap, and the workout is saved with the time it actually ran.
+describe('a paused or restarted session at finish', () => {
+  const MIN = 60 * 1000
+  const T0 = 1_000_000_000_000
+  const lift = m => ({ done: true, w: 50, r: 8, at: T0 + m * MIN })
+  const active = (sets, over = {}) => ({ id: 'a', d: '2001-09-09', start: T0, name: 'Push', bw: null, routineIds: [], entries: [{ id: 'x', sets }], ...over })
+
+  it('does not end the workout at the set before a long pause', () => {
+    // Sets at 0, 10, 20; paused 20 to 60 for a phone call; sets at 65 and 75; Finish at 78.
+    const a = active([0, 10, 20, 65, 75].map(lift), { pauses: [[T0 + 20 * MIN, T0 + 60 * MIN]] })
+    expect(sessionEnd(a, T0 + 78 * MIN)).toBe(T0 + 78 * MIN)
+    // Without the pause the same 45-minute hole reads as a forgotten session, as it always has.
+    expect(sessionEnd({ ...a, pauses: undefined }, T0 + 78 * MIN)).toBe(T0 + 20 * MIN)
+  })
+
+  it('saves its real start and the time it ran, the pause left out', () => {
+    const a = active([0, 10, 20, 65, 75].map(lift), { pauses: [[T0 + 20 * MIN, T0 + 60 * MIN]] })
+    const end = activeEnd(a, T0 + 78 * MIN)
+    expect(end).toBe(T0 + 38 * MIN)
+    const w = buildCompletedWorkout(a, { end })
+    expect(w.start).toBe(T0)
+    expect(w.end - w.start).toBe(38 * MIN)
+    // None of the clock's bookkeeping reaches the saved workout.
+    expect(w).not.toHaveProperty('pauses')
+    expect(w).not.toHaveProperty('pausedAt')
+    expect(w).not.toHaveProperty('restHeld')
+  })
+
+  it('finished while still paused, ends where the pause began', () => {
+    const a = active([0, 10, 20].map(lift), { pausedAt: T0 + 25 * MIN, restHeld: true })
+    // Finish tapped an hour into the pause: the pause is no forgotten gap, and the time stops at it.
+    expect(sessionEnd(a, T0 + 85 * MIN)).toBe(T0 + 85 * MIN)
+    expect(activeEnd(a, T0 + 85 * MIN)).toBe(T0 + 25 * MIN)
+  })
+
+  it('a session never paused is saved exactly as before', () => {
+    const a = active([0, 15, 30, 45].map(lift))
+    expect(activeEnd(a, T0 + 50 * MIN)).toBe(sessionEnd(a, T0 + 50 * MIN))
+    expect(activeEnd(a, T0 + 30 * 60 * MIN)).toBe(T0 + 45 * MIN)
+    expect(activeEnd({ entries: [] }, 42)).toBe(42)   // no start: the old behaviour, untouched
+  })
+
+  it('after a restart, measures from the new start and keeps every set logged before it', () => {
+    // Started at home by accident at T0, two sets ticked by mistake, Restart at 60, sets at 62..80.
+    const sets = [lift(1), lift(2), lift(62), lift(70), lift(80)]
+    const a = active(sets, { start: T0 + 60 * MIN })
+    expect(sessionEnd(a, T0 + 82 * MIN)).toBe(T0 + 82 * MIN)
+    const w = buildCompletedWorkout(a, { end: activeEnd(a, T0 + 82 * MIN) })
+    expect(w.start).toBe(T0 + 60 * MIN)
+    expect(w.end - w.start).toBe(22 * MIN)
+    expect(w.entries[0].sets).toHaveLength(5)
+    expect(w.entries[0].sets.every(s => s.done)).toBe(true)
+    // Left open overnight after the restart, it still ends at its last set, never before its start.
+    expect(activeEnd(a, T0 + 24 * 60 * MIN)).toBe(T0 + 80 * MIN)
+    expect(activeEnd(active([lift(1)], { start: T0 + 60 * MIN }), T0 + 24 * 60 * MIN)).toBeGreaterThanOrEqual(T0 + 60 * MIN)
   })
 })

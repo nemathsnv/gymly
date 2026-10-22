@@ -2,6 +2,7 @@
 // exercise the exact shape the UI writes without mounting React or mutating store state.
 import { bestWeightForEntry, cleanupSg } from './history.js'
 import { hasCompletedWork, isSideSet } from './workout-model.js'
+import { activeMs, pausedWithin } from './workout-clock.js'
 
 // planSec is live-session bookkeeping: a hold displaced before it finished puts its plan aside so
 // the row still knows what it is asking for (Workout.startTimed). A finished session keeps only
@@ -46,23 +47,41 @@ function rowLengthMs(set) {
   return n(set.min) * 60000 + n(set.sec) * 1000
 }
 
+//
+// A pause (lib/workout-clock.js) is a break the athlete declared, not a forgotten session: the
+// time the clock stood paused is left out of every gap, so a 40-minute pause for a phone call
+// does not end the workout at the set before it. And a Restart moved the start past any set
+// ticked before it, so those ticks are not this clock's to measure.
 export function sessionEnd(active, now = Date.now(), gap = FORGOTTEN_GAP_MS) {
+  const start = Number(active?.start)
   const ticks = (active?.entries || [])
     .flatMap(e => e.sets || [])
-    .filter(s => hasCompletedWork(s) && Number.isFinite(s.at))
+    .filter(s => hasCompletedWork(s) && Number.isFinite(s.at) && !(s.at < start))
     .map(s => ({ at: s.at, len: rowLengthMs(s) }))
     .sort((a, b) => a.at - b.at)
   if (!ticks.length) return now
+  const idle = (from, to) => to - from - pausedWithin(active, from, to)
   // A row may have been ticked when it was done or when it was started (a treadmill row ticked,
   // then run for 30 minutes before Finish, QA 10-06), so the session reaches to the later of the
   // two: its tick plus its own length. That reach, not the bare tick, is what the next tick and
   // the Finish tap are measured against, and where a forgotten session ends.
   let reach = ticks[0].at + ticks[0].len
   for (const { at, len } of ticks.slice(1)) {
-    if (at - len - reach > gap) break
+    if (idle(reach, at - len) > gap) break
     reach = Math.max(reach, at + len)
   }
-  return now - reach > gap ? reach : now
+  return idle(reach, now) > gap ? reach : now
+}
+
+// The end a finished session is saved with. History, Stats and every export read a workout's
+// length as end - start, so a paused session is saved as its real start plus the time it actually
+// ran: a 50-minute workout with a 30-minute pause in it reads 50 minutes, not 80. A session never
+// paused is saved exactly as before, with the end sessionEnd finds.
+export function activeEnd(active, now = Date.now(), gap = FORGOTTEN_GAP_MS) {
+  const end = sessionEnd(active, now, gap)
+  const start = Number(active?.start)
+  if (!Number.isFinite(start)) return end
+  return start + activeMs(active, end)
 }
 
 export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snapshotFor } = {}) {

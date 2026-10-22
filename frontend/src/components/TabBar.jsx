@@ -5,6 +5,7 @@ import { todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
 import Elapsed from './Elapsed.jsx'
+import { isPaused } from '../lib/workout-clock.js'
 import { useConnectionTrouble } from './SyncBanner.jsx'
 
 // Module scope, not TabBar's render body. Declared inside it, `Tab` was a new function on every
@@ -54,9 +55,9 @@ export default function TabBar({ onStart }) {
           button still named Resume; a past workout being edited or logged after the fact has no
           clock to run. */}
       <button className={'start' + (S.active ? ' rec' : '') + (S.active && cur === 'workout' ? ' on' : '')} onClick={startWorkout}
-        aria-label={running ? t('Resume') : undefined}>
+        aria-label={running ? t('Resume') + (isPaused(S.active) ? ', ' + t('Paused') : '') : undefined}>
         <span className="cir"><Icon name="play" /></span>
-        {running ? <span className="tab-time"><Elapsed start={S.active.start} /></span>
+        {running ? <span className={'tab-time' + (isPaused(S.active) ? ' paused' : '')}><Elapsed session={S.active} /></span>
           : <span>{S.active ? (cur === 'workout' ? t('Workout') : S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
       </button>
       <Tab active={on('stats')} icon="chart" label={t('Stats')} onClick={() => nav('/stats')} />

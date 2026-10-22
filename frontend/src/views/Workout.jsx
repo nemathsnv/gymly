@@ -30,6 +30,8 @@ import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, finishWo
 import { afterScrollRestore, scrollRestorePending } from '../components/Modals.jsx'
 import { effortColor } from '../lib/effort.js'
 import Elapsed from '../components/Elapsed.jsx'
+import { hasClock, isPaused } from '../lib/workout-clock.js'
+import { pauseWorkout, resumeWorkout, restartWorkout, discardWorkout as discardSession } from '../store/workout-session.js'
 import Icon from '../components/Icon.jsx'
 import { Button, Check, NumberField } from '../components/ui.jsx'
 import { defaultIncrement, weightIncrement, stepWeight } from '../lib/progression.js'
@@ -920,7 +922,7 @@ function ActiveWorkout() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
-  const { startRest: liveRest, stopRest, stopWork, work, timer } = useUI()
+  const { startRest: liveRest, stopRest, work, timer } = useUI()
   const A = S.active
   const editing = !!A.editingWorkoutId
   // A past workout has no rest to time — the sets were done days ago. The work timer for
@@ -1416,11 +1418,41 @@ function ActiveWorkout() {
     else exConfigSheet(ex, null, commit, null, routine, seed, null, t('Add to this workout'))
   })
   // Ending the session without saving it. The ⋯ menu's last item since the header's ✕ became the
-  // ⌄ that only leaves the screen (v1.3.11).
-  const discardWorkout = () => confirmSheet({
-    title: t('Discard workout?'), message: t('The sets you logged in this session will be lost.'), confirmText: t('Discard'), danger: true,
-    onConfirm: () => { update(s => { s.active = null }); stopRest(); stopWork(); nav('/home') },
+  // ⌄ that only leaves the screen (v1.3.11). The confirm names this session, so a dialog left open
+  // while it was finished elsewhere cannot throw away the next one (store/workout-session.js).
+  const discardWorkout = () => {
+    const id = A.id
+    confirmSheet({
+      title: t('Discard workout?'),
+      message: setsDoneActive(A) ? t('The sets you logged in this session will be lost.') : t('Nothing was logged, so nothing is saved to your history.'),
+      confirmText: t('Discard'), danger: true,
+      onConfirm: () => { discardSession(id); nav('/home') },
+    })
+  }
+  // The session's own clock (lib/workout-clock.js), apart from the rest countdown at the bottom:
+  // a live session has one to pause, resume and start over; a past workout being logged or a saved
+  // one being edited shows its date instead.
+  const clockOn = hasClock(A)
+  const clockPaused = clockOn && isPaused(A)
+  const restartTimer = () => confirmSheet({
+    title: t('Restart the workout timer?'),
+    message: t('The timer goes back to 0:00. Your exercises and logged sets stay as they are.'),
+    confirmText: t('Restart'),
+    onConfirm: () => restartWorkout(),
   })
+  const openTimerMenu = () => {
+    const paused = isPaused(useStore.getState().S.active)
+    menuSheet({
+      title: t('Workout timer'),
+      subtitle: t('Times the whole session. The rest between sets has its own countdown.'),
+      sections: [{ items: [
+        paused
+          ? { icon: 'play', accent: true, label: t('Resume timer'), onClick: () => resumeWorkout() }
+          : { icon: 'pause', label: t('Pause timer'), onClick: () => pauseWorkout() },
+        { icon: 'reset', label: t('Restart timer'), sub: t('Back to 0:00. Your sets stay logged.'), onClick: restartTimer },
+      ] }],
+    })
+  }
   // The header ⋯, in groups: the settings you change at the gym first (their own sheet, the same
   // values as Settings), then what to add, what to change about this workout, and Discard last.
   // Layout here stays this session's own (s.active.workoutView); the settings sheet's Layout is
@@ -1438,6 +1470,7 @@ function ActiveWorkout() {
       ] },
       { title: t('This workout'), items: [
         A.backfill && A.entries.length > 0 && { icon: 'checkCircle', label: t('Mark all sets done'), onClick: markAllDone },
+        clockOn && { icon: 'stopwatch', label: t('Workout timer'), sub: clockPaused ? t('Paused') : null, onClick: openTimerMenu },
         { icon: 'pencil', label: t('Rename workout'), onClick: renameWorkoutSheet },
         { icon: 'layout', label: t('Layout'), sub: LAYOUT_LABEL[workoutView] || LAYOUT_LABEL.cards, onClick: openLayoutMenu },
         { icon: 'note', label: A.note ? t('Edit session note') : t('Add session note'), onClick: sessionNoteSheet },
@@ -1915,12 +1948,23 @@ function ActiveWorkout() {
       {editing
         ? <button className="iconbtn" aria-label={t('Close editor')} title={t('Close editor')} onClick={() => exitWorkoutEdit()}><Icon name="xmark" /></button>
         : <button className="iconbtn" aria-label={t('Minimize')} title={t('Minimize')} onClick={() => nav('/home')}><Icon name="chevronDown" /></button>}
-      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true) : <Elapsed start={A.start} />} · {t('{0} sets', done + '/' + total)}</div></div>
+      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{clockOn
+        ? <button type="button" className={'wclock' + (clockPaused ? ' paused' : '')} onClick={openTimerMenu} title={t('Workout timer')}>
+          <Icon name={clockPaused ? 'pause' : 'stopwatch'} /><span className="vh">{t('Workout timer') + (clockPaused ? ', ' + t('Paused') : '') + ': '}</span><Elapsed session={A} />
+        </button>
+        : fmtDate(A.d, true)} · {t('{0} sets', done + '/' + total)}</div></div>
       <button className="iconbtn" aria-label={t('Workout options')} title={t('Workout options')} onClick={openViewMenu}><Icon name="more" /></button>
       <button className="btn primary pill whdr-finish" aria-label={editing ? t('Save changes') : undefined}
         onClick={() => (editing ? finishWorkout() : finishWorkoutSheet({ onDiscard: discardWorkout }))}>{editing ? t('Save') : t('Finish')}</button>
     </div>
     <div className="wprog"><i style={{ width: (total ? done / total * 100 : 0) + '%' }} /></div>
+    {/* Paused, the header says so in words and offers the way back, pinned with it in the list:
+        a clock that merely stands still is easy to miss, and the sets logged meanwhile would not
+        count towards the time. */}
+    {clockPaused && <div className="wpaused" role="status">
+      <Icon name="pause" /><span className="grow">{t('Workout paused')}</span>
+      <Button size="sm" variant="primary" icon="play" onClick={() => resumeWorkout()}>{t('Resume')}</Button>
+    </div>}
     {/* In the list the chips ride in the pinned header, so any exercise is one tap away from
         anywhere in a long stack. */}
     {listMode && chipRow}

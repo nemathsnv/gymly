@@ -4,7 +4,9 @@ import { useStore } from '../store/useStore.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, streakWeeks, lastBW, setsDoneActive } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, isoOf, weekStartOf, weekDayOffset, DAYS, DAYN } from '../lib/format.js'
 import { t, tn, dateLocale } from '../lib/i18n.js'
-import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
+import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet, confirmSheet } from '../sheets.jsx'
+import { discardWorkout } from '../store/workout-session.js'
+import { isPaused } from '../lib/workout-clock.js'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
@@ -99,6 +101,18 @@ export default function Home() {
   // A chip on the coach week's progress row starts that one routine, in any order. A session
   // already in progress wins, as on the today row — starting another would overwrite it.
   const onQueueStart = id => { if (S.active) nav('/workout'); else startFlow([id]) }
+  // A session started by accident (a thumb on Start, a weigh-in tapped through) can go from here,
+  // without opening it first. Nothing is saved, so the streak and the week's count stay as they
+  // were; the confirm names this session, so it cannot throw away one started since.
+  const discardFromHome = () => {
+    const id = S.active?.id
+    confirmSheet({
+      title: t('Discard workout?'),
+      message: setsDoneActive(S.active) ? t('The sets you logged in this session will be lost.') : t('Nothing was logged, so nothing is saved to your history.'),
+      confirmText: t('Discard'), danger: true,
+      onConfirm: () => discardWorkout(id),
+    })
+  }
 
   return <div className="narrow">
     <div className="hdr">
@@ -134,7 +148,7 @@ export default function Home() {
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="lbl2">{t('Today')}</div>
-            <div className="ttl">{S.active ? (editingSaved ? S.active.name : t('{0} (in progress)', S.active.name))
+            <div className="ttl">{S.active ? (editingSaved ? S.active.name : isPaused(S.active) ? t('{0} (paused)', S.active.name) : t('{0} (in progress)', S.active.name))
               : doneToday ? (doneToday.name ? t('{0} (done)', doneToday.name) : t('Workout done'))
               : routine ? todayName : t('Rest day')}{todayOvr && routine && !doneToday ? ' · ' + t('rescheduled') : ''}</div>
             {next && !doneToday && <div className="ss">{t('Next session: {0}, {1}', t(DAYN[next.weekday]), next.routine.name)}</div>}
@@ -154,6 +168,11 @@ export default function Home() {
       {!S.active && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
         <Button size="sm" variant="ghost" className="dim" icon="swap" onClick={() => nav('/workout')}>
           {t('Choose a different workout')}
+        </Button>
+      </div>}
+      {S.active && !editingSaved && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+        <Button size="sm" variant="ghost" className="dim" icon="trash" onClick={discardFromHome}>
+          {t('Discard workout')}
         </Button>
       </div>}
     </div>
