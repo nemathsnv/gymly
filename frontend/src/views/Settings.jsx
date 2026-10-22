@@ -762,7 +762,7 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
         {/* Daily habits (views/Habits.jsx); off = no Home card, no route. The log stays. */}
         <Row icon="heart" iconTint="var(--teal)" title={t('Habits')}
-          subtitle={t('Show the alcohol-free check-in on Home. Your log is kept either way.')}>
+          subtitle={t('Show your habits on Home. Your log is kept either way.')}>
           <Switch checked={S.habitsOn !== false} aria-label={t('Habits')} onChange={v => update(s => { s.habitsOn = v })} />
         </Row>
         {/* The Home summary is optional; hiding it leaves weight logging, history and Stats intact. */}

@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { DEF, useStore } from '../store/useStore.js'
 import { useToday } from './use-today.js'
 import Habits from '../views/Habits.jsx'
+import HabitDetail from '../views/HabitDetail.jsx'
 
 const mounted = []
 const mount = el => {
@@ -72,7 +73,7 @@ describe('useToday', () => {
 describe('Habits left open across midnight', () => {
   it('says the new date, and a tap on No alcohol logs the new day, not the one before', async () => {
     vi.setSystemTime(new Date('2026-10-22T23:58:00'))
-    const host = mount(<MemoryRouter><Habits /></MemoryRouter>)
+    const host = mount(<MemoryRouter><HabitDetail id="alcohol" /></MemoryRouter>)
     expect(host.querySelector('.card .lbl2').textContent).toContain('22 Oct')
     vi.setSystemTime(new Date('2026-10-23T00:03:00'))
     await advance(31000)
@@ -80,5 +81,14 @@ describe('Habits left open across midnight', () => {
     act(() => { [...host.querySelectorAll('.habit-btn')].find(b => b.textContent === 'No alcohol').dispatchEvent(new MouseEvent('click', { bubbles: true })) })
     expect(Object.keys(useStore.getState().S.habitLog)).toEqual(['alcohol|2026-10-23'])
     expect(host.querySelector('.habit-cell.today.free')).toBeTruthy()
+  })
+
+  it('the list of habits logs the new day too', async () => {
+    vi.setSystemTime(new Date('2026-10-22T23:58:00'))
+    const host = mount(<MemoryRouter><Habits /></MemoryRouter>)
+    vi.setSystemTime(new Date('2026-10-23T00:03:00'))
+    await advance(31000)
+    act(() => { [...host.querySelectorAll('.habit-btn')].find(b => b.textContent === 'No alcohol').dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    expect(Object.keys(useStore.getState().S.habitLog)).toEqual(['alcohol|2026-10-23'])
   })
 })

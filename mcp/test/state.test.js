@@ -122,7 +122,12 @@ describe('the "which profile?" error is a config message, not a roster', () => {
 })
 
 describe('the habit log never reaches a tool', () => {
-  const doc = { unit: 'kg', routines: [], workouts: [], habitLog: { 'alcohol|2026-10-01': { s: 'drank', note: 'HABIT-PRIVATE', _ts: 1 } } }
+  // Alcohol, and a habit of the user's own: its name is as private as its days.
+  const doc = { unit: 'kg', routines: [], workouts: [], habitLog: {
+    'alcohol|2026-10-01': { s: 'drank', note: 'HABIT-PRIVATE', _ts: 1 },
+    'hsecret|def': { name: 'HABIT-SECRET-NAME', kind: 'avoid', _ts: 2 },
+    'hsecret|2026-10-01': { s: 'bad', _ts: 3 },
+  } }
 
   test('local mode drops it when the profile is read from ./data, on the first read and after a change', async () => {
     const dir = mk({ 'db.json': DB, 'state-alex.json': JSON.stringify(doc) })
@@ -130,6 +135,7 @@ describe('the habit log never reaches a tool', () => {
     expect(getState().unit).toBe('kg')
     expect(getState()).not.toHaveProperty('habitLog')
     expect(JSON.stringify(getState())).not.toContain('HABIT-PRIVATE')
+    expect(JSON.stringify(getState())).not.toMatch(/HABIT-SECRET|hsecret/)
     fs.writeFileSync(path.join(dir, 'state-alex.json'), JSON.stringify({ ...doc, unit: 'lb' }))
     const later = new Date(Date.now() + 5000)
     fs.utimesSync(path.join(dir, 'state-alex.json'), later, later)

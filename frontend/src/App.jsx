@@ -45,6 +45,7 @@ import Admin from './views/Admin.jsx'
 import CoachChat from './views/CoachChat.jsx'
 import Measurements from './views/Measurements.jsx'
 import Habits from './views/Habits.jsx'
+import HabitDetail from './views/HabitDetail.jsx'
 import CoachIntake from './views/CoachIntake.jsx'
 import CoachSetup from './views/CoachSetup.jsx'
 
@@ -221,6 +222,7 @@ function Shell() {
               <Route path="/measurements" element={<Measurements />} />
               {/* Daily habits — switched off in Settings, the route falls through to the redirect. */}
               {S.habitsOn !== false && <Route path="/habits" element={<Habits />} />}
+              {S.habitsOn !== false && <Route path="/habits/:id" element={<HabitDetail />} />}
               <Route path="/settings" element={<SettingsRoute />} />
               <Route path="/settings/:page" element={<SettingsRoute />} />
               {/* The Coach screens gate themselves on the instance config; the routes exist

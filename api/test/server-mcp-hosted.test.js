@@ -44,7 +44,12 @@ const STATE_ONE = {
   bodyweight: [{ d: '2026-10-01', w: 80.4 }],
   gymCards: [{ id: 'card1', name: 'My gym', code: 'MEMBER-998877' }],
   coach: { pending: { summary: 'COACH-PRIVATE' } },
-  habitLog: { 'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', tz: 'Europe/Lisbon', _ts: 5 } }
+  habitLog: {
+    'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', tz: 'Europe/Lisbon', _ts: 5 },
+    // a habit of the user's own: its name is as private as its days
+    'hsecret|def': { name: 'HABIT-SECRET-NAME', icon: 'note', color: 'blue', kind: 'avoid', at: 4, _ts: 4 },
+    'hsecret|2026-10-01': { s: 'bad', note: 'HABIT-PRIVATE-2', tz: 'Europe/Lisbon', _ts: 6 }
+  }
 };
 const STATE_TWO = { unit: 'lb', _rev: 1, routines: [{ id: 'rz', name: 'TWO-SECRET-ROUTINE', ex: [] }], workouts: [] };
 
@@ -193,11 +198,11 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   const progress = await h.call(at, 'get_training_progress', { weeks: 52 });
   assert.equal(progress.structuredContent.lifts[0].id, '0025');
   // Withheld from every answer: gym cards and the Coach record.
-  assert.doesNotMatch(JSON.stringify([routines, workout, progress]), /MEMBER-998877|COACH-PRIVATE|HABIT-PRIVATE|alcohol/);
+  assert.doesNotMatch(JSON.stringify([routines, workout, progress]), /MEMBER-998877|COACH-PRIVATE|HABIT-PRIVATE|HABIT-SECRET|hsecret|alcohol/);
   // …and the habit log (alcohol, drink counts, private notes) is in no read tool's answer, nor any tool's listing.
   const week = await h.call(at, 'get_week_plan');
   const recent = await h.call(at, 'list_workouts');
-  assert.doesNotMatch(JSON.stringify([week, recent, list.body.result]), /HABIT-PRIVATE|habitLog|alcohol|drank/i);
+  assert.doesNotMatch(JSON.stringify([week, recent, list.body.result]), /HABIT-PRIVATE|HABIT-SECRET|hsecret|habitLog|alcohol|drank/i);
 
   // "Change bench press to 4 sets of 8 at 60 kg."
   const pv = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r1', exercise_id: '0025', sets: 4, reps: 8, weight: 60 }] });

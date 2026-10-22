@@ -4,8 +4,9 @@
    out; a profile read straight from ./data (local mode) or handed to the hosted endpoint is cut
    here too, so there is no path by which a tool could be written to return them by accident.
 
-   habitLog — the daily habit log (frontend/src/lib/habits.js). Alcohol and the notes beside it are
-   health data the owner logged for themselves, not training data. Opening any of it to an assistant
+   habitLog — the daily habit log (frontend/src/lib/habits.js): Alcohol and the user's own habits,
+   their names and definitions (`habit|def`), every day and the notes beside them. Health and
+   personal data the owner logged for themselves, not training data. Opening any of it to an assistant
    is a decision of its own, with its own consent, and has not been made. */
 export const PRIVATE_KEYS = Object.freeze(['habitLog'])
 

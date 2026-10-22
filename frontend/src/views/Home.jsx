@@ -8,8 +8,8 @@ import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starter
 import { discardWorkout } from '../store/workout-session.js'
 import { isPaused } from '../lib/workout-clock.js'
 import LineChart from '../components/LineChart.jsx'
-import HabitButtons from '../components/HabitButtons.jsx'
-import { habitStats } from '../lib/habits.js'
+import { HabitRow } from './Habits.jsx'
+import { habitList } from '../lib/habits.js'
 import { useToday } from '../lib/use-today.js'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
@@ -101,7 +101,7 @@ export default function Home() {
 
   // Kept current, so a Home left open past midnight logs the new day, not the one before.
   const habitToday = useToday()
-  const habitStreak = S.habitsOn !== false ? habitStats(S, 'alcohol', habitToday).current : 0
+  const habits = S.habitsOn !== false ? habitList(S) : []
   // today's session shown right under the week strip
   const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
   // A chip on the coach week's progress row starts that one routine, in any order. A session
@@ -200,19 +200,15 @@ export default function Home() {
       </div>
     )}
 
-    {/* Today's alcohol-free check-in, one tap (lib/habits.js). Settings → On Home switches the card off. */}
-    {S.habitsOn !== false && <div className="card">
+    {/* Today's check-in for every active habit, one tap each (lib/habits.js); the title opens the
+        Habits list, each habit's name its own screen. Settings → On Home switches the card off. */}
+    {S.habitsOn !== false && <div className="card habits-card">
       <div className="row between" style={{ marginBottom: 10, cursor: 'pointer' }} {...tappable(() => nav('/habits'))}>
-        <div className="row" style={{ gap: 9, minWidth: 0 }}>
-          <span className="lrow-i" style={{ background: 'var(--teal)' }}><Icon name="heart" /></span>
-          <div style={{ minWidth: 0 }}>
-            <div className="lbl2">{t('Habits')}</div>
-            <div className="ttl">{habitStreak > 0 ? t('Alcohol-free streak (days): {0}', habitStreak) : t('Alcohol')}</div>
-          </div>
-        </div>
+        <h2 style={{ margin: 0 }}>{t('Habits')}</h2>
         <Icon name="chevronRight" className="chev" />
       </div>
-      <HabitButtons iso={habitToday} />
+      {habits.map(h => <HabitRow key={h.id} h={h} today={habitToday} nav={nav} />)}
+      {!habits.length && <div className="muted small">{t('No active habits. Add one, or bring an archived one back.')}</div>}
     </div>}
 
     {!S.routines.length && !S.active && (

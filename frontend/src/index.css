@@ -2193,3 +2193,14 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .habit-week-bar .unlogged{background:transparent}
 .habit-week-bar .drank{background:var(--orange)}
 .habit-week-bar .free{background:var(--green)}
+.habit-row + .habit-row{margin-top:16px;padding-top:14px;border-top:.5px solid var(--sep)}
+.habit-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.habit-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.habit-archived{gap:8px;padding:6px 0}
+.habit-archived + .habit-archived{border-top:.5px solid var(--sep)}
+.habit-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:8px}
+.habit-icon{
+  display:flex;align-items:center;justify-content:center;height:40px;border-radius:10px;
+  background:var(--surface-3);color:var(--label-2);font-size:18px;transition:background var(--fast),color var(--fast);
+}
+.habit-icon.on{color:#000;box-shadow:inset 0 0 0 2px var(--label)}

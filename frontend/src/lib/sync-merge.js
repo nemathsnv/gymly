@@ -40,7 +40,8 @@
  *     have, the entry set last by its own `_ts`, a clear included (mergeStampedMap), the newer
  *     copy's on a tie. For plates and dumbbells the key is the unit, so the inventory of one unit
  *     is kept whole, as last edited; for dayNotes the key is the date, so each day's note is its own,
- *     and for habitLog the habit and the date, so each day of each habit is
+ *     and for habitLog the habit and the date, so each day of each habit is — and each habit's
+ *     definition (`habit|def`: name, icon, colour, kind, archived) is one more entry
  *   - `_ts`: the later of the two; `_rev` dropped (the server sets it); `active` left to the caller
  *
  * Two rules come before all of these:
@@ -947,8 +948,9 @@ export function stampRestore(next, others = [], now = Date.now()) {
  * (balance, loading, plates) it sets differently. A device that still had an unsent change from
  * before the replace used to bring the replaced workouts back with its merge, and its older edit
  * of an entry won over the backup's version. A change made after the replace (a later stamp) still
- * wins, and an entry only that device knew of is not named, so it stays. `others` are the copies
- * the replace knew: this device's and the server's. Mutates and returns `next`.
+ * wins, and an entry only that device knew of is not named, so it stays. A habit day or habit
+ * the backup lacks is cleared. `others` are the copies the replace knew: this device's and the
+ * server's. Mutates and returns `next`.
  */
 export function stampReplace(next, others = [], now = Date.now()) {
   if (!next || typeof next !== 'object') return next
@@ -981,6 +983,19 @@ export function stampReplace(next, others = [], now = Date.now()) {
       if (others.some(o => isMap(o?.[f]) && k in o[f] && !sameJSON({ ...o[f][k], _ts: 0 }, { ...v, _ts: 0 }))) v._ts = Math.max(stampOf(v), now)
     }
   }
+  // A habit day or definition the replaced copies held and the backup lacks is cleared at `now`
+  // (a stamped empty entry, as "Not logged" is): the habit log only ever merges entry by entry, here
+  // and on the server (api/sync-stamps.js keepHabitLog), so an entry simply left out came back.
+  const kept = isMap(next.habitLog) ? { ...next.habitLog } : {}
+  let cleared = false
+  for (const o of others) {
+    for (const [k, v] of Object.entries(isMap(o?.habitLog) ? o.habitLog : {})) {
+      if (k in kept || !isMap(v) || Object.keys(v).every(x => x === '_ts')) continue
+      kept[k] = { _ts: Math.max(stampOf(v) + 1, now) }
+      cleared = true
+    }
+  }
+  if (cleared) next.habitLog = kept
   return next
 }
 
@@ -1129,7 +1144,9 @@ export function localExtras(local, server) {
   const setup = ['gymCards', 'equipProfiles'].reduce((n, f) => n + list(local?.[f]).filter(x => x && x.id != null && !ids(f).has(x.id)).length, 0) +
     list(local?.measurements).filter(e => e && e.d != null && !measured.has(e.d)).length +
     Object.entries(isMap(local?.dayNotes) ? local.dayNotes : {}).filter(([k, v]) => readNote(v) && !readNote(server?.dayNotes?.[k])).length +
-    Object.entries(isMap(local?.habitLog) ? local.habitLog : {}).filter(([k, v]) => isMap(v) && (v.s || v.note) && !(isMap(server?.habitLog) && k in server.habitLog)).length +
+    // a habit's day, or a habit itself (its definition: anything beyond the stamp)
+    Object.entries(isMap(local?.habitLog) ? local.habitLog : {}).filter(([k, v]) => isMap(v) &&
+      (v.s || v.note || (k.endsWith('|def') && Object.keys(v).some(x => x !== '_ts'))) && !(isMap(server?.habitLog) && k in server.habitLog)).length +
     keysNew('week') + keysNew('dayPlan') + keysNew('exNotes')
   return {
     workouts: list(local?.workouts).filter(w => !have.has(workoutKey(w))).length,

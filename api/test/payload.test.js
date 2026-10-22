@@ -428,3 +428,20 @@ test('the app\'s active equipment profile stands in when the Coach was told no e
   S.coach.profile.equipment = ['barbell'];
   assert.deepEqual(payload.build(S, { handle: handleFor('u1'), kind: 'create' }).coachProfile.equipment, ['barbell']);
 });
+
+// Habits (frontend/src/lib/habits.js) are none of the Coach's categories: neither Alcohol nor a
+// habit of the user's own, its name, days or notes, reaches a request, whichever kind it is.
+test('the habit log, custom habits included, is in no Coach payload', () => {
+  const S = sampleState({
+    habitsOn: true,
+    habitLog: {
+      'alcohol|2026-10-01': { s: 'drank', n: 4, note: 'COACH-HABIT-NOTE', _ts: 1 },
+      'hsecret|def': { name: 'COACH-HABIT-NAME', kind: 'avoid', icon: 'note', color: 'red', at: 2, _ts: 2 },
+      'hsecret|2026-10-01': { s: 'bad', note: 'COACH-HABIT-DAY', _ts: 3 },
+    },
+  });
+  for (const kind of ['review', 'plan']) {
+    const text = JSON.stringify(payload.build(S, { handle: handleFor('user-habits'), kind }));
+    assert.doesNotMatch(text, /COACH-HABIT|hsecret|habitLog|alcohol|drank/i, kind);
+  }
+});

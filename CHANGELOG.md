@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Habits of your own.** Habits → **Add habit** makes as many habits as you like, each with a
+  name, an icon and a colour, and one of two kinds: one to build (**Done** / **Not done** / **Not
+  logged**) or one to avoid (**Avoided** / **Did it** / **Not logged**). Each habit has its own
+  screen with its calendar, streaks, counts and days, which you can correct later and give a
+  private note. Rename or edit a habit at any time; its days stay. **Archive** takes a habit off
+  Home and the list and keeps its whole history; **Unarchive** brings it back. The Alcohol tracker
+  is still there with every day, drink count and note you logged (nothing is converted), and can
+  now be renamed or archived too. An unlogged day still never counts as a good one. Habits sync,
+  back up, restore and reset with your profile, stay out of AI assistants and the Coach, and the
+  server no longer lets an older copy of the log (an app from before habits, a phone back from a
+  dead spot) take days or habits away or set them back. Design: [docs/dev/HABITS.md](docs/dev/HABITS.md).
+- **Hide the "At the gym / Check in" card on Home.** Settings → Look & Home → On Home →
+  **At the gym / Check in** (formerly "Gym check-in") now hides only the Home card: the check-in
+  screen and your gym cards stay as they are. On by default; the choice syncs with your profile.
 - **Habits: an alcohol-free calendar.** A new Habits section (Home card → Open) logs each day in one
   tap as **No alcohol**, **Drank alcohol** or **Not logged**, with an optional drink count and a
   private note. A 30/90-day calendar shows each status differently, with your current and best
