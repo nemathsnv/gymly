@@ -39,6 +39,11 @@ import { effectiveRoutineId } from './queue.js';
 import { stampPut } from './sync-stamps.js';
 import { atomicWrite as durableWrite } from './durable.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
+import {
+  createOAuth, protectedResourceMetadata, authorizationServerMetadata, OAUTH_TOKEN_PREFIX, SCOPES as MCP_OAUTH_SCOPES
+} from './mcp-remote/oauth.js';
+import { consentPage, signInPage, errorPage, pageHeaders, newNonce } from './mcp-remote/consent.js';
+import { createJournal } from './mcp-remote/journal.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -151,6 +156,8 @@ db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
 db.mcpTokens = db.mcpTokens || [];       // read-only MCP client tokens, hashed (mcp-access.js)
+db.mcpClients = db.mcpClients || [];     // OAuth clients registered for the hosted MCP endpoint (mcp-remote/oauth.js)
+db.mcpGrants = db.mcpGrants || [];       // assistants connected through OAuth, tokens hashed (mcp-remote/oauth.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // 0600: db.json holds passkey credential material. It used to be covered by a blanket 0700 on
 // the whole directory; now that the directory stays traversable, the file carries its own mode.
@@ -603,7 +610,7 @@ function sessionOf(req) {
   if (!tok) return null;
   // An MCP token is not a session and never stands in for one (mcp-access.js). It would fail the
   // signature check below anyway; refused by name so that stays true whatever the format becomes.
-  if (tok.startsWith(MCP_TOKEN_PREFIX)) return null;
+  if (tok.startsWith(MCP_TOKEN_PREFIX) || tok.startsWith(OAUTH_TOKEN_PREFIX)) return null;
   const payload = verifySig(tok);
   if (!payload) return null;
   const [uid, exp, ver] = payload.split(':');
@@ -659,7 +666,13 @@ const clearCookie = COOKIE === LEGACY_COOKIE
 const CSRF_EXEMPT = new Set([
   'POST /api/register/options', 'POST /api/register/verify',
   'POST /api/login/options', 'POST /api/login/verify',
-  'POST /api/pair/redeem'
+  'POST /api/pair/redeem',
+  // The hosted MCP endpoint and the OAuth endpoints its clients call server to server. None of
+  // them reads the session cookie, so there is no ambient authority for a page to borrow: each
+  // carries its own credential (a bearer token, a client's PKCE verifier or secret, or nothing,
+  // for a registration). /api/mcp does its own Origin check against DNS rebinding. The consent
+  // form (POST /api/oauth/authorize) acts on the session and is deliberately not here.
+  'POST /api/mcp', 'POST /api/oauth/token', 'POST /api/oauth/register', 'POST /api/oauth/revoke'
 ]);
 const originsMatch = (a, b) => a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
 function csrfOk(req, key) {
@@ -1124,6 +1137,7 @@ function setPassword(user, h) {
   for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
   dropDeviceLinks(db, user.id);
   dropMcpTokens(db, user.id);
+  dropMcpGrants(user.id);
 }
 
 // A passkey assertion made just now by the signed-in account itself — how someone who has no
@@ -1474,6 +1488,7 @@ const passwordRoutes = {
     for (const [k, v] of pairings) if (v.uid === u.id) pairings.delete(k);
     dropDeviceLinks(db, u.id);
     dropMcpTokens(db, u.id);
+    dropMcpGrants(u.id);
     presence.delete(u.id);
     saveDb();
     audit(req, 'admin.password.reset', { user: admin, target: u });
@@ -1962,6 +1977,186 @@ function etagMatches(header, etag) {
   return header.split(',').some(t => weakTag(t) === etag);
 }
 
+/* ---------- hosted MCP over OAuth (mcp-remote/) ---------- */
+// An assistant connects to https://<ORIGIN>/api/mcp with OAuth 2.1 (mcp-remote/oauth.js) and
+// reads and edits one profile through tools (mcp-remote/tools.js), with no MCP server running on
+// anybody's computer. Off unless MCP_OAUTH_USERS names who may connect (comma-separated profile
+// ids, Settings → Account ID): unset, every route below answers 404, as on an instance that never
+// had the feature, and the read-only V1 tokens above are unaffected either way.
+const MCP_OAUTH_USERS = new Set((process.env.MCP_OAUTH_USERS || '').split(',').map(s => s.trim()).filter(Boolean));
+const MCP_ISSUER = ORIGIN.replace(/\/+$/, '');
+const MCP_CONFIG = { issuer: MCP_ISSUER, resource: MCP_ISSUER + '/api/mcp' };
+// OAuth needs the issuer on https (RFC 8414 §2); plain http only on the loopback, for development.
+const MCP_HOSTED = MCP_OAUTH_USERS.size > 0
+  && (/^https:\/\/[^/]+$/i.test(MCP_ISSUER) || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(MCP_ISSUER));
+if (MCP_OAUTH_USERS.size && !MCP_HOSTED) console.warn('MCP_OAUTH_USERS is set, but ORIGIN is not an https origin without a path — the hosted MCP endpoint stays off');
+// Browser pages allowed to call /api/mcp: Gymly's own origin, plus MCP_ALLOWED_ORIGINS for a
+// browser-based client (an inspector). Server-side clients (ChatGPT, Claude) send no Origin.
+const MCP_ALLOWED_ORIGINS = new Set([MCP_ISSUER, ...(process.env.MCP_ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean)]);
+const mcpOAuthAllowed = user => !!user && !user.disabled && MCP_OAUTH_USERS.has(user.id);
+
+// A client's metadata document (CIMD): fetched over https from a public address only (the same
+// guarded resolver push delivery uses), no redirects, at most 10 KB and 5 seconds.
+function fetchClientMetadata(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { agent: PUSH_AGENT, headers: { Accept: 'application/json', 'User-Agent': 'Gymly-MCP/1.0' }, timeout: 5000 }, res => {
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('status ' + res.statusCode)); }
+      let size = 0; const chunks = [];
+      res.on('data', d => { size += d.length; if (size > 10240) { req.destroy(); reject(new Error('too large')); } else chunks.push(d); });
+      res.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (e) { reject(e); } });
+      res.on('error', reject);
+    });
+    const deadline = setTimeout(() => { req.destroy(new Error('timeout')); }, 5000);
+    deadline.unref();
+    req.on('close', () => clearTimeout(deadline));
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', reject);
+  });
+}
+
+const MCP_OAUTH = createOAuth({
+  getDb: () => db,
+  save: () => { try { saveDb(); } catch (e) { console.error('db save failed', e.message); } },
+  findUser: id => db.users.find(u => u.id === id) || null,
+  allowed: mcpOAuthAllowed,
+  sessionVersion,
+  fetchMetadata: fetchClientMetadata,
+  config: MCP_CONFIG
+});
+setInterval(() => { if (MCP_OAUTH.sweep()) MCP_OAUTH_SAVE(); }, 3600000).unref();
+function MCP_OAUTH_SAVE() { try { saveDb(); } catch (e) { console.error('db save failed', e.message); } }
+// Every connected assistant of a profile, for the moments its sessions end (sign out everywhere,
+// a new password, a reset, a disable, a delete). The grants would be refused anyway — each carries
+// the session version — but must not stay listed as connected.
+function dropMcpGrants(uid) { return MCP_OAUTH.dropGrants(uid); }
+
+const MCP_JOURNAL = createJournal(DATA);
+const MCP_GRANT_BURST = createWindow({ max: 120, windowMs: 60000 });
+const OAUTH_BURST = createWindow({ max: 120, windowMs: 60000 });
+const OAUTH_REGISTER = createWindow({ max: 20, windowMs: 3600000 });
+const OAUTH_REGISTER_ALL = createWindow({ max: 200, windowMs: 3600000 });
+const MCP_WRITES = createWindow({ max: 30, windowMs: 600000 });
+setInterval(() => { for (const w of [MCP_GRANT_BURST, OAUTH_BURST, OAUTH_REGISTER, OAUTH_REGISTER_ALL, MCP_WRITES]) w.sweep(); }, 60000).unref();
+
+// The MCP tools and the HTTP transport are loaded on first use: they carry the bundled app code
+// (read-tools.gen.js, ~1.6 MB), which an instance that never enables the feature need not hold.
+let mcpHttp = null;
+async function mcpModules() {
+  if (!mcpHttp) {
+    const [{ handleMcpPost }, { createPreviewStore }] = await Promise.all([import('./mcp-remote/http.js'), import('./mcp-remote/tools.js')]);
+    mcpHttp = { handleMcpPost, previews: createPreviewStore() };
+  }
+  return mcpHttp;
+}
+function mcpReadState(uid) {
+  const S = readStateStrict(uid);
+  if (S === UNREADABLE) { console.error('state file unreadable for', uid); throw Object.assign(new Error('state unreadable'), { code: 'unreadable' }); }
+  return S ? forClient(S) : null;
+}
+// An assistant's change, committed like a device's push of the revision it read. The document is
+// read again here and has to be the one the tool computed from: everything between the two reads
+// is synchronous, so this only ever fails if that stops being true — and then it fails closed.
+function mcpCommit(req, user, base, next) {
+  const cur = readStateStrict(user.id);
+  if (cur === UNREADABLE) throw Object.assign(new Error('state unreadable'), { code: 'unreadable' });
+  if ((cur?._wid || null) !== (base?._wid || null) || (cur?._rev || 0) !== (base?._rev || 0)) throw new Error('the profile changed during the write');
+  const { _unstamped, _prior, ...state } = next;
+  return commitState(user, cur, state, { overRead: true, stamped: false });
+}
+
+function readForm(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let size = 0, over = false;
+    req.on('data', d => { size += d.length; if (size > 16384) { over = true; chunks.length = 0; } else if (!over) chunks.push(d); });
+    req.on('end', () => {
+      if (over) return reject(new HttpError(413, 'body too large'));
+      const text = Buffer.concat(chunks).toString('utf8');
+      const type = String(req.headers['content-type'] || '').toLowerCase();
+      if (type.startsWith('application/json')) {
+        let o;
+        try { o = JSON.parse(text || '{}'); } catch { return reject(new HttpError(400, 'invalid json')); }
+        if (!o || typeof o !== 'object' || Array.isArray(o)) return reject(new HttpError(400, 'invalid json'));
+        const f = new URLSearchParams();
+        for (const [k, v] of Object.entries(o)) {
+          if (typeof v === 'string') f.append(k, v);
+          else if (Array.isArray(v)) v.forEach(x => { if (typeof x === 'string') f.append(k, x); });
+        }
+        return resolve({ form: f, json: o });
+      }
+      resolve({ form: new URLSearchParams(text), json: null });
+    });
+    req.on('error', e => reject(Object.assign(e, { clientGone: true })));
+  });
+}
+const oauthJson = (res, r) => json(res, r.status, r.body, { 'Pragma': 'no-cache', ...(r.headers || {}) });
+const notFound = res => json(res, 404, { error: 'not found' });
+const mcpPage = (res, status, html, nonce, redirectUri) => { res.writeHead(status, pageHeaders(nonce, redirectUri)); res.end(html); };
+// The audit line for a token-endpoint event (oauth.js reports grant/reuse/revoke).
+function oauthEvent(req, ev) {
+  if (!ev) return;
+  const user = ev.user || db.users.find(u => u.id === ev.grant?.userId);
+  if (ev.kind === 'grant') audit(req, 'auth.mcp.connect', { user, msg: ev.grant.clientName });
+  else if (ev.kind === 'reuse') audit(req, 'auth.mcp.reuse', { ok: false, user, msg: ev.grant.clientName });
+  else if (ev.kind === 'revoke') audit(req, 'auth.mcp.disconnect', { user, msg: ev.grant.clientName });
+}
+const wellKnown = (res, body) => json(res, 200, body, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+
+// The one write of a profile's document, shared by a device's sync (PUT /api/data) and an
+// assistant's change through the hosted MCP endpoint (mcp-remote/tools.js), so both stamp, count
+// and record a write the same way and every device merges the result like any other push. `cur`
+// is the stored document the write was made against, read with nothing awaited since; `overRead`
+// says the writer read exactly that revision, `stamped` that it stamps its own changes. Throws a
+// RangeError for a document too deeply nested to compare or serialise (a bad request).
+function commitState(user, cur, state, { overRead = false, stamped = false } = {}) {
+  const curRev = cur?._rev || 0;
+  delete state.active;              // in-progress workouts stay device-local
+  // "Reset everything" stamps the profile (`resetAt`, with `resetIds`: what it wiped). The stamp
+  // only moves forward: a write without it, or with an older one — a client from before it, a
+  // backup restored over the profile — keeps the stored stamp. Otherwise every device that saw
+  // the reset would take that copy for one older than the reset, and wipe it again on its next
+  // merge (frontend/src/lib/sync-merge.js).
+  const storedReset = Number(cur?.resetAt) || 0;
+  if (storedReset > (Number(state.resetAt) || 0)) {
+    state.resetAt = cur.resetAt;
+    if (cur.resetIds && typeof cur.resetIds === 'object') state.resetIds = cur.resetIds;
+    else delete state.resetIds;
+  }
+  // The records of removals and edits only grow, and what a writer that does not stamp its own
+  // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
+  // undone by the next device that merges (sync-stamps.js).
+  // A document nested too deep to compare is the bad request the stringify below refuses too.
+  const report = {};
+  stampPut(cur, state, { overRead, stamped, report });
+  state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
+  // A writer that does not stamp (an older app) takes the revision it is told for the document it
+  // sent, and only reads the profile again once the revision moves. When the server put back
+  // something it left out or set back (sync-stamps.js), the document stored is not that one: it
+  // goes in one revision further, so the writer's next check of the revision (every half minute)
+  // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
+  if (report.changed) state._rev = curRev + 2;
+  state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
+    .filter(x => typeof x === 'string').slice(-WID_KEEP);
+  state._wid = crypto.randomBytes(8).toString('hex');
+  // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
+  // nested some thousands deep. No client builds one; it is a bad request, not a server error.
+  const text = JSON.stringify(state);
+  atomicWrite(stateFile(user.id), text);
+  // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
+  // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
+  // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
+  // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
+  // the old revision until some later write happened to land on a different tick. This is the
+  // only writer of a state file in the tree, so evicting here is the whole fix.
+  stateCache.delete(user.id);
+  // Starts (or stops) the grace clock of every stored file this write stopped (or started)
+  // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
+  // successful write into an error.
+  if (MEDIA_ON) {
+    try { MEDIA.noteState(user.id, state); } catch (e) { console.error('media noteState', e); }
+  }
+  return { rev: curRev + 1, wid: state._wid, ts: state._ts || null };
+}
+
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -2179,6 +2374,7 @@ const routes = {
     for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
     dropDeviceLinks(db, user.id);
     dropMcpTokens(db, user.id);
+    dropMcpGrants(user.id);
     saveDb();
     audit(req, 'auth.logout.all', { user });
     json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie });
@@ -2286,6 +2482,124 @@ const routes = {
     }, { ETag: etag });
   },
 
+  /* ----- hosted MCP (mcp-remote/): discovery, OAuth, the endpoint, the owner's list ----- */
+
+  // RFC 9728 and RFC 8414. Both forms of the resource metadata: the path-suffixed one the 401
+  // challenge names, and the root one some clients try first.
+  'GET /.well-known/oauth-protected-resource': async (req, res) => (MCP_HOSTED ? wellKnown(res, protectedResourceMetadata(MCP_CONFIG)) : notFound(res)),
+  'GET /.well-known/oauth-protected-resource/api/mcp': async (req, res) => (MCP_HOSTED ? wellKnown(res, protectedResourceMetadata(MCP_CONFIG)) : notFound(res)),
+  'GET /.well-known/oauth-authorization-server': async (req, res) => (MCP_HOSTED ? wellKnown(res, authorizationServerMetadata(MCP_CONFIG)) : notFound(res)),
+
+  // The authorization endpoint: checks the request, then shows Gymly's sign-in or the consent
+  // screen (mcp-remote/consent.js). Errors about the client itself are shown here, never
+  // redirected, since an unapproved client's redirect URI is not yet trusted.
+  'GET /api/oauth/authorize': async (req, res) => {
+    const nonce = newNonce();
+    if (!MCP_HOSTED) return mcpPage(res, 404, errorPage('disabled', nonce), nonce);
+    const wait = OAUTH_BURST.take(limitAddress(req));
+    if (wait) return tooMany(res, wait);
+    const q = new URL(req.url, 'http://x').searchParams;
+    const check = await MCP_OAUTH.checkAuthorize(q);
+    if (!check.ok && check.redirect) { res.writeHead(302, { Location: check.redirect, 'Cache-Control': 'no-store' }); return res.end(); }
+    if (!check.ok) return mcpPage(res, 400, errorPage(check.page === 'bad_request' ? 'bad_request' : check.page, nonce), nonce);
+    const user = readSession(req);
+    if (!user) return mcpPage(res, 200, signInPage({ nonce, appUrl: MCP_ISSUER + '/' }), nonce);
+    if (!mcpOAuthAllowed(user)) {
+      auditFail(req, 'auth.mcp.denied', { ok: false, user, msg: 'not-allowed' });
+      return mcpPage(res, 403, errorPage('not_available', nonce), nonce);
+    }
+    const id = MCP_OAUTH.openRequest(user, check.client, check.params);
+    mcpPage(res, 200, consentPage({ id, request: MCP_OAUTH.peekRequest(id, user), user, nonce }), nonce, check.params.redirectUri);
+  },
+
+  // The consent form's answer. Needs the session of the person the screen was shown to (the
+  // request id is bound to them and single-use) and passes the same-origin check every
+  // state-changing browser request does (csrfOk); then a 303 to the client with code or error.
+  'POST /api/oauth/authorize': async (req, res) => {
+    const nonce = newNonce();
+    if (!MCP_HOSTED) return mcpPage(res, 404, errorPage('disabled', nonce), nonce);
+    const { form } = await readForm(req);
+    const user = readSession(req);
+    if (!user) return mcpPage(res, 401, errorPage('expired', nonce), nonce);
+    const allow = form.get('decision') === 'allow';
+    const r = MCP_OAUTH.decide(user, form.get('request_id'), { allow, allowWrite: form.get('allow_write') === '1' });
+    if (r.page) return mcpPage(res, 400, errorPage(r.page, nonce), nonce);
+    audit(req, allow ? 'auth.mcp.consent' : 'auth.mcp.declined', { user, msg: `${r.request.client.client_name} (${allow ? r.scopes.join(' ') : 'declined'})` });
+    res.writeHead(303, { Location: r.redirect, 'Cache-Control': 'no-store' });
+    res.end();
+  },
+
+  'POST /api/oauth/token': async (req, res) => {
+    if (!MCP_HOSTED) return notFound(res);
+    const wait = OAUTH_BURST.take(limitAddress(req));
+    if (wait) return json(res, 429, { error: 'slow_down' }, { 'Retry-After': String(wait) });
+    const { form } = await readForm(req);
+    const r = await MCP_OAUTH.token(form, req.headers.authorization);
+    oauthEvent(req, r.event);
+    if (r.status !== 200 && !r.event) auditFail(req, 'auth.mcp.fail', { ok: false, msg: 'token-refused' });
+    oauthJson(res, r);
+  },
+
+  'POST /api/oauth/register': async (req, res) => {
+    if (!MCP_HOSTED) return notFound(res);
+    const wait = OAUTH_REGISTER.take(limitAddress(req)) || OAUTH_REGISTER_ALL.take('all');
+    if (wait) return json(res, 429, { error: 'slow_down' }, { 'Retry-After': String(wait) });
+    const { json: body } = await readForm(req);
+    oauthJson(res, MCP_OAUTH.register(body));
+  },
+
+  'POST /api/oauth/revoke': async (req, res) => {
+    if (!MCP_HOSTED) return notFound(res);
+    const wait = OAUTH_BURST.take(limitAddress(req));
+    if (wait) return json(res, 429, { error: 'slow_down' }, { 'Retry-After': String(wait) });
+    const { form } = await readForm(req);
+    const r = await MCP_OAUTH.revoke(form, req.headers.authorization);
+    oauthEvent(req, r.event);
+    oauthJson(res, r);
+  },
+
+  // The MCP endpoint itself (mcp-remote/http.js): stateless Streamable HTTP, JSON responses.
+  'POST /api/mcp': async (req, res) => {
+    if (!MCP_HOSTED) return notFound(res);
+    const { handleMcpPost, previews } = await mcpModules();
+    await handleMcpPost(req, res, {
+      allowedOrigins: MCP_ALLOWED_ORIGINS,
+      config: MCP_CONFIG,
+      oauth: MCP_OAUTH,
+      limit: grantId => MCP_GRANT_BURST.take(grantId),
+      log: ev => { if (ev === 'mcp.auth.fail') auditFail(req, 'auth.mcp.fail', { ok: false, msg: 'token-invalid' }); },
+      toolDeps: {
+        config: MCP_CONFIG,
+        readState: mcpReadState,
+        commit: (user, cur, next) => mcpCommit(req, user, cur, next),
+        journal: MCP_JOURNAL,
+        previews,
+        writeBudget: uid => MCP_WRITES.take(uid),
+        audit: (ev, f) => audit(req, ev === 'mcp.write.undo' ? 'auth.mcp.undo' : 'auth.mcp.write', f)
+      }
+    });
+  },
+  // No server-initiated stream and no sessions: 405 says so (Streamable HTTP §2.2, §2.5).
+  'GET /api/mcp': async (req, res) => (MCP_HOSTED ? json(res, 405, { error: 'method not allowed' }, { Allow: 'POST' }) : notFound(res)),
+  'DELETE /api/mcp': async (req, res) => (MCP_HOSTED ? json(res, 405, { error: 'method not allowed' }, { Allow: 'POST' }) : notFound(res)),
+
+  // Settings → "AI assistant access": the assistants connected through OAuth, and disconnecting one.
+  'GET /api/account/mcp-connections': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    if (!MCP_HOSTED) return json(res, 200, { enabled: false, connections: [] });
+    json(res, 200, { enabled: mcpOAuthAllowed(user), endpoint: MCP_CONFIG.resource, connections: MCP_OAUTH.listGrants(user.id) });
+  },
+  'DELETE /api/account/mcp-connections': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return notSignedIn(res);
+    const id = new URL(req.url, 'http://x').searchParams.get('id') || '';
+    const g = MCP_OAUTH.revokeGrant(user.id, id);
+    if (!g) return json(res, 404, { error: 'no such connection', code: 'mcp-connection-unknown' });
+    audit(req, 'auth.mcp.disconnect', { user, msg: g.clientName });
+    json(res, 200, { ok: true, connections: MCP_OAUTH.listGrants(user.id) });
+  },
+
   // Absent entirely while PASSWORD_LOGIN is off, so each of them is a plain 404.
   ...(PASSWORD_LOGIN ? passwordRoutes : {}),
 
@@ -2366,55 +2680,10 @@ const routes = {
         (body.baseRev != null && typeof body.baseWid === 'string' && cur?._wid && body.baseWid !== cur._wid)) {
       return json(res, 409, { error: 'conflict', rev: curRev, state: forClient(cur) });
     }
-    delete body.state.active;              // in-progress workouts stay device-local
-    // "Reset everything" stamps the profile (`resetAt`, with `resetIds`: what it wiped). The stamp
-    // only moves forward: a write without it, or with an older one — a client from before it, a
-    // backup restored over the profile — keeps the stored stamp. Otherwise every device that saw
-    // the reset would take that copy for one older than the reset, and wipe it again on its next
-    // merge (frontend/src/lib/sync-merge.js).
-    const storedReset = Number(cur?.resetAt) || 0;
-    if (storedReset > (Number(body.state.resetAt) || 0)) {
-      body.state.resetAt = cur.resetAt;
-      if (cur.resetIds && typeof cur.resetIds === 'object') body.state.resetIds = cur.resetIds;
-      else delete body.state.resetIds;
-    }
-    // The records of removals and edits only grow, and what a writer that does not stamp its own
-    // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
-    // undone by the next device that merges (sync-stamps.js).
-    // A document nested too deep to compare is the bad request the stringify below refuses too.
-    const report = {};
-    try { stampPut(cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true, report }); }
+    let done;
+    try { done = commitState(user, cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true }); }
     catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    body.state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
-    // A writer that does not stamp (an older app) takes the revision it is told for the document it
-    // sent, and only reads the profile again once the revision moves. When the server put back
-    // something it left out or set back (sync-stamps.js), the document stored is not that one: it
-    // goes in one revision further, so the writer's next check of the revision (every half minute)
-    // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
-    if (report.changed) body.state._rev = curRev + 2;
-    body.state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
-      .filter(x => typeof x === 'string').slice(-WID_KEEP);
-    body.state._wid = crypto.randomBytes(8).toString('hex');
-    // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
-    // nested some thousands deep. No client builds one; it is a bad request, not a server error.
-    let text;
-    try { text = JSON.stringify(body.state); }
-    catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    atomicWrite(stateFile(user.id), text);
-    // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
-    // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
-    // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
-    // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
-    // the old revision until some later write happened to land on a different tick. This is the
-    // only writer of a state file in the tree, so evicting here is the whole fix.
-    stateCache.delete(user.id);
-    // Starts (or stops) the grace clock of every stored file this write stopped (or started)
-    // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
-    // successful write into an error.
-    if (MEDIA_ON) {
-      try { MEDIA.noteState(user.id, body.state); } catch (e) { console.error('media noteState', e); }
-    }
-    json(res, 200, { ok: true, ts: body.state._ts || null, rev: curRev + 1, wid: body.state._wid });
+    json(res, 200, { ok: true, ts: done.ts, rev: done.rev, wid: done.wid });
   },
 
   'GET /api/push/public-key': async (req, res) => json(res, 200, { key: vapid.publicKey }),
@@ -2590,6 +2859,7 @@ const routes = {
     if (u.disabled) dropDeviceLinks(db, u.id);
     // Its MCP tokens too: refused while disabled anyway, they must not come back with an enable.
     if (u.disabled) dropMcpTokens(db, u.id);
+    if (u.disabled) dropMcpGrants(u.id);
     saveDb();
     audit(req, u.disabled ? 'admin.user.disable' : 'admin.user.enable', { user: admin, target: u });
     json(res, 200, { ok: true, id: u.id, disabled: u.disabled });
@@ -2614,9 +2884,11 @@ const routes = {
     db.subs = (db.subs || []).filter(x => x.userId !== u.id);
     dropDeviceLinks(db, u.id);
     dropMcpTokens(db, u.id);
+    dropMcpGrants(u.id);
     presence.delete(u.id);
     // The training history and any Coach credential of theirs, both outside db.json.
     try { fs.unlinkSync(stateFile(u.id)); } catch { /* already gone */ }
+    MCP_JOURNAL.remove(u.id);
     try { coachConfig.clearProfileAuth(u.id); } catch { /* nothing stored */ }
     // Their photos and videos — the one place a profile's folder under uploads/ is removed.
     try { MEDIA.removeUser(u.id); } catch (e) { console.error('media: could not remove uploads of', u.id, e.message); }
@@ -2760,7 +3032,11 @@ const server = http.createServer(async (req, res) => {
   // (auth is the Authorization header instead), so Allow-Credentials is deliberately never set —
   // reflecting the origin here can't expose the cookie session to anyone.
   const origin = req.headers.origin;
-  if (origin) { res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin'); }
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin');
+    // A browser-based MCP client has to read the OAuth challenge of a 401 (mcp-remote/http.js).
+    res.setHeader('Access-Control-Expose-Headers', 'WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version');
+  }
   if (req.method === 'OPTIONS') {
     // Chrome's Private Network Access asks before a page reaches a LAN address (a phone pairing
     // with 192.168.x.x); an answer without this header is refused like a CORS failure (#329).
@@ -2772,7 +3048,8 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
       // The CF-Access-* pair: a phone's Cloudflare Access service token (frontend lib/cf-access.js),
       // for an Access application that passes OPTIONS through to the origin.
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, CF-Access-Client-Id, CF-Access-Client-Secret',
+      // Mcp-*: the headers the Streamable HTTP transport sends (POST /api/mcp).
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, CF-Access-Client-Id, CF-Access-Client-Secret, Mcp-Protocol-Version, Mcp-Session-Id, Last-Event-ID',
       'Access-Control-Max-Age': '86400',
       ...(pna ? { 'Access-Control-Allow-Private-Network': 'true' } : {})
     });

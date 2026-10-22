@@ -2257,4 +2257,13 @@ export default {
   'Token revoked': '令牌已撤销',
   'Setup guide': '设置指南',
   'No tokens yet.': '还没有令牌。',
+  'Connected assistants': '已连接的助手',
+  'Connect ChatGPT, Claude or another assistant with this address. You approve each connection in Gymly, and every change it makes is shown to you first and can be undone.': '用这个地址连接 ChatGPT、Claude 或其他助手。每次连接都要你在 Gymly 中批准，助手做的每项更改都会先展示给你，并且可以撤销。',
+  'Copy address': '复制地址',
+  'Can read and change your plan': '可以读取和更改你的计划',
+  'Can read your data': '可以读取你的数据',
+  'Disconnect this assistant?': '断开这个助手？',
+  'It loses access immediately.': '它会立即失去访问权限。',
+  'Disconnected': '已断开',
+  'No assistants connected yet.': '还没有连接的助手。',
 }

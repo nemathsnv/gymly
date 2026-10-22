@@ -54,6 +54,16 @@ const LABELS = {
   'auth.mcp.create': 'Created an MCP access token',
   'auth.mcp.revoke': 'Revoked an MCP access token',
   'auth.mcp.fail': 'MCP access with a refused token',
+  // The hosted MCP endpoint (api/mcp-remote): assistants connected through OAuth. `msg` is the
+  // client's name; on a write, also how many changes; never their content.
+  'auth.mcp.consent': 'Approved an AI assistant connection',
+  'auth.mcp.declined': 'Declined an AI assistant connection',
+  'auth.mcp.connect': 'Connected an AI assistant',
+  'auth.mcp.disconnect': 'Disconnected an AI assistant',
+  'auth.mcp.reuse': 'AI assistant token replayed — connection ended',
+  'auth.mcp.denied': 'AI assistant connection refused for this profile',
+  'auth.mcp.write': 'An AI assistant changed the plan or logged a workout',
+  'auth.mcp.undo': 'An AI assistant undid a change',
   // The owner's proof (current password or a passkey) for one of the changes below was refused.
   'auth.proof.fail': 'Confirming a change failed',
   // The password throttle paused an address; `msg` says for what (password, signup).
@@ -99,6 +109,8 @@ const REASONS = {
   'link-invalid': 'wrong, used or expired device code',
   'passkey-limit': 'the profile already has as many passkeys as it can hold',
   'token-invalid': 'wrong, expired or revoked MCP token',
+  'token-refused': 'an AI assistant\'s code or refresh token was refused',
+  'not-allowed': 'this profile is not on MCP_OAUTH_USERS',
   // What an `auth.throttled` pause was for.
   'password': 'wrong passwords or reset codes',
   'signup': 'wrong invite codes on password signup',

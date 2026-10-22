@@ -14,8 +14,10 @@ License: AGPL-3.0-or-later.
 ```
 frontend/  React 19 + Vite app (src/views, src/components, src/store, src/lib). Builds to static files.
            android/ + ios/ are the Capacitor shells for the standalone mobile app (docs/MOBILE.md).
-api/       backend — server.js (Node, no framework), deps: @simplewebauthn/server, web-push.
-           coach/ is the optional AI coach; openapi.yaml documents every route.
+api/       backend — server.js (Node, no framework), deps: @simplewebauthn/server, web-push, undici,
+           and for the hosted MCP endpoint @modelcontextprotocol/server + zod.
+           coach/ is the optional AI coach; mcp-remote/ the hosted MCP server + its OAuth server;
+           openapi.yaml documents every route.
 web/       multi-stage Dockerfile (builds frontend → nginx) + nginx.conf.template (serves app, proxies /api).
 mcp/       optional MCP server — read-only stdio bridge exposing a user's workouts/1RM/muscle
            balance to LLM clients (Claude Code, Claude Desktop, Cursor…), from ./data (local
@@ -58,7 +60,7 @@ TypeScript — match the existing style by hand.
 
 GitHub (`github.com/DuarteSantos8/openGym`) is the home of the project; `.github/workflows/mirror.yml`
 pushes `main` and `v*` tags to the GitLab mirror. Pull requests are gated by
-`.github/workflows/test.yml` on Node 22 — the same version as `web/Dockerfile` / `api/Dockerfile`
+`.github/workflows/gymly.yml` on Node 22 — the same version as `web/Dockerfile` / `api/Dockerfile`
 (`node:22-alpine`): the frontend, api and MCP suites, the locale checks, and building and booting
 both api image targets. GitLab CI on the mirror (`.gitlab-ci.yml`) builds the release artifacts:
 the signed Android APK, the multi-arch images and the SBOMs. Never push or merge on GitLab
@@ -117,8 +119,21 @@ a read-only MCP token. `state.js` loads/derives the data, `tools.js` defines the
 tools (zod-validated schemas), `labels.js` maps internal keys to human-readable labels,
 `index.js` wires it together. Tokens live server-side in `api/mcp-access.js` (hashed, scope
 `read`, refused by `sessionOf`). They are made and revoked in Settings
-(`components/McpTokens.jsx`). Writes are designed, not built: `docs/dev/MCP_WRITES.md`. User
-setup: `docs/MCP.md`.
+(`components/McpTokens.jsx`). User setup: `docs/MCP.md`.
+
+### Hosted MCP (`api/mcp-remote`)
+
+Remote MCP at `POST /api/mcp` (stateless Streamable HTTP, SDK v2 `@modelcontextprotocol/server`)
+with read *and* write tools, behind an OAuth 2.1 server in the API (`oauth.js`: PKCE, CIMD + DCR,
+resource-bound hashed tokens in `db.mcpGrants`, consent page `consent.js`). Off unless
+`MCP_OAUTH_USERS` lists profile ids. Writes: `plan-ops.js` turns operations into the Coach's
+change contract and validates them with `coach/core/validate.js`; preview → apply-by-id
+(`tools.js`), plan-hash staleness, journal for undo (`journal.js`), committed through
+`commitState` in server.js (the same path as `PUT /api/data`). `plan-apply.js` is a hand copy of
+the Coach's `CHANGE_APPLY` pinned by `frontend/src/lib/mcp-apply-parity.test.js`.
+`read-tools.gen.js` is GENERATED (`node scripts/build-mcp-hosted.mjs`) from `mcp/src/hosted.js`
++ V1 tools + `frontend/src/lib`; regenerate after changing any of those (CI runs `--check`).
+Design and departures: `docs/dev/MCP_WRITES.md`.
 
 ### Passkeys and self-hosting constraints
 

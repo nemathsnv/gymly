@@ -2260,4 +2260,13 @@ export default {
   'Token revoked': 'Token visszavonva',
   'Setup guide': 'Beállítási útmutató',
   'No tokens yet.': 'Még nincs token.',
+  'Connected assistants': 'Csatlakoztatott asszisztensek',
+  'Connect ChatGPT, Claude or another assistant with this address. You approve each connection in Gymly, and every change it makes is shown to you first and can be undone.': 'Kapcsold össze a ChatGPT-t, a Claude-ot vagy más asszisztenst ezzel a címmel. Minden kapcsolatot a Gymlyben hagysz jóvá, és minden módosítást előbb megmutat, és visszavonható.',
+  'Copy address': 'Cím másolása',
+  'Can read and change your plan': 'Olvashatja és módosíthatja a tervedet',
+  'Can read your data': 'Olvashatja az adataidat',
+  'Disconnect this assistant?': 'Leválasztod ezt az asszisztenst?',
+  'It loses access immediately.': 'Azonnal elveszíti a hozzáférést.',
+  'Disconnected': 'Leválasztva',
+  'No assistants connected yet.': 'Még nincs csatlakoztatott asszisztens.',
 }

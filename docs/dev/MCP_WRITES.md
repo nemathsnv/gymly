@@ -1,8 +1,48 @@
 # MCP phase 2: editing workouts and plans by natural language
 
-Status: **design, not implemented.** Phase 1 (read-only, [docs/MCP.md](../MCP.md)) is what ships.
-This note records how writes should be added so that phase 1's interface does not have to change
-and no shortcut is taken on the way.
+Status: **implemented as the hosted MCP endpoint** (`api/mcp-remote/`, user guide
+[docs/MCP.md](../MCP.md)). This note was the design; the section "What shipped" below says where
+the implementation follows it and where it deliberately departs. The rest is kept as the
+reasoning behind it.
+
+## What shipped
+
+- **Transport and auth.** Not a new scope on the V1 token: a remote MCP server inside the API
+  (`POST /api/mcp`, stateless Streamable HTTP) with its own OAuth 2.1 authorization server
+  (PKCE S256, CIMD and dynamic registration, resource-bound opaque tokens, rotating refresh
+  tokens with replay detection, consent on Gymly's own page with the owner's passkey session).
+  Scopes `gymly:read` and `gymly:write`; only profiles in `MCP_OAUTH_USERS` can connect. V1 is
+  unchanged.
+- **The boundary is the Coach's**, as designed: operations become the closed list of change
+  types and pass `validateReview` against the plan as it stands; `weight` (the routine's target
+  weight) is the one addition, validated per unit. Nothing else in the document is writable;
+  workouts can only be *added* (`log_workout`), never edited or deleted, except that an
+  assistant can undo the one it logged.
+- **Departure: no in-app approval for ordinary edits.** The design had the owner approve every
+  proposal in the app. The owner chose in-conversation confirmation instead (an assistant should
+  be able to make a normal adjustment in the chat), so the safety comes from elsewhere:
+  - consent once, on Gymly's page, with write access an explicit, untickable choice;
+  - every write is a **preview** (saves nothing, returns the exact before → after) and an
+    **apply by preview id** — the assistant cannot apply anything it did not show, and clients
+    (ChatGPT, Claude) ask the user before running a non-read-only tool;
+  - removals and bulk edits (more than 16 changes, or more than 3 existing routines) need a
+    separate tool annotated `destructiveHint` and a confirmation phrase;
+  - the apply refuses a plan that moved since the preview (the Coach's plan hash), is
+    idempotent, and is journalled with the plan before it, so `undo_change` restores it exactly
+    (and refuses when a later edit would be overwritten);
+  - the write goes through the same commit as `PUT /api/data` (`commitState`: stamps, revision,
+    write id), as a writer that read the current revision, so every device merges it like an edit
+    made elsewhere — no second writer with its own rules.
+- **Apply runs on the server**, not the client: `plan-apply.js` is a hand copy of the Coach's
+  `CHANGE_APPLY`, pinned to it by `frontend/src/lib/mcp-apply-parity.test.js`. The read tools and
+  the app helpers the write side needs run from a committed bundle of `mcp/src` and
+  `frontend/src/lib` (`scripts/build-mcp-hosted.mjs`, checked in CI), so the numbers match the app.
+- **Audit.** Server: `auth.mcp.consent`/`declined`/`connect`/`disconnect`/`reuse`/`write`/`undo`
+  (client name and counts, never content). Profile: `data/mcp-journal-<uid>.json`, the last 25
+  changes with their full before/after, readable through `list_recent_changes`.
+
+Not done, on purpose: editing or deleting logged sets (needs PR/1RM recomputation tests in
+`frontend/src/lib` first), settings, and any account route.
 
 ## What phase 1 already fixed in place
 

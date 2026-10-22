@@ -2336,4 +2336,13 @@ export default {
   'Token revoked': 'টোকেন বাতিল হয়েছে',
   'Setup guide': 'সেটআপ গাইড',
   'No tokens yet.': 'এখনও কোনো টোকেন নেই।',
+  'Connected assistants': 'সংযুক্ত সহকারী',
+  'Connect ChatGPT, Claude or another assistant with this address. You approve each connection in Gymly, and every change it makes is shown to you first and can be undone.': 'এই ঠিকানা দিয়ে ChatGPT, Claude বা অন্য কোনো সহকারী যুক্ত করুন। প্রতিটি সংযোগ আপনি Gymly-তে অনুমোদন করেন, আর এর প্রতিটি পরিবর্তন আগে আপনাকে দেখানো হয় এবং ফিরিয়ে নেওয়া যায়।',
+  'Copy address': 'ঠিকানা কপি করুন',
+  'Can read and change your plan': 'আপনার পরিকল্পনা পড়তে ও বদলাতে পারে',
+  'Can read your data': 'আপনার ডেটা পড়তে পারে',
+  'Disconnect this assistant?': 'এই সহকারীর সংযোগ বিচ্ছিন্ন করবেন?',
+  'It loses access immediately.': 'এটি সঙ্গে সঙ্গে অ্যাক্সেস হারাবে।',
+  'Disconnected': 'সংযোগ বিচ্ছিন্ন',
+  'No assistants connected yet.': 'এখনও কোনো সহকারী যুক্ত নেই।',
 }

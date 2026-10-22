@@ -1418,6 +1418,15 @@ export const PT_BR_OVERRIDES = {
   'Token revoked': 'Token revogado',
   'Setup guide': 'Guia de configuração',
   'No tokens yet.': 'Nenhum token ainda.',
+  'Connected assistants': 'Assistentes conectados',
+  'Connect ChatGPT, Claude or another assistant with this address. You approve each connection in Gymly, and every change it makes is shown to you first and can be undone.': 'Conecte o ChatGPT, o Claude ou outro assistente com este endereço. Você aprova cada conexão no Gymly, e cada alteração é mostrada antes e pode ser desfeita.',
+  'Copy address': 'Copiar endereço',
+  'Can read and change your plan': 'Pode ler e alterar seu plano',
+  'Can read your data': 'Pode ler seus dados',
+  'Disconnect this assistant?': 'Desconectar este assistente?',
+  'It loses access immediately.': 'Ele perde o acesso imediatamente.',
+  'Disconnected': 'Desconectado',
+  'No assistants connected yet.': 'Ainda não há assistentes conectados.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

@@ -2257,4 +2257,13 @@ export default {
   'Token revoked': 'Token revogado',
   'Setup guide': 'Guia de configuração',
   'No tokens yet.': 'Ainda não há tokens.',
+  'Connected assistants': 'Assistentes ligados',
+  'Connect ChatGPT, Claude or another assistant with this address. You approve each connection in Gymly, and every change it makes is shown to you first and can be undone.': 'Liga o ChatGPT, o Claude ou outro assistente com este endereço. Aprovas cada ligação no Gymly, e cada alteração é-te mostrada antes e pode ser anulada.',
+  'Copy address': 'Copiar endereço',
+  'Can read and change your plan': 'Pode ler e alterar o teu plano',
+  'Can read your data': 'Pode ler os teus dados',
+  'Disconnect this assistant?': 'Desligar este assistente?',
+  'It loses access immediately.': 'Perde o acesso de imediato.',
+  'Disconnected': 'Desligado',
+  'No assistants connected yet.': 'Ainda não há assistentes ligados.',
 }
