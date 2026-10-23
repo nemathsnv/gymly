@@ -2345,4 +2345,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': '在首页显示你的习惯。无论如何，你的记录都会保留。',
   // --- home cards ---
   'At the gym / Check in': '在健身房 / 签到',
+  // --- weight step and pulley ---
+  'Weight step': '重量步长',
+  'Your dumbbells': '你的哑铃',
+  'Pulley {0}': '滑轮 {0}',
+  'Each tap ({0})': '每次点按 ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ 和 − 在此动作的所有计划中每次增减 {0}。渐进规则保留自己的步长。',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ 和 − 按你拥有的哑铃逐个切换。选择一个步长即可改用它。',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ 和 − 使用计划的步长。请选择这台器械或哑铃架实际的步长。',
+  'Pulley': '滑轮',
+  'Not set': '未设置',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': '关于钢索如何连接的备注。你记录器械上显示的重量，不会据此重新计算任何数值。',
 }

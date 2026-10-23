@@ -2345,4 +2345,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'Afficher vos habitudes sur l’Accueil. Votre journal est conservé dans tous les cas.',
   // --- home cards ---
   'At the gym / Check in': 'À la salle / Enregistrement',
+  // --- weight step and pulley ---
+  'Weight step': 'Pas de charge',
+  'Your dumbbells': 'Tes haltères',
+  'Pulley {0}': 'Poulie {0}',
+  'Each tap ({0})': 'Par appui ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ et − ajoutent {0} sur cet exercice, dans tous les plans. La progression garde son propre pas.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ et − parcourent les haltères que tu possèdes. Choisis un pas pour l’utiliser à la place.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ et − suivent le pas du plan. Choisis celui que cette machine ou ce rack propose vraiment.',
+  'Pulley': 'Poulie',
+  'Not set': 'Non défini',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Une note sur le montage de la poulie. Tu notes le poids affiché par la machine, et rien n’est recalculé à partir de cette note.',
 }

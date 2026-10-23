@@ -2356,4 +2356,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'แสดงนิสัยของคุณบนหน้าหลัก บันทึกของคุณยังอยู่ไม่ว่าจะเลือกแบบใด',
   // --- home cards ---
   'At the gym / Check in': 'ที่ยิม / เช็คอิน',
+  // --- weight step and pulley ---
+  'Weight step': 'ขั้นน้ำหนัก',
+  'Your dumbbells': 'ดัมเบลของคุณ',
+  'Pulley {0}': 'รอก {0}',
+  'Each tap ({0})': 'ต่อการแตะ ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ และ − เพิ่มลดครั้งละ {0} ในท่านี้ ทุกแผน การเพิ่มน้ำหนักยังคงใช้ขั้นของตัวเอง',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ และ − ไล่ตามดัมเบลที่คุณมี เลือกขั้นเพื่อใช้แทน',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ และ − ใช้ขั้นของแผน เลือกขั้นที่เครื่องหรือแร็กนี้มีจริง',
+  'Pulley': 'รอก',
+  'Not set': 'ไม่ได้ตั้ง',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'บันทึกว่าสายเคเบิลร้อยรอกแบบใด คุณบันทึกน้ำหนักตามที่เครื่องแสดง และไม่มีการคำนวณใหม่จากค่านี้',
 }

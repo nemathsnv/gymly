@@ -105,28 +105,20 @@ export function policyFor(cfg, routine, mode) {
 }
 
 const round1 = v => Math.round(v * 10) / 10
-// Snap to a loadable multiple of the step. Manual weight controls use this same normalization
-// so fractional increments produce the same number as automatic progression.
+// Snap to a loadable multiple of the step, rounded to a tenth.
 export function snapWeight(v, step) {
   if (!(step > 0)) return round1(v)
   return round1(Math.round(v / step) * step)
 }
-// A tap moves by one step. Snapping to the grid keeps the number identical to what progression
-// would prescribe (61.3 → 62.5 with a 1.25 step, not 62.55) — but only when the current value
-// already sits on that grid; from 62.5 with a 5 kg step a tap gives 67.5, not 70.
-// Add `step` to a weight the way a stepper tap does: from a weight that sits on the increment's
-// grid the sum is snapped to it, from one off the grid the step is simply added. Progression
-// uses the same rule (issue #175): a sled logged as 397 lb — its own weight plus plates — with
-// a 10 lb step goes to 407, not to the grid's 410.
+// Add `step` to a weight the way progression does: from a weight that sits on the increment's
+// grid the sum is snapped to it, from one off the grid the step is simply added (issue #175): a
+// sled logged as 397 lb — its own weight plus plates — with a 10 lb step goes to 407, not to the
+// grid's 410. The + and − buttons have their own exact rule (lib/weight-step.js stepBy).
 export function addStep(w, step, inc) {
   const v = +w || 0
   const onGrid = inc > 0 && Math.abs(v - Math.round(v / inc) * inc) <= 0.1
   const next = v + step
   return Math.max(0, onGrid ? snapWeight(next, inc) : round1(next))
-}
-export function stepWeight(value, step, direction) {
-  const v = Number(value) || 0
-  return addStep(v, direction * step, step)
 }
 // Back off by a factor, landing on something you can actually load. This remains the old policy
 // used by Greyskull and timed progression; linear/double loaded reps use the Epley selector below.

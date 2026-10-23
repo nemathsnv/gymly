@@ -2345,4 +2345,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': '홈에 습관을 표시합니다. 기록은 어느 쪽이든 유지됩니다.',
   // --- home cards ---
   'At the gym / Check in': '헬스장에서 / 체크인',
+  // --- weight step and pulley ---
+  'Weight step': '무게 단위',
+  'Your dumbbells': '내 덤벨',
+  'Pulley {0}': '도르래 {0}',
+  'Each tap ({0})': '한 번 누를 때 ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+와 −는 이 운동에서 모든 플랜에 걸쳐 {0}씩 바꿉니다. 점진적 과부하는 자체 단위를 유지합니다.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+와 −는 보유한 덤벨을 따라 이동합니다. 대신 쓰려면 단위를 선택하세요.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+와 −는 플랜의 단위를 사용합니다. 이 기구나 랙에 실제로 있는 단위를 선택하세요.',
+  'Pulley': '도르래',
+  'Not set': '설정 안 함',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': '케이블이 어떻게 연결되어 있는지에 대한 메모입니다. 기구에 표시된 무게를 기록하며, 이를 바탕으로 다시 계산하지 않습니다.',
 }

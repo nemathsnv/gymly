@@ -2400,4 +2400,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'اعرض عاداتك في الرئيسية. يبقى سجلّك محفوظًا في كل الأحوال.',
   // --- home cards ---
   'At the gym / Check in': 'في الجيم / تسجيل الدخول',
+  // --- weight step and pulley ---
+  'Weight step': 'خطوة الوزن',
+  'Your dumbbells': 'دمبلاتك',
+  'Pulley {0}': 'بكرة {0}',
+  'Each tap ({0})': 'لكل نقرة ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': 'يضيف + و − مقدار {0} في هذا التمرين، في كل خطة. يحتفظ التدرج بخطوته الخاصة.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': 'ينتقل + و − بين الدمبلات التي تملكها. اختر خطوة لاستخدامها بدلًا منها.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': 'يستخدم + و − خطوة الخطة. اختر الخطوة التي تتيحها هذه الآلة أو الحامل فعلًا.',
+  'Pulley': 'البكرة',
+  'Not set': 'غير محدد',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'ملاحظة عن طريقة تركيب الكابل. تسجل الوزن الذي تعرضه الآلة، ولا يُعاد حساب أي شيء بناءً عليها.',
 }
