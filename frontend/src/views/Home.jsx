@@ -200,12 +200,14 @@ export default function Home() {
       </div>
     )}
 
-    {/* Today's check-in for every active habit, one tap each (lib/habits.js); the title opens the
-        Habits list, each habit's name its own screen. Settings → On Home switches the card off. */}
+    {/* Today's check-in for every active habit, one tap each (lib/habits.js); "Manage habits" opens
+        the Habits list, each habit's row its own screen. The card itself is not a link, so the
+        header button, the rows and the check-in buttons are separate targets. Settings → On Home
+        switches the card off. */}
     {S.habitsOn !== false && <div className="card habits-card">
-      <div className="row between" style={{ marginBottom: 10, cursor: 'pointer' }} {...tappable(() => nav('/habits'))}>
+      <div className="row between habits-card-hdr">
         <h2 style={{ margin: 0 }}>{t('Habits')}</h2>
-        <Icon name="chevronRight" className="chev" />
+        <Button size="sm" className="habits-manage" onClick={() => nav('/habits')}>{t('Manage habits')}</Button>
       </div>
       {habits.map(h => <HabitRow key={h.id} h={h} today={habitToday} nav={nav} />)}
       {!habits.length && <div className="muted small">{t('No active habits. Add one, or bring an archived one back.')}</div>}

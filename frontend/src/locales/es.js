@@ -2323,6 +2323,7 @@ export default {
   'Color': 'Color',
   'You can have up to {0} habits of your own.': 'Puedes tener hasta {0} hábitos propios.',
   'Add habit': 'Añadir hábito',
+  'Manage habits': 'Gestionar hábitos',
   'Unarchive': 'Desarchivar',
   'Archive': 'Archivar',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Archivar lo oculta de Inicio y de la lista. Se conserva cada día que registraste.',

@@ -2323,6 +2323,7 @@ export default {
   'Color': 'Renk',
   'You can have up to {0} habits of your own.': 'En fazla {0} kendi alışkanlığın olabilir.',
   'Add habit': 'Alışkanlık ekle',
+  'Manage habits': 'Alışkanlıkları yönet',
   'Unarchive': 'Arşivden çıkar',
   'Archive': 'Arşivle',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Arşivlemek onu Ana sayfadan ve listeden gizler. Kaydettiğin her gün korunur.',

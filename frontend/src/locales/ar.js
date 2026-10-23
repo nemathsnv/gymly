@@ -2378,6 +2378,7 @@ export default {
   'Color': 'اللون',
   'You can have up to {0} habits of your own.': 'يمكنك امتلاك حتى {0} من عاداتك الخاصة.',
   'Add habit': 'إضافة عادة',
+  'Manage habits': 'إدارة العادات',
   'Unarchive': 'إلغاء الأرشفة',
   'Archive': 'أرشفة',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'الأرشفة تخفيها من الرئيسية ومن القائمة. يبقى كل يوم سجّلته.',

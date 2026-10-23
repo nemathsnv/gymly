@@ -2334,6 +2334,7 @@ export default {
   'Color': 'สี',
   'You can have up to {0} habits of your own.': 'คุณมีนิสัยของตัวเองได้สูงสุด {0} รายการ',
   'Add habit': 'เพิ่มนิสัย',
+  'Manage habits': 'จัดการนิสัย',
   'Unarchive': 'เลิกเก็บถาวร',
   'Archive': 'เก็บถาวร',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'การเก็บถาวรจะซ่อนจากหน้าหลักและรายการ ทุกวันที่บันทึกไว้ยังอยู่ครบ',

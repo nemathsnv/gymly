@@ -1484,6 +1484,7 @@ export const PT_BR_OVERRIDES = {
   'Color': 'Cor',
   'You can have up to {0} habits of your own.': 'Você pode ter até {0} hábitos seus.',
   'Add habit': 'Adicionar hábito',
+  'Manage habits': 'Gerenciar hábitos',
   'Unarchive': 'Desarquivar',
   'Archive': 'Arquivar',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Arquivar oculta o hábito do Início e da lista. Todos os dias registrados são mantidos.',
