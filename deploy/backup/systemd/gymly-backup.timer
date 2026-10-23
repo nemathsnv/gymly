@@ -1,0 +1,12 @@
+[Unit]
+Description=Gymly backup every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:40:00 UTC
+Persistent=true
+AccuracySec=1min
+RandomizedDelaySec=120
+Unit=gymly-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Gymly backup: retention, repository check, freshness and weekly restore test
+Documentation=file:///usr/local/share/doc/gymly-backup/DISASTER_RECOVERY.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gymly-backup maintain
+TimeoutStartSec=4h
+SuccessExitStatus=75
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+UMask=0077
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes

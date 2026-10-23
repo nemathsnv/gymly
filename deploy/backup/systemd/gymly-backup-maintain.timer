@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Gymly backup maintenance and verification
+
+[Timer]
+OnCalendar=*-*-* 04:20:00 UTC
+Persistent=true
+AccuracySec=1min
+RandomizedDelaySec=120
+Unit=gymly-backup-maintain.service
+
+[Install]
+WantedBy=timers.target
