@@ -1,0 +1,19 @@
+# /etc/gymly-backup/backup.conf: non-secret settings (root 0600 anyway). Secrets live beside it, written
+# only through `gymly-backup secret <name>`: restic-password, spaces.env, kuma-*.url, heartbeat-*.url.
+RESTIC_REPOSITORY=s3:https://fra1.digitaloceanspaces.com/gymly-dr-backups/restic
+BACKUP_HOST=gymly-kvm2
+# Every job refuses to run on another host, so a restored copy of the server never writes here.
+PRODUCTION_HOSTNAME=srv804180
+# Freshness: the maintain job fails (and skips retention) when the newest verified snapshot is older.
+MAX_BACKUP_AGE_HOURS=7
+# Retention, applied per host+tags group: the last 4 runs, then 30 daily and 12 weekly.
+KEEP_LAST=4
+KEEP_DAILY=30
+KEEP_WEEKLY=12
+# ISO weekday (7 = Sunday) for prune and the restore test.
+PRUNE_WEEKDAY=7
+# check --read-data-subset n/7 daily: every pack is read back at least once a week.
+CHECK_SUBSET_DENOMINATOR=7
+# A db.json with fewer users is refused as a backup source (guards against snapshotting a reset).
+MIN_USERS=1
+MIN_FREE_MB=1024

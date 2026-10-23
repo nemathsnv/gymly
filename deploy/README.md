@@ -80,8 +80,9 @@ After traffic may have reached the new version, **there is no automatic data res
 that could erase new workouts. Keep all failed data and backups. Inspect compatibility and
 choose either a forward fix or a coordinated recovery. Never restore an old data snapshot
 over a running instance. Backups contain credentials and personal workout data; keep them
-root-only and arrange off-server backups separately. Local pre-deploy snapshots alone do not
-protect against loss of the VPS.
+root-only. Local pre-deploy snapshots alone do not protect against loss of the VPS: off-site,
+encrypted backups every 6 hours (`deploy/backup/`, restic → DigitalOcean Spaces) cover that,
+and `deploy/backup/DISASTER_RECOVERY.md` is the runbook for restores and total host loss.
 
 For a compatible code-only rollback, revert the offending change in Git and push the revert
 to `main`, using the same tested deployment path. Avoid resetting or force-pushing history.

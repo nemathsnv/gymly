@@ -29,7 +29,9 @@ jobs:
           cache-dependency-path: ${{ matrix.project }}/package-lock.json
       - name: Verify deployment recovery paths
         if: matrix.project == 'api'
-        run: python3 -m unittest discover -s deploy -p 'test_*.py' -v
+        run: |
+          python3 -m unittest discover -s deploy -p 'test_*.py' -v
+          python3 -m unittest discover -s deploy/backup -p 'test_*.py' -v
       - run: npm ci --ignore-scripts --omit=optional
         if: matrix.project == 'api'
         working-directory: api
