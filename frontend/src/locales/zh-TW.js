@@ -2316,6 +2316,7 @@ export default {
   'Color': '顏色',
   'You can have up to {0} habits of your own.': '你最多可以有 {0} 個自己的習慣。',
   'Add habit': '新增習慣',
+  'Manage habits': '管理習慣',
   'Unarchive': '取消封存',
   'Archive': '封存',
   'Archiving hides it from Home and the list. Every day you logged is kept.': '封存後會從首頁和清單中隱藏。記錄過的每一天都會保留。',

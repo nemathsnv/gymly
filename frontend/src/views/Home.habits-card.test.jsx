@@ -32,6 +32,7 @@ const mountWith = (habitsOn, habitLog = {}) => {
   }))
   act(() => root.render(<Home />))
 }
+const manageButton = () => [...host.querySelectorAll('.habits-card button')].find(b => b.textContent === 'Manage habits')
 const click = el => act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
 
 describe('Home habits card', () => {
@@ -54,10 +55,42 @@ describe('Home habits card', () => {
     click([...host.querySelectorAll('.habit-btn')].find(b => b.textContent === 'No alcohol'))
     expect(entryOf(useStore.getState().S, 'alcohol', '2026-10-22').status).toBe('free')
     expect(host.textContent).toContain('Alcohol-free streak (days): 1')
-    click(host.querySelector('.habits-card > .row.between'))
+    expect(nav).not.toHaveBeenCalled()   // a check-in tap never navigates
+    click(manageButton())
     expect(nav).toHaveBeenCalledWith('/habits')
     click(host.querySelector('.habit-row .row.between'))
     expect(nav).toHaveBeenCalledWith('/habits/alcohol')
+  })
+
+  it('has a labelled "Manage habits" button in the header instead of a header chevron', () => {
+    mountWith(true)
+    const header = host.querySelector('.habits-card-hdr')
+    expect(header.querySelector('h2').textContent).toBe('Habits')
+    expect(manageButton().tagName).toBe('BUTTON')
+    expect(manageButton().textContent).toBe('Manage habits')
+    expect(header.querySelector('.chev')).toBeNull()
+    expect(header.getAttribute('role')).toBeNull()
+    // the habit rows keep their chevron
+    expect(host.querySelectorAll('.habit-row .row.between .chev').length).toBe(1)
+  })
+
+  it('keeps the card, the title and the check-in buttons from navigating on their own', () => {
+    mountWith(true)
+    click(host.querySelector('.habits-card'))
+    click(host.querySelector('.habits-card-hdr h2'))
+    click(host.querySelector('.habit-btn'))
+    expect(nav).not.toHaveBeenCalled()
+    click(host.querySelector('.habit-name'))
+    expect(nav).toHaveBeenCalledTimes(1)
+    expect(nav).toHaveBeenCalledWith('/habits/alcohol')
+  })
+
+  it('has no interactive element inside another one', () => {
+    mountWith(true)
+    const sel = 'button, a[href], [role="button"], [tabindex]'
+    const targets = [...host.querySelectorAll('.habits-card')].flatMap(c => [...c.querySelectorAll(sel)])
+    expect(targets.length).toBeGreaterThan(3)
+    for (const el of targets) expect(el.parentElement.closest(sel)).toBeNull()
   })
 
   it('shows every active habit with its own check-in, and none of the archived ones', () => {

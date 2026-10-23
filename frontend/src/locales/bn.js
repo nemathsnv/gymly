@@ -2402,6 +2402,7 @@ export default {
   'Color': 'রং',
   'You can have up to {0} habits of your own.': 'আপনার নিজের সর্বোচ্চ {0}টি অভ্যাস থাকতে পারে।',
   'Add habit': 'অভ্যাস যোগ করুন',
+  'Manage habits': 'অভ্যাস পরিচালনা',
   'Unarchive': 'আর্কাইভ থেকে ফেরান',
   'Archive': 'আর্কাইভ',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'আর্কাইভ করলে এটি হোম ও তালিকা থেকে লুকিয়ে যায়। লগ করা প্রতিটি দিন থেকে যায়।',

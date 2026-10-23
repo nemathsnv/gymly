@@ -2320,6 +2320,7 @@ export default {
   'Color': 'Колір',
   'You can have up to {0} habits of your own.': 'У вас може бути до {0} власних звичок.',
   'Add habit': 'Додати звичку',
+  'Manage habits': 'Керування звичками',
   'Unarchive': 'Повернути з архіву',
   'Archive': 'В архів',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Архів приховує її з Головної та зі списку. Усі відзначені дні зберігаються.',

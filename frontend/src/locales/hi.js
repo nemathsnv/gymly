@@ -2323,6 +2323,7 @@ export default {
   'Color': 'रंग',
   'You can have up to {0} habits of your own.': 'आप अपनी अधिकतम {0} आदतें रख सकते हैं।',
   'Add habit': 'आदत जोड़ें',
+  'Manage habits': 'आदतें प्रबंधित करें',
   'Unarchive': 'आर्काइव से वापस लाएँ',
   'Archive': 'आर्काइव करें',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'आर्काइव करने से यह होम और सूची से छिप जाती है। दर्ज किया हर दिन बना रहता है।',

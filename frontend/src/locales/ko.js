@@ -2323,6 +2323,7 @@ export default {
   'Color': '색상',
   'You can have up to {0} habits of your own.': '나만의 습관은 최대 {0}개까지 만들 수 있어요.',
   'Add habit': '습관 추가',
+  'Manage habits': '습관 관리',
   'Unarchive': '보관 해제',
   'Archive': '보관',
   'Archiving hides it from Home and the list. Every day you logged is kept.': '보관하면 홈과 목록에서 숨겨집니다. 기록한 모든 날은 그대로 남습니다.',

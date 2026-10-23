@@ -2193,6 +2193,11 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .habit-week-bar .unlogged{background:transparent}
 .habit-week-bar .drank{background:var(--orange)}
 .habit-week-bar .free{background:var(--green)}
+.habits-card-hdr{margin-bottom:10px;gap:12px}
+.habits-card-hdr h2{min-width:0}
+/* 44px tall tap target; the negative margins keep the header the height it was and line the label up with the card's inner edge */
+.habits-manage{min-height:44px;margin-block:-8px;margin-inline-end:-10px;flex:0 1 auto;min-width:0;max-width:62%;text-align:end}
+.habits-manage span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .habit-row + .habit-row{margin-top:16px;padding-top:14px;border-top:.5px solid var(--sep)}
 .habit-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .habit-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

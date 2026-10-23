@@ -2326,6 +2326,7 @@ export default {
   'Color': 'Szín',
   'You can have up to {0} habits of your own.': 'Legfeljebb {0} saját szokásod lehet.',
   'Add habit': 'Szokás hozzáadása',
+  'Manage habits': 'Szokások kezelése',
   'Unarchive': 'Visszaállítás',
   'Archive': 'Archiválás',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Az archiválás elrejti a Kezdőlapról és a listából. Minden rögzített nap megmarad.',

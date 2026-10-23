@@ -2327,6 +2327,7 @@ export default {
   'Color': 'Цвет',
   'You can have up to {0} habits of your own.': 'У вас может быть до {0} своих привычек.',
   'Add habit': 'Добавить привычку',
+  'Manage habits': 'Управление привычками',
   'Unarchive': 'Вернуть из архива',
   'Archive': 'В архив',
   'Archiving hides it from Home and the list. Every day you logged is kept.': 'Архив скрывает её с Главной и из списка. Все отмеченные дни сохраняются.',

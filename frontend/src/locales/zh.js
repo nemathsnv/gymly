@@ -2323,6 +2323,7 @@ export default {
   'Color': '颜色',
   'You can have up to {0} habits of your own.': '你最多可以有 {0} 个自己的习惯。',
   'Add habit': '添加习惯',
+  'Manage habits': '管理习惯',
   'Unarchive': '取消归档',
   'Archive': '归档',
   'Archiving hides it from Home and the list. Every day you logged is kept.': '归档后会从首页和列表中隐藏。记录过的每一天都会保留。',
