@@ -2342,4 +2342,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'Показувати звички на Головній. Журнал зберігається в будь-якому разі.',
   // --- home cards ---
   'At the gym / Check in': 'У залі / Відмітитися',
+  // --- weight step and pulley ---
+  'Weight step': 'Крок ваги',
+  'Your dumbbells': 'Ваші гантелі',
+  'Pulley {0}': 'Блок {0}',
+  'Each tap ({0})': 'За натискання ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ і − змінюють вагу на {0} у цій вправі, в усіх планах. Прогресія зберігає свій крок.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ і − переходять вашими гантелями. Оберіть крок, щоб використовувати його замість них.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ і − використовують крок плану. Оберіть той, що справді має цей тренажер або стійка.',
+  'Pulley': 'Блок',
+  'Not set': 'Не задано',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Нотатка про те, як влаштовано блок троса. Ви записуєте вагу, яку показує тренажер, і нічого не перераховується.',
 }

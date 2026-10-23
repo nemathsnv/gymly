@@ -2349,4 +2349,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'Показывать привычки на Главной. Журнал сохраняется в любом случае.',
   // --- home cards ---
   'At the gym / Check in': 'В зале / Отметиться',
+  // --- weight step and pulley ---
+  'Weight step': 'Шаг веса',
+  'Your dumbbells': 'Ваши гантели',
+  'Pulley {0}': 'Блок {0}',
+  'Each tap ({0})': 'За нажатие ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ и − меняют вес на {0} в этом упражнении, во всех планах. Прогрессия сохраняет свой шаг.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ и − переходят по вашим гантелям. Выберите шаг, чтобы использовать его вместо них.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ и − используют шаг плана. Выберите тот, что действительно есть у этого тренажёра или стойки.',
+  'Pulley': 'Блок',
+  'Not set': 'Не задано',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Заметка о том, как устроен блок троса. Вы записываете вес, который показывает тренажёр, и ничего не пересчитывается.',
 }

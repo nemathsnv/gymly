@@ -13,11 +13,11 @@ import {
   isFailureSet, isSideSet, isWarmupRow, nextBurstReps, toggleFailure, nextDropWeight, setClusterAt,
   setDropAt, setSideClusterAt, setSideDropAt, setSideField,
 } from '../lib/workout-model.js'
-import { weightIncrement, stepWeight } from '../lib/progression.js'
+import { weightIncrement } from '../lib/progression.js'
+import { ownStepFor, stepBy, weightStepper, weightStepSummary } from '../lib/weight-step.js'
 import { speedUnitOf, toSpeed, fromSpeed } from '../lib/speed.js'
-import { effortPickerSheet, exerciseDetailSheet, exerciseHistorySheet, exerciseNoteSheet, menuSheet, barWeightSheet } from '../sheets.jsx'
+import { effortPickerSheet, exerciseDetailSheet, exerciseHistorySheet, exerciseNoteSheet, menuSheet, barWeightSheet, weightStepSheet } from '../sheets.jsx'
 import { baseWeightFor, inventoryFor, loadKindFor, rowLoad } from '../lib/plates.js'
-import { ownedWeightsFor, stepOwned } from '../lib/dumbbells.js'
 import Icon from '../components/Icon.jsx'
 import { Button, Stepper } from '../components/ui.jsx'
 import './FocusView.css'
@@ -133,10 +133,12 @@ export default function FocusView({
   const effortField = EFFORT[effort]?.f
   const effortValue = effortField ? set[effortField] ?? null : null
   const effortTint = effortValue == null ? null : effortColor(rirOf({ [effortField]: effortValue }))
-  const loadStep = weightIncrement({ ...(entry.target || {}), id: entry.id }, S.unit)
-  // Bell to bell over the dumbbells you own, when the profile lists them (issue #376).
-  const owned = mode === 'reps' ? ownedWeightsFor(S, { ...(entry.target || {}), id: entry.id }) : null
-  const stepLoad = owned ? (v, _step, dir) => stepOwned(owned, v, dir) : stepWeight
+  // The same + and − as the workout rows (lib/weight-step.js): the exercise's own step, the
+  // dumbbells you own (issue #376), or the plan's increment. A timed hold's load steps by the
+  // exercise's own step when it has one, else by the increment as before.
+  const cfg = { ...(entry.target || {}), id: entry.id }
+  const loadStep = mode === 'reps' ? weightStepper(S, cfg).step : ownStepFor(S, entry.id) || weightIncrement(cfg, S.unit)
+  const stepLoad = mode === 'reps' ? (v, _step, dir) => weightStepper(S, cfg).move(v, dir) : (v, step, dir) => stepBy(v, step, dir)
   const selectSet = index => setPointerState(current => {
     const next = new Map(current.epoch === pointerEpoch ? current.pointers : [])
     next.set(entryIdx, clampSet(entry, index))
@@ -228,6 +230,7 @@ export default function FocusView({
       { icon: 'chartLine', label: t('Progression settings'), onClick: onProgressionSettings },
       onNoProg && { icon: 'pause', label: t('Don’t count for progression'), sub: t('This exercise, this session only'), on: entry.noProg === true, onClick: () => onNoProg(entry.noProg !== true) },
       mode === 'reps' && { icon: 'plate', label: t('Plate loading'), onClick: () => barWeightSheet(entry.id, { ...(entry.target || {}), id: entry.id }) },
+      mode === 'reps' && { icon: 'steps', label: t('Weight step'), sub: weightStepSummary(S, cfg), onClick: () => weightStepSheet(entry.id, cfg) },
       onPairPrev && { icon: 'link', label: t('Make superset with previous'), onClick: onPairPrev },
       onPairNext && { icon: 'link', label: t('Make superset with next'), onClick: onPairNext },
       { icon: 'shuffle', label: t('Swap exercise'), onClick: onSwap, disabled: busy },

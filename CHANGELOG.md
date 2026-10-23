@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Weight step: + and − add what your equipment really has.** Every exercise can have its own
+  step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
+  from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.
+  A dumbbell row set to 2.5 kg goes 10 → 12.5 → 15 instead of 10 → 15. The step is per exercise
+  in every plan, kept per unit, and syncs with your profile; without one the buttons step as
+  before. The buttons are now exact: a weight you typed off the step stays off it (11.5 + 2.5 is
+  14, and − is 11.5 again), a tap back always undoes a tap, and fractional steps no longer drift.
+  Cable and machine exercises can also note their **pulley** (1:1, 2:1, 4:1); it is only a note —
+  you log the weight the machine shows and nothing is recalculated. Progression, warm-ups, deloads
+  and every logged set are unchanged.
 - **Habits of your own.** Habits → **Add habit** makes as many habits as you like, each with a
   name, an icon and a colour, and one of two kinds: one to build (**Done** / **Not done** / **Not
   logged**) or one to avoid (**Avoided** / **Did it** / **Not logged**). Each habit has its own

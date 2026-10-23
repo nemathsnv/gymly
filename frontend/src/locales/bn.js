@@ -2424,4 +2424,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'হোমে আপনার অভ্যাস দেখান। আপনার লগ যেভাবেই হোক থেকে যায়।',
   // --- home cards ---
   'At the gym / Check in': 'জিমে / চেক ইন',
+  // --- weight step and pulley ---
+  'Weight step': 'ওজনের ধাপ',
+  'Your dumbbells': 'আপনার ডাম্বেল',
+  'Pulley {0}': 'পুলি {0}',
+  'Each tap ({0})': 'প্রতি ট্যাপে ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ আর − এই ব্যায়ামে, প্রতিটি প্ল্যানে {0} করে বদলায়। প্রগ্রেশন নিজের ধাপ রাখে।',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ আর − আপনার ডাম্বেলগুলোর মধ্যে চলে। তার বদলে একটি ধাপ ব্যবহার করতে সেটি বেছে নিন।',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ আর − প্ল্যানের ধাপ ব্যবহার করে। এই মেশিন বা র‍্যাকে আসলে যেটি আছে সেটি বেছে নিন।',
+  'Pulley': 'পুলি',
+  'Not set': 'নির্ধারিত নয়',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'কেবল কীভাবে লাগানো আছে তার একটি নোট। মেশিন যে ওজন দেখায় আপনি সেটিই লেখেন, এর থেকে কিছুই আবার হিসাব করা হয় না।',
 }

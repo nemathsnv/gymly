@@ -679,7 +679,9 @@ describe('active workout weight controls', () => {
     expect(mocks.S.active.entries[0].sets[0]).toMatchObject({ w: 1, r: 8 })
   })
 
-  it('matches automatic progression rounding for a fractional configured step', async () => {
+  // Progression rounds a 1.25 grid to a tenth (60 → 61.3); the buttons land on the weight that
+  // stands for, 61.25, and from either number the next tap is 62.5 (lib/weight-step.js onPlanGrid).
+  it('lands a fractional plan step on the weight progression means, without drift', async () => {
     const target = { mode: 'reps', sets: 1, reps: 5, weight: 60, bodyweight: false, inc: 1.25 }
     const automatic = nextPrescription({
       unit: 'kg',
@@ -690,7 +692,14 @@ describe('active workout weight controls', () => {
     await press('Increase', '.setrow .stp.w')
 
     expect(automatic.weight).toBe(61.3)
-    expect(mocks.S.active.entries[0].sets[0].w).toBe(automatic.weight)
+    expect(mocks.S.active.entries[0].sets[0].w).toBe(61.25)
+    await press('Increase', '.setrow .stp.w')
+    expect(mocks.S.active.entries[0].sets[0].w).toBe(62.5)
+
+    await unmount()
+    await mount([exercise('plain-bench', [false], { target, sets: [{ w: automatic.weight, r: 5, done: false }] })])
+    await press('Increase', '.setrow .stp.w')
+    expect(mocks.S.active.entries[0].sets[0].w).toBe(62.5)
   })
 
   it('uses the configured reps weight step for drop-set weight controls', async () => {
@@ -3391,7 +3400,7 @@ describe('the workout screen chrome (v1.3.11)', () => {
     expect(groups).toEqual([
       ['Today', ['Swap exercise', 'Add warm-up set', 'Add note', 'Don’t count for progression']],
       ['Look it up', ['History', 'How to do it']],
-      ['Settings', ['Exercise settings', 'Rest timer', 'Plate loading']],
+      ['Settings', ['Exercise settings', 'Rest timer', 'Plate loading', 'Weight step']],
       ['Order and supersets', ['Make superset with next', 'Move up', 'Move down']],
       [undefined, ['Remove exercise']],
     ])

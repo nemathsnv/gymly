@@ -182,6 +182,11 @@ export const DEF = {
   // (lib/dumbbells.js). Single bells, lightest first. Kept per unit and stamped like the plates;
   // absent or empty = no list, and dumbbell lifts step by their increment as before.
   dumbbells: {},
+  // An exercise's own equipment, keyed by exercise id (lib/weight-step.js): { step: { kg?, lb? },
+  // pulley: '1:1' | '2:1' | '4:1' | null, _ts }. `step` is what the weight + and − add, per unit
+  // and never converted; `pulley` a note on the cable's rigging that changes no number. Stamped
+  // like S.loadKind. Absent = the buttons step by the dumbbells you own or the plan's increment.
+  exEquip: {},
   // Gym check-in cards (see views/CheckIn.jsx). Each is a membership
   // code shown as a QR/barcode at the gym's turnstile — added by typing it, importing a photo
   // of the card, or scanning it. We only ever keep the code's VALUE, never a photo: the image

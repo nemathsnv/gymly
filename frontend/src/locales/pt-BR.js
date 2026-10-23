@@ -1506,6 +1506,17 @@ export const PT_BR_OVERRIDES = {
   'Show your habits on Home. Your log is kept either way.': 'Mostrar seus hábitos no Início. Seu registro é mantido de qualquer forma.',
   // --- home cards ---
   'At the gym / Check in': 'Na academia / Check-in',
+  // --- weight step and pulley ---
+  'Weight step': 'Passo de peso',
+  'Your dumbbells': 'Seus halteres',
+  'Pulley {0}': 'Polia {0}',
+  'Each tap ({0})': 'Por toque ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ e − somam {0} neste exercício, em todos os planos. A progressão mantém o próprio passo.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ e − percorrem os halteres que você tem. Escolha um passo para usá-lo no lugar.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ e − usam o passo do plano. Escolha o que esta máquina ou rack realmente tem.',
+  'Pulley': 'Polia',
+  'Not set': 'Não definido',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Uma nota sobre como o cabo está montado. Você registra o peso que a máquina mostra, e nada é recalculado a partir disso.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

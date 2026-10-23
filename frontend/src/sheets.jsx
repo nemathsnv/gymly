@@ -36,6 +36,7 @@ import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML } from 
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP, formulaOf, FORMULA_NAMES } from './lib/onerm.js'
 import { exerciseHistory } from './lib/exercise-history.js'
 import { isBellEx, dbLoadOf, dbLoadFor, withDbLoad, withMeaning, historyAs, entryDbLoad, currentDbLoad, isOneArm, ownedWeightsFor, dumbbellsOf, ownsDumbbells, withDumbbells, presetWeights, cleanWeights } from './lib/dumbbells.js'
+import { weightStepper, ownStepFor, pulleyFor, withExEquip, takesPulley, fmtStep, PULLEYS, STEP_PRESETS } from './lib/weight-step.js'
 import { policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS, MAX_TRIPLE_SETS, weightIncrement } from './lib/progression.js'
 import { normalizeRepRange } from './lib/rep-range.js'
 import { isBackoff, backoffWeights } from './lib/backoff.js'
@@ -839,6 +840,74 @@ function BarWeightSheet({ exId, cfg, close }) {
 }
 export const barWeightSheet = (exId, cfg) => ui().openSheet(close => <BarWeightSheet exId={exId} cfg={cfg} close={close} />)
 
+/* ============================ weight step ============================ */
+// What the weight + and − add on one exercise, and how its cable is rigged (lib/weight-step.js,
+// S.exEquip). Per exercise and per unit, like the plate loading: written straight to the profile,
+// never to a plan, so the routine's progression step (Progression → Step) stays what it was. The
+// first chip is "no step of its own": the dumbbells you own, or the plan's step, as before.
+// The stepper beside the chips walks the presets; past the heaviest it doubles, under the
+// lightest it halves. From a typed step it goes to the next preset that way.
+const ladderStep = (presets, v, dir) => {
+  const n = Number(v) || 0
+  if (dir > 0) return presets.find(p => p > n + 1e-9) ?? n * 2
+  const below = presets.filter(p => p < n - 1e-9)
+  return below.length ? below[below.length - 1] : Math.round(n / 2 * 100) / 100
+}
+// Chips capitalise their label (a body part, an equipment name); a unit is written as it is.
+const unitCase = { textTransform: 'none' }
+function WeightStepEditor({ ex, cfg }) {
+  const st = useStore(s => s.S)
+  const unit = st.unit === 'lb' ? 'lb' : 'kg'
+  const own = ownStepFor(st, ex.id)
+  const s = weightStepper(st, { ...(cfg || {}), id: ex.id })
+  const fallback = own ? weightStepper({ ...st, exEquip: {} }, { ...(cfg || {}), id: ex.id }) : s
+  const pulley = pulleyFor(st, ex.id)
+  const set = patch => update(x => { x.exEquip = withExEquip(x, ex.id, patch) })
+  const [typed, setTyped] = useState(undefined)
+  return <>
+    <div className="chips" role="group" aria-label={t('Weight step')} style={{ flexWrap: 'wrap', marginBottom: 8 }}>
+      <button className={'chip' + (own ? '' : ' on')} style={unitCase} aria-pressed={!own} onClick={() => { setTyped(undefined); set({ step: null }) }}>
+        {fallback.source === 'dumbbells' ? t('Your dumbbells') : t('Default ({0})', fmtStep(fallback.step, unit))}
+      </button>
+      {STEP_PRESETS[unit].map(n => (
+        <button key={n} className={'chip' + (own === n ? ' on' : '')} style={unitCase} aria-pressed={own === n} onClick={() => { setTyped(undefined); set({ step: n }) }}>{fmtStep(n, unit)}</button>
+      ))}
+    </div>
+    {/* Any other step is typed, or walked to along the presets. While a number is being typed
+        the field shows what is typed: a 0 on the way to 0.5 clears nothing. */}
+    <div className="row cfgrow" style={{ marginBottom: 6 }} onBlur={() => setTyped(undefined)}>
+      <Stepper label={t('Each tap ({0})', unit)} value={typed !== undefined ? typed : (own ?? fallback.step)} min={0}
+        onStep={(v, _step, dir) => ladderStep(STEP_PRESETS[unit], v, dir)}
+        onChange={v => { if (v > 0) { setTyped(undefined); set({ step: v }) } else setTyped(v) }} />
+    </div>
+    <div className="small dim" style={{ marginBottom: 18 }}>
+      {own ? t('+ and − add {0} on this exercise, in every plan. Progression keeps its own step.', fmtStep(own, unit))
+        : s.source === 'dumbbells' ? t('+ and − walk the dumbbells you own. Pick a step to use it instead.')
+          : t('+ and − use the plan’s step. Pick the one this machine or rack really has.')}
+    </div>
+    {takesPulley(ex) && <>
+      <h4 className="sec">{t('Pulley')}</h4>
+      <Segmented className="seg-inline" value={pulley || ''} onChange={v => set({ pulley: v || null })}
+        options={[{ value: '', label: t('Not set') }, ...PULLEYS.map(p => ({ value: p, label: p }))]} />
+      <div className="small dim" style={{ margin: '8px 0 18px' }}>
+        {t('A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.')}
+      </div>
+    </>}
+  </>
+}
+
+// Mid-workout sheet behind the ⋯ menu's "Weight step" — the same editor.
+function WeightStepSheet({ exId, cfg, close }) {
+  const ex = exOr(exId)
+  return <>
+    <h3>{t('Weight step')}</h3>
+    <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 12 }}>{exerciseNameFor(ex)}</div>
+    <WeightStepEditor ex={ex} cfg={cfg} />
+    <Button variant="primary" onClick={close}>{t('Done')}</Button>
+  </>
+}
+export const weightStepSheet = (exId, cfg) => ui().openSheet(close => <WeightStepSheet exId={exId} cfg={cfg} close={close} />)
+
 // The plates you own, as pairs per size, for the profile's unit (Settings → Equipment → Plates).
 // The first edit copies the standard set into S.plates[unit] and changes one count in it, so the
 // list you see is always the list the set rows load from. "Back to the standard set" empties the
@@ -1004,6 +1073,8 @@ function ExerciseDetail({ ex, close }) {
     {modeOf({ id: ex.id }) === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} extra={t('You still log the total weight. This only feeds the plate line under each set.')} />
+      <h4 className="sec">{t('Weight step')}</h4>
+      <WeightStepEditor ex={ex} />
     </>}
     {/* The exercise's own default meaning of its weight (S.dbLoad), stamped like the loading
         above. A routine can still pick its own on the exercise's settings. */}
@@ -2000,6 +2071,10 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     {mode === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} cfg={c} extra={t('Applies to this exercise everywhere, not just this plan.')} />
+      {/* The + and − step, per exercise like the loading above (S.exEquip): the step under
+          Progression below is the plan's, and stays what it is. */}
+      <h4 className="sec">{t('Weight step')}</h4>
+      <WeightStepEditor ex={ex} cfg={c} />
     </>}
     {pyramid
       ? <div className="small dim" style={{ marginBottom: 18 }}>{t('Weight is up to you: pyramid sets are not progressed automatically.')}</div>

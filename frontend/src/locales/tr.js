@@ -2345,4 +2345,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'Alışkanlıklarını Ana sayfada göster. Kayıtların her durumda korunur.',
   // --- home cards ---
   'At the gym / Check in': 'Salonda / Giriş yap',
+  // --- weight step and pulley ---
+  'Weight step': 'Ağırlık adımı',
+  'Your dumbbells': 'Dambılların',
+  'Pulley {0}': 'Makara {0}',
+  'Each tap ({0})': 'Dokunuş başına ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ ve − bu harekette, her planda {0} ekler. İlerleme kendi adımını korur.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ ve − sahip olduğun dambıllar arasında gezinir. Bunun yerine bir adım kullanmak için seç.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ ve − planın adımını kullanır. Bu makinenin ya da rafın gerçekten sahip olduğunu seç.',
+  'Pulley': 'Makara',
+  'Not set': 'Ayarlanmadı',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Kablonun nasıl bağlandığına dair bir not. Makinenin gösterdiği ağırlığı kaydedersin ve buna göre hiçbir şey yeniden hesaplanmaz.',
 }

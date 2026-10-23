@@ -92184,7 +92184,8 @@ const STAMPED_MAPS = [
 	"dbLoad",
 	"dumbbells",
 	"dayNotes",
-	"habitLog"
+	"habitLog",
+	"exEquip"
 ];
 const RESET_MAPS = [
 	"exNotes",

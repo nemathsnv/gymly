@@ -2345,4 +2345,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'Pokazuj nawyki na ekranie Start. Dziennik zostaje w każdym przypadku.',
   // --- home cards ---
   'At the gym / Check in': 'Na siłowni / Zamelduj się',
+  // --- weight step and pulley ---
+  'Weight step': 'Krok ciężaru',
+  'Your dumbbells': 'Twoje hantle',
+  'Pulley {0}': 'Wyciąg {0}',
+  'Each tap ({0})': 'Na dotknięcie ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': '+ i − dodają {0} w tym ćwiczeniu, w każdym planie. Progresja zachowuje własny krok.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': '+ i − przechodzą po hantlach, które masz. Wybierz krok, aby używać go zamiast nich.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': '+ i − używają kroku z planu. Wybierz ten, który naprawdę ma ta maszyna lub stojak.',
+  'Pulley': 'Wyciąg',
+  'Not set': 'Nie ustawiono',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Notatka o tym, jak poprowadzona jest linka. Zapisujesz ciężar pokazany przez maszynę i nic nie jest z tego przeliczane.',
 }

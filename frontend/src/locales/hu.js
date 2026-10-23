@@ -2348,4 +2348,15 @@ export default {
   'Show your habits on Home. Your log is kept either way.': 'A szokásaid megjelenítése a Kezdőlapon. A napló mindenképp megmarad.',
   // --- home cards ---
   'At the gym / Check in': 'A teremben / Bejelentkezés',
+  // --- weight step and pulley ---
+  'Weight step': 'Súlylépés',
+  'Your dumbbells': 'A saját kézisúlyzóid',
+  'Pulley {0}': 'Csiga {0}',
+  'Each tap ({0})': 'Koppintásonként ({0})',
+  '+ and − add {0} on this exercise, in every plan. Progression keeps its own step.': 'A + és a − {0} értékkel lép ennél a gyakorlatnál, minden tervben. A progresszió megtartja a saját lépését.',
+  '+ and − walk the dumbbells you own. Pick a step to use it instead.': 'A + és a − a saját kézisúlyzóidon lépked. Válassz lépést, ha inkább azt használnád.',
+  '+ and − use the plan’s step. Pick the one this machine or rack really has.': 'A + és a − a terv lépését használja. Válaszd azt, amit ez a gép vagy állvány valóban tud.',
+  'Pulley': 'Csiga',
+  'Not set': 'Nincs megadva',
+  'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Megjegyzés a kábel áttételéről. A gép által mutatott súlyt rögzíted, és semmi sem kerül újraszámolásra.',
 }
