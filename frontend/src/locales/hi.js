@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'पुली',
   'Not set': 'सेट नहीं',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'केबल कैसे लगी है, इसका एक नोट। आप वही वज़न दर्ज करते हैं जो मशीन दिखाती है, और इससे कुछ भी दोबारा नहीं गिना जाता।',
+  'Log {0}': '{0} दर्ज करें',
+  'Nothing logged yet. Log it every morning to see the trend.': 'अभी तक कुछ दर्ज नहीं है। रुझान देखने के लिए इसे हर सुबह दर्ज करें।',
+  'That number looks too big. Check it and try again.': 'यह संख्या बहुत बड़ी लगती है। जाँचें और फिर से कोशिश करें।',
 }

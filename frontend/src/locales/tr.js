@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Makara',
   'Not set': 'Ayarlanmadı',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Kablonun nasıl bağlandığına dair bir not. Makinenin gösterdiği ağırlığı kaydedersin ve buna göre hiçbir şey yeniden hesaplanmaz.',
+  'Log {0}': '{0} kaydet',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Henüz kayıt yok. Eğilimi görmek için her sabah kaydet.',
+  'That number looks too big. Check it and try again.': 'Bu sayı çok büyük görünüyor. Kontrol edip tekrar dene.',
 }

@@ -2390,4 +2390,7 @@ export default {
   'Pulley': 'البكرة',
   'Not set': 'غير محدد',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'ملاحظة عن طريقة تركيب الكابل. تسجل الوزن الذي تعرضه الآلة، ولا يُعاد حساب أي شيء بناءً عليها.',
+  'Log {0}': 'تسجيل {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'لا شيء مسجّل بعد. سجّله كل صباح لترى الاتجاه.',
+  'That number looks too big. Check it and try again.': 'يبدو هذا الرقم كبيرًا جدًا. تحقّق منه وحاول مرة أخرى.',
 }

@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Wyciąg',
   'Not set': 'Nie ustawiono',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Notatka o tym, jak poprowadzona jest linka. Zapisujesz ciężar pokazany przez maszynę i nic nie jest z tego przeliczane.',
+  'Log {0}': 'Zapisz: {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Nic jeszcze nie zapisano. Zapisuj to każdego ranka, żeby zobaczyć trend.',
+  'That number looks too big. Check it and try again.': 'Ta liczba wygląda na zbyt dużą. Sprawdź ją i spróbuj ponownie.',
 }

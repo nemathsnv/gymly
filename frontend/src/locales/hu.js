@@ -2338,4 +2338,7 @@ export default {
   'Pulley': 'Csiga',
   'Not set': 'Nincs megadva',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Megjegyzés a kábel áttételéről. A gép által mutatott súlyt rögzíted, és semmi sem kerül újraszámolásra.',
+  'Log {0}': '{0} rögzítése',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Még nincs rögzítve semmi. Rögzítsd minden reggel, hogy lásd a változást.',
+  'That number looks too big. Check it and try again.': 'Ez a szám túl nagynak tűnik. Ellenőrizd, és próbáld újra.',
 }

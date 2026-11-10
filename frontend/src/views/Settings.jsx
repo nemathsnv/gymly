@@ -43,6 +43,7 @@ import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkey
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem } from '../components/Passkeys.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
+import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { workoutLayoutOf } from '../lib/workout-layout.js'
@@ -772,6 +773,15 @@ export default function Settings({ page = null, find = null, via = null }) {
           subtitle={t('Show the body weight card on Home.')}>
           <Switch checked={S.showWeightCard !== false} onChange={v => update(s => { s.showWeightCard = v })} />
         </Row>
+        {/* One body measurement on Home with its own Log button (views/Measurements.jsx
+            HomeMeasurementCard), for a waist or belly logged each morning. Off by default; picking
+            one also switches it on in the full measurements form (pinHomeMeasurement). */}
+        <SelectRow icon="ruler" iconTint="var(--teal)" title={t('Body measurements')} sheetTitle={t('Choose measurement')}
+          value={homeMeasurementField(S)?.key || ''}
+          options={[{ value: '', label: t('Off') },
+            ...MEASUREMENT_FIELDS.map(f => ({ value: f.key, label: t(f.label) })),
+            ...(S.customMeasurements || []).map(c => ({ value: 'other:' + c.id, label: c.name }))]}
+          onChange={v => update(s => { pinHomeMeasurement(s, v || null) })} />
         {/* The bar at the top that says the app is offline, kept local, or not synced (#369, #330).
             Here and not under Server & sync, which a phone kept local never shows. Switching it on
             also brings back the no-server line its × hid (#454). */}

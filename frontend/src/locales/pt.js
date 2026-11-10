@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Roldana',
   'Not set': 'Não definido',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Uma nota sobre como o cabo está montado. Registas o peso que a máquina mostra e nada é recalculado a partir disso.',
+  'Log {0}': 'Registar {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Ainda não há nada registado. Regista-o todas as manhãs para veres a tendência.',
+  'That number looks too big. Check it and try again.': 'Esse número parece demasiado grande. Verifica-o e tenta de novo.',
 }

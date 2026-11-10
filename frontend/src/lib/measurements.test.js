@@ -3,6 +3,7 @@ import {
   MEASUREMENT_KEYS, DEFAULT_MEASUREMENT_KEYS, emptyMeasurement, enabledMeasurementFields,
   normalizeMeasurementEntry, normalizeMeasurementsState, measurementSeries,
   toMeasurementDisplay, fromMeasurementDisplay, measurementEntryHasValues,
+  homeMeasurementField, pinHomeMeasurement, setMeasurementValue,
 } from './measurements.js'
 
 describe('body measurements', () => {
@@ -79,5 +80,72 @@ describe('body measurements', () => {
     }
     expect(enabledMeasurementFields(state).map(f => f.key))
       .toEqual([...DEFAULT_MEASUREMENT_KEYS, 'other:knee'])
+  })
+})
+
+describe('the measurement pinned to Home', () => {
+  it('reads a built-in or custom pin, and none for a removed custom one', () => {
+    expect(homeMeasurementField({})).toBeNull()
+    expect(homeMeasurementField({ homeMeasurement: 'abdomen' }).label).toBe('Abdomen')
+    const custom = [{ id: 'belly', name: 'Belly' }]
+    expect(homeMeasurementField({ homeMeasurement: 'other:belly', customMeasurements: custom }))
+      .toEqual({ key: 'other:belly', label: 'Belly', group: 'Other', custom: true })
+    expect(homeMeasurementField({ homeMeasurement: 'other:gone', customMeasurements: custom })).toBeNull()
+    expect(homeMeasurementField({ homeMeasurement: 'nonsense' })).toBeNull()
+  })
+
+  it('switches the pinned field on in the full form, keeping the others as they were', () => {
+    const s = pinHomeMeasurement({ measurementEnabled: null }, 'abdomen')
+    expect(s.homeMeasurement).toBe('abdomen')
+    expect(s.measurementEnabled).toEqual([...DEFAULT_MEASUREMENT_KEYS, 'abdomen'])
+    const c = pinHomeMeasurement({ customMeasurements: [{ id: 'belly', name: 'Belly', enabled: false }] }, 'other:belly')
+    expect(c.customMeasurements[0].enabled).toBe(true)
+    expect(pinHomeMeasurement(s, null).homeMeasurement).toBeNull()
+    expect(s.measurementEnabled).toContain('abdomen') // unpinning leaves the form alone
+  })
+})
+
+describe('logging one measurement for a day', () => {
+  it('adds a check-in when the day has none', () => {
+    const s = setMeasurementValue({ measurements: [] }, '2026-11-11', 'abdomen', 92.34, 500)
+    expect(s.measurements).toHaveLength(1)
+    expect(s.measurements[0]).toMatchObject({ d: '2026-11-11', t: 500, abdomen: 92.3, waist: null })
+  })
+
+  it('writes into the day\'s existing check-in without touching its other measurements', () => {
+    const s = { measurements: [
+      { d: '2026-11-10', t: 100, abdomen: 93 },
+      { d: '2026-11-11', t: 200, waist: 84, chest: 101 },
+    ] }
+    setMeasurementValue(s, '2026-11-11', 'abdomen', 92, 900)
+    expect(s.measurements).toHaveLength(2)
+    expect(s.measurements[1]).toMatchObject({ d: '2026-11-11', t: 900, waist: 84, chest: 101, abdomen: 92 })
+    expect(s.measurements[0].abdomen).toBe(93)
+    // a second reading the same morning replaces the first
+    setMeasurementValue(s, '2026-11-11', 'abdomen', 91.5, 950)
+    expect(s.measurements[1].abdomen).toBe(91.5)
+  })
+
+  it('logs a custom measurement and keeps the list in date order', () => {
+    const s = { customMeasurements: [{ id: 'belly', name: 'Belly' }], measurements: [{ d: '2026-11-12', t: 1, waist: 80 }] }
+    setMeasurementValue(s, '2026-11-11', 'other:belly', 95, 5)
+    expect(s.measurements.map(e => e.d)).toEqual(['2026-11-11', '2026-11-12'])
+    expect(s.measurements[0].other).toEqual([{ id: 'belly', name: 'Belly', value: 95 }])
+  })
+
+  it('clears the field, and drops a check-in left empty', () => {
+    const s = { measurements: [{ d: '2026-11-11', t: 1, waist: 84, abdomen: 92 }] }
+    setMeasurementValue(s, '2026-11-11', 'abdomen', null, 2)
+    expect(s.measurements[0]).toMatchObject({ waist: 84, abdomen: null })
+    setMeasurementValue(s, '2026-11-11', 'waist', 0, 3)
+    expect(s.measurements).toEqual([])
+  })
+
+  it('refuses body fat past 100% and ignores an unknown key', () => {
+    const s = { measurements: [] }
+    setMeasurementValue(s, '2026-11-11', 'bodyFat', 140, 1)
+    expect(s.measurements).toEqual([])
+    setMeasurementValue(s, '2026-11-11', 'nope', 10, 1)
+    expect(s.measurements).toEqual([])
   })
 })

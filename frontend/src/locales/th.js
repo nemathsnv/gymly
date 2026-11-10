@@ -2346,4 +2346,7 @@ export default {
   'Pulley': 'รอก',
   'Not set': 'ไม่ได้ตั้ง',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'บันทึกว่าสายเคเบิลร้อยรอกแบบใด คุณบันทึกน้ำหนักตามที่เครื่องแสดง และไม่มีการคำนวณใหม่จากค่านี้',
+  'Log {0}': 'บันทึก{0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'ยังไม่มีบันทึก บันทึกทุกเช้าเพื่อดูแนวโน้ม',
+  'That number looks too big. Check it and try again.': 'ตัวเลขนี้ดูมากเกินไป ตรวจสอบแล้วลองอีกครั้ง',
 }

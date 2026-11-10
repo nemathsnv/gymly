@@ -1496,6 +1496,9 @@ export const PT_BR_OVERRIDES = {
   'Pulley': 'Polia',
   'Not set': 'Não definido',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Uma nota sobre como o cabo está montado. Você registra o peso que a máquina mostra, e nada é recalculado a partir disso.',
+  'Log {0}': 'Registrar {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Nada registrado ainda. Registre toda manhã para ver a tendência.',
+  'That number looks too big. Check it and try again.': 'Esse número parece grande demais. Confira e tente de novo.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }
