@@ -83,14 +83,4 @@ describe('the incline column', () => {
     act(() => add.click())
     expect(useStore.getState().S.active.entries[0].sets[1]).toMatchObject({ min: 20, speed: 5, incline: 8, done: false })
   })
-
-  it('has its own stepper in the focus view', () => {
-    mount(TREADMILL, [{ min: 20, speed: 5, incline: 4, done: false }], { workoutView: 'focus' })
-    const inc = container.querySelector('button[aria-label="Increase incline"]')
-    expect(inc).not.toBe(null)
-    act(() => inc.click())
-    expect(stored().incline).toBe(4.5)
-    mount(BIKE, [{ min: 20, speed: 25, done: false }], { workoutView: 'focus' })
-    expect(container.querySelector('button[aria-label="Increase incline"]')).toBe(null)
-  })
 })

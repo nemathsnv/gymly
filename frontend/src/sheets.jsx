@@ -67,6 +67,8 @@ import { workoutCardModel, layoutWorkoutCard, drawWorkoutCard, viewAspect, CARD_
 import { copyText } from './lib/clipboard.js'
 import { queueRemaining, pinState } from './lib/queue.js'
 import { DAY_NOTE_TAGS, DAY_NOTE_LABEL, DAY_NOTE_ICON, dayNoteOf, dayNoteLine, canNoteDay, withDayNote } from './lib/day-notes.js'
+import { workoutLayoutOf } from './lib/workout-layout.js'
+import { levelFits } from './lib/machine-level.js'
 
 const S = () => useStore.getState().S
 const update = (...a) => useStore.getState().update(...a)
@@ -1854,9 +1856,10 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
       {cardio ? <>
         <Stepper label={t('Intervals')} value={c.sets} step={1} decimal={false} onChange={v => setC(x => ({ ...x, sets: v }))} />
         <Stepper label={t('Minutes')} value={c.min} step={1} decimal={false} onChange={v => setC(x => ({ ...x, min: v }))} />
-        {/* Typed and stepped in the profile's unit, kept in km/h (lib/speed.js). */}
-        <Stepper label={speedUnit === 'mph' ? t('Speed (mph)') : t('Speed (km/h)')} value={toSpeed(c.speed, speedUnit)} step={0.5}
-          onChange={v => setC(x => ({ ...x, speed: fromSpeed(v, speedUnit) }))} />
+        {/* Typed and stepped in the profile's unit, kept in km/h (lib/speed.js). A stepmill is set
+            by level, logged on each set, and has no speed to plan (lib/machine-level.js). */}
+        {!levelFits(ex) && <Stepper label={speedUnit === 'mph' ? t('Speed (mph)') : t('Speed (km/h)')} value={toSpeed(c.speed, speedUnit)} step={0.5}
+          onChange={v => setC(x => ({ ...x, speed: fromSpeed(v, speedUnit) }))} />}
       </> : mode === 'time' ? <>
         <Stepper label={t('Sets')} value={c.sets} step={1} decimal={false} onChange={v => setC(x => ({ ...x, sets: v }))} />
         <Stepper label={t('Seconds')} value={c.sec} step={5} decimal={false} onChange={v => setC(x => ({ ...x, sec: v }))} />
@@ -2861,7 +2864,7 @@ export function beginWorkout(routineIds, bw) {
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayoutOf(st.workoutView),
     }
   })
   useUI.getState().stopRest()
@@ -2882,7 +2885,7 @@ export function repeatWorkout(w, close) {
       s.active = {
         id: uid(), d: todayISO(), start: Date.now(), routineIds: [],
         name: w.name || t('Freestyle'), bw: bw || null, cur: 0, entries,
-        workoutView: s.workoutView || 'cards',
+        workoutView: workoutLayoutOf(s.workoutView),
       }
     })
     useUI.getState().stopRest()
@@ -2992,7 +2995,7 @@ function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
       bw: null, cur: 0, entries,
       backfill: { durationMin, replaceId: replaceId || null },
       // Same layout snapshot as a live session (see beginWorkout).
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayoutOf(st.workoutView),
     }
   })
   useUI.getState().stopRest()
@@ -3364,7 +3367,8 @@ function LastAndNext({ st, w }) {
 }
 
 // The cardio of the session, which "Last time and next time" leaves out: minutes, speed and the
-// treadmill's incline as they were logged.
+// treadmill's incline, or a stepmill's level, as they were logged. One line per segment: a set's
+// own parts are joined by a dot ("5 min · Level 5"), so sets joined by one ran together.
 function CardioDone({ st, w }) {
   const rows = finishCardio(w)
   if (!rows.length) return null
@@ -3374,7 +3378,7 @@ function CardioDone({ st, w }) {
       const ex = EXIDX[row.id]
       return <div key={i} className="item" style={{ display: 'block' }}>
         <span className={'tt ' + exerciseNameClass(ex)} style={{ fontWeight: 600 }}>{ex ? exerciseNameFor(ex) : row.id}</span>
-        <div className="small">{row.sets.map(x => setLabel(row.id, x, row.target, speedUnitOf(st))).join('  ·  ')}</div>
+        {row.sets.map((x, j) => <div key={j} className="small">{setLabel(row.id, x, row.target, speedUnitOf(st))}</div>)}
       </div>
     })}</div>
   </div>

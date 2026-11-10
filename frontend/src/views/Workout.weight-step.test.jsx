@@ -160,15 +160,6 @@ describe('what the buttons leave alone', () => {
   })
 })
 
-describe('Focus view', () => {
-  it('+ and − use the exercise\'s own step, exactly', () => {
-    mount([entry(ROW, [work(11.5)])], { exEquip: steps({ [ROW]: 2.5 }) }, 'focus')
-    const load = () => container.querySelector('button[aria-label="Increase load"]').closest('.stp')
-    tap(load(), 'Increase load'); expect(setOf(0, 0).w).toBe(14)
-    tap(load(), 'Decrease load'); expect(setOf(0, 0).w).toBe(11.5)
-  })
-})
-
 describe('the Weight step editor', () => {
   it('picks a step, saves it to the profile, and the buttons use it at once', () => {
     mount([entry(ROW, [work(10)])])

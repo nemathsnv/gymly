@@ -10,6 +10,7 @@ import { closeThenNav } from '../lib/nav.js'
 import { REST_MAX, fmtRest } from '../lib/duration.js'
 import { durationSheet } from './DurationWheel.jsx'
 import { Section, Row, Switch, Segmented, Button } from './ui.jsx'
+import { activeWorkoutLayout } from '../lib/workout-layout.js'
 
 // The settings people touch at the gym, without leaving the workout (v1.3.11, opened from the
 // workout's ⋯ → Workout settings). Every row writes the same S.* field as Settings → Workout and
@@ -23,7 +24,7 @@ export function WorkoutSettings({ close }) {
   const canVibrate = vibrateSupported()
   const iPhone = appleTouchDevice()
   const wakeOK = wakeLockSupported()
-  const layout = ['list', 'compact'].includes(S.active?.workoutView || S.workoutView) ? (S.active?.workoutView || S.workoutView) : 'cards'
+  const layout = activeWorkoutLayout(S)
   const gif = S.gifSize === 'mini' || S.gifSize === 'off' ? S.gifSize : 'full'
   const allSettings = () => closeThenNav(close, '/settings/workout')
   return <div className="ws-sheet">

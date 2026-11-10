@@ -3,7 +3,8 @@ import { syncSupersetMeta } from './superset-meta.js'
 import { todayISO, isoOf, weekKey, weekStartOf, fmtNum } from './format.js'
 import { fmtSpeed } from './speed.js'
 import { hasIncline, inclineFrom } from './incline.js'
-import { isCardio, isBodyweightEq, isAssisted, betterWeight } from './exercises.js'
+import { hasLevel, levelFits, levelFrom } from './machine-level.js'
+import { isCardio, isBodyweightEq, isAssisted, betterWeight, exOr } from './exercises.js'
 import { barWeightFor } from './bar.js'
 import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, isFailureSet, isDropSet, isRestPauseSet, normalizeMode, completedVolumeOf, hasCompletedWork, nextDropWeight, splitBurstReps, makeSideSet, isSideSet, syncSideAggregate, WEIGHT_ORIGIN_MANUAL, dropsOf, clustersOf } from './workout-model.js'
 import { backoffAt, backoffStepOf, backoffWeights } from './backoff.js'
@@ -151,7 +152,13 @@ export function setLabel(id, s, cfg, speedUnit) {
   // to the volume those same sets still count. A set with reps and nothing cardio was a rep set.
   if (!EXPLICIT_MODES.has(cfg?.mode) && mode !== 'reps' && s.r > 0 && !(s.min > 0 || s.speed > 0 || s.sec > 0)) mode = 'reps'
   // A treadmill grade rides along when the set has one (lib/incline.js); a flat set reads as it did.
-  if (mode === 'cardio') return `${s.min || 0} min @ ${fmtSpeed(s.speed || 0, speedUnit)}` + (hasIncline(s) ? ' · ' + t('{0}% incline', fmtNum(Number(s.incline))) : '')
+  // A stepmill's level does too (lib/machine-level.js), and there a speed of 0 is no speed at all,
+  // not "0 km/h". A speed that was logged is printed wherever it was, so older sets read as before.
+  if (mode === 'cardio') {
+    const level = hasLevel(s) ? ' · ' + t('Level {0}', fmtNum(Number(s.level))) : ''
+    const speed = Number(s.speed) > 0 || !(level || levelFits(exOr(c.id))) ? ` @ ${fmtSpeed(s.speed || 0, speedUnit)}` : ''
+    return `${s.min || 0} min${speed}${level}` + (hasIncline(s) ? ' · ' + t('{0}% incline', fmtNum(Number(s.incline))) : '')
+  }
   // A set taken to failure carries its "F" behind the numbers, the mark lifting logs use for it;
   // the history, the text export and the set menu all read it from here.
   const fail = isFailureSet(s) ? ' ' + t('F') : ''
@@ -243,7 +250,8 @@ export function exLine(cfg, unit, speedUnit) {
   const load = !cfg.weight ? ''
     : backoff ? ' · ' + (isBw(cfg) ? '+' : '') + backoffWeights(cfg.weight, n, backoff).map(fmtNum).join(' → ') + ' ' + unit
       : ' · ' + (isBw(cfg) ? '+' : '') + fmtNum(cfg.weight) + ' ' + unit
-  if (mode === 'cardio') return `${n} × ${cfg.min || 20} min @ ${fmtSpeed(cfg.speed || 8, speedUnit)}`
+  // A machine set by level (a stepmill) has no speed to plan; its level is logged per set.
+  if (mode === 'cardio') return `${n} × ${cfg.min || 20} min` + (levelFits(exOr(cfg.id)) ? '' : ` @ ${fmtSpeed(cfg.speed || 8, speedUnit)}`)
   // A timed hold has no rep count to spell a split out of ("8/side" below) — "per side" says it
   // happens twice, once each side (buildWorkSets), rather than trying to divide a duration.
   if (mode === 'time') return `${setsRepsOf(cfg)}${load}${isPerSide(cfg) ? ' · ' + t('per side') : ''}`
@@ -572,9 +580,12 @@ function buildWorkSets(S, cfg, options = {}) {
   const planReps = !!options.planReps && !preferLast && cfg.reps > 0
 
   if (mode === 'cardio') {
+    // A stepmill is set by level, not speed (lib/machine-level.js): its rows start at no speed,
+    // never at a default 8 km/h nobody typed, and carry last time's level instead.
+    const byLevel = levelFits(exOr(cfg.id))
     for (let i = 0; i < n; i++) {
       const prev = prevAt(i)
-      sets.push({ min: prev ? prev.min : (cfg.min || 20), speed: prev ? prev.speed : (cfg.speed || 8), ...inclineFrom(prev), done: false })
+      sets.push({ min: prev ? prev.min : (cfg.min || 20), speed: byLevel ? 0 : prev ? prev.speed : (cfg.speed || 8), ...inclineFrom(prev), ...levelFrom(prev), done: false })
     }
     return sets
   }
@@ -1025,6 +1036,7 @@ export function insertWarmupRow(rows, mode, target, step = 2.5, floor = 0) {
       min: prev ? prev.min : (work ? work.min : (target.min || 20)),
       speed: prev ? prev.speed : (work ? work.speed : (target.speed || 8)),
       ...inclineFrom(prev || work),
+      ...levelFrom(prev || work),
       done: false, phase: 'warmup', warmup: true,
     }
     : mode === 'time'
