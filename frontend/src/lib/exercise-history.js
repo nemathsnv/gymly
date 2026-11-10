@@ -104,13 +104,14 @@ export function exerciseHistory(S, exId, { limit = HISTORY_SESSIONS } = {}) {
  * Returns { d, set, target } or null.
  */
 export function bestSetFor(S, exId, mode = modeOf({ id: exId }), as) {
-  const keys = s => mode === 'cardio' ? [Number(s.min) || 0, Number(s.speed) || 0]
+  // Cardio then breaks a tie on the machine level (lib/machine-level.js): a stepmill logs no speed.
+  const keys = s => mode === 'cardio' ? [Number(s.min) || 0, Number(s.speed) || 0, Number(s.level) || 0]
     : mode === 'time' ? [Number(s.sec) || 0, Number(s.w) || 0]
       : [Number(s.w) || 0, Number(s.r) || 0]
   const better = (a, b) => {
-    const [a1, a2] = keys(a), [b1, b2] = keys(b)
+    const [a1, a2, a3 = 0] = keys(a), [b1, b2, b3 = 0] = keys(b)
     if (a1 !== b1) return mode === 'reps' ? beatsWeight(exId, a1, b1) : a1 > b1
-    return a2 > b2
+    return a2 !== b2 ? a2 > b2 : a3 > b3
   }
   // One pass over the history as it is stored, with no copy and no sort: this runs on every
   // render of every exercise card while the line shows the best set, and every stepper tap

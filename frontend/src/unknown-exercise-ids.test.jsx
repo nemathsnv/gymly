@@ -127,7 +127,7 @@ describe('exercise ids this build does not know', () => {
     expectKept(useStore.getState().S)
   })
 
-  for (const view of ['cards', 'list', 'compact', 'focus']) {
+  for (const view of ['cards', 'list', 'compact']) {
     it(`the running workout draws it in the ${view} view`, () => {
       seed(view)
       const host = render(<Workout />)

@@ -89341,6 +89341,18 @@ const hasIncline = (s) => Number(s?.incline) > 0;
 const inclineFrom = (s) => hasIncline(s) ? { incline: Number(s.incline) } : {};
 
 //#endregion
+//#region frontend/src/lib/machine-level.js
+const LEVELLED = /stepmill|step ?mill|stair ?master|stair ?climb|stair ?mill|\bstepper\b|stair machine/i;
+const LEVELLED_EQ = /* @__PURE__ */ new Set(["stepmill machine"]);
+function levelFits(ex) {
+	if (!ex || typeof ex !== "object") return false;
+	if (LEVELLED_EQ.has(String(ex.eq || "").toLowerCase())) return true;
+	return LEVELLED.test(String(ex.n || ""));
+}
+const hasLevel = (s) => Number(s?.level) > 0;
+const levelFrom = (s) => hasLevel(s) ? { level: Number(s.level) } : {};
+
+//#endregion
 //#region frontend/src/lib/bar.js
 const BAR_EQ = /* @__PURE__ */ new Set([
 	"barbell",
@@ -89628,7 +89640,11 @@ function setLabel(id, s, cfg, speedUnit) {
 		else if (s.sec > 0) mode = "time";
 	}
 	if (!EXPLICIT_MODES.has(cfg?.mode) && mode !== "reps" && s.r > 0 && !(s.min > 0 || s.speed > 0 || s.sec > 0)) mode = "reps";
-	if (mode === "cardio") return `${s.min || 0} min @ ${fmtSpeed(s.speed || 0, speedUnit)}` + (hasIncline(s) ? " · " + t("{0}% incline", fmtNum(Number(s.incline))) : "");
+	if (mode === "cardio") {
+		const level = hasLevel(s) ? " · " + t("Level {0}", fmtNum(Number(s.level))) : "";
+		const speed = Number(s.speed) > 0 || !(level || levelFits(exOr(c.id))) ? ` @ ${fmtSpeed(s.speed || 0, speedUnit)}` : "";
+		return `${s.min || 0} min${speed}${level}` + (hasIncline(s) ? " · " + t("{0}% incline", fmtNum(Number(s.incline))) : "");
+	}
 	const fail = isFailureSet(s) ? " " + t("F") : "";
 	if (mode === "time") return fmtSec(s.sec) + (s.w > 0 ? ` · ${fmtNum(s.w)}` : "") + fail;
 	const bw = isBw(c);
@@ -89735,12 +89751,14 @@ function buildWorkSets(S, cfg, options = {}) {
 	const prevAt = (i) => !useTarget && last ? last.sets[i] || last.sets[last.sets.length - 1] : null;
 	const planReps = !!options.planReps && !preferLast && cfg.reps > 0;
 	if (mode === "cardio") {
+		const byLevel = levelFits(exOr(cfg.id));
 		for (let i = 0; i < n; i++) {
 			const prev = prevAt(i);
 			sets.push({
 				min: prev ? prev.min : cfg.min || 20,
-				speed: prev ? prev.speed : cfg.speed || 8,
+				speed: byLevel ? 0 : prev ? prev.speed : cfg.speed || 8,
 				...inclineFrom(prev),
+				...levelFrom(prev),
 				done: false
 			});
 		}
@@ -89961,6 +89979,7 @@ function insertWarmupRow(rows, mode, target, step = 2.5, floor = 0) {
 		min: prev ? prev.min : work ? work.min : target.min || 20,
 		speed: prev ? prev.speed : work ? work.speed : target.speed || 8,
 		...inclineFrom(prev || work),
+		...levelFrom(prev || work),
 		done: false,
 		phase: "warmup",
 		warmup: true
@@ -91557,7 +91576,8 @@ function entryView(e, S) {
 			r: Number(s.r) || 0,
 			sec: Number(s.sec) || 0,
 			min: Number(s.min) || 0,
-			speed: Number(s.speed) || 0
+			speed: Number(s.speed) || 0,
+			...Number(s.level) > 0 ? { level: Number(s.level) } : {}
 		}))
 	};
 }
@@ -92094,7 +92114,8 @@ const previewSession = {
 					r: Number(s.r) || 0,
 					sec: Number(s.sec) || 0,
 					min: Number(s.min) || 0,
-					speed: Number(s.speed) || 0
+					speed: Number(s.speed) || 0,
+					...Number(s.level) > 0 ? { level: Number(s.level) } : {}
 				})),
 				weight_source: wSrc,
 				weight_source_text: SOURCE_TEXT[wSrc],

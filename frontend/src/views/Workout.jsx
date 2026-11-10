@@ -47,7 +47,8 @@ import { isWarmupRow, isFailureSet, toggleFailure, isDropSet, isRestPauseSet, dr
 import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, canMoveActiveWorkoutEntry, moveActiveWorkoutEntry } from '../lib/active-workout-order.js'
 import { nextOpenSet, workoutKeyAction } from '../lib/workout-keys.js'
 import { MUSCLE_NAME } from '../lib/muscles.js'
-import FocusView from './FocusView.jsx'
+import { workoutLayoutOf } from '../lib/workout-layout.js'
+import { clampLevel, levelFits, levelFrom } from '../lib/machine-level.js'
 import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFor } from '../lib/dumbbells.js'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
@@ -290,9 +291,13 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
   // Speed is stored in km/h and shown in the profile's unit (lib/speed.js): `view` turns the
   // stored number into the one on screen, `store` the one typed or stepped back into km/h.
   const speedUnit = speedUnitOf(S)
-  const col2 = cardio ? { f: 'speed', step: 0.5, dec: true, hd: speedUnit === 'mph' ? t('Speed (mph)') : t('Speed (km/h)'),
-    view: v => toSpeed(v, speedUnit), store: v => fromSpeed(v, speedUnit) }
-    : timed ? loadCol : repCol
+  // A stepmill or stair climber is set by level, not speed (lib/machine-level.js): its second
+  // column is the console's level, a whole number with no unit, stored as `level`, never as km/h.
+  // `opt`: a cleared level is no level. A speed already on such a row is kept as it was logged.
+  const col2 = cardio && levelFits(ex) ? { f: 'level', step: 1, dec: false, opt: true, hd: t('Level'), store: clampLevel }
+    : cardio ? { f: 'speed', step: 0.5, dec: true, hd: speedUnit === 'mph' ? t('Speed (mph)') : t('Speed (km/h)'),
+      view: v => toSpeed(v, speedUnit), store: v => fromSpeed(v, speedUnit) }
+      : timed ? loadCol : repCol
   // Effort (RIR or RPE, whichever the profile logs) only makes sense for weighted rep sets,
   // not cardio/timed holds, and is opt-in since it adds a third stepper to every row. `opt`
   // because an unlogged effort is not the same as 0 — RIR 0 says the set went to failure.
@@ -947,10 +952,9 @@ function ActiveWorkout() {
   // parameterised, so these only change what is rendered — completion, rest, top-weight and
   // auto-advance share one path. Unknown/absent values read as cards, keeping every
   // pre-existing profile (and a session started before this field) as it was.
-  const requestedView = A.workoutView || S.workoutView
-  const workoutView = ['list', 'compact', 'focus'].includes(requestedView) ? requestedView : 'cards'
+  // A session or profile saved in the removed Focus layout reads as cards (lib/workout-layout.js).
+  const workoutView = workoutLayoutOf(A.workoutView || S.workoutView)
   const listMode = workoutView === 'list' || workoutView === 'compact'
-  const focusMode = workoutView === 'focus'
   const dense = workoutView === 'compact'
   // A superset's heading: its own name and rest between rounds when it has them (#292).
   const ssTitle = u => {
@@ -984,7 +988,6 @@ function ActiveWorkout() {
   // distinct, while each rendered set index identifies the existing row within that entry.
   const exRefs = useRef(new Map())
   const setRefs = useRef(new Map())
-  const focusPointerEpoch = useRef(0)
   const bindExRef = (entry, el) => {
     if (el) exRefs.current.set(entry, el)
     else {
@@ -1153,7 +1156,9 @@ function ActiveWorkout() {
   const addSet = idx => mutEntry(idx, e => {
     const l = e.sets[e.sets.length - 1]
     const m = modeOf({ ...(e.target || {}), id: e.id })
-    if (m === 'cardio') e.sets.push({ min: l ? l.min : (e.target.min || 20), speed: l ? l.speed : (e.target.speed || 8), ...inclineFrom(l), done: false })
+    // Another segment of cardio: the last one's minutes, grade and level to start from. A machine
+    // set by level gets no speed (lib/machine-level.js), as when the session was built.
+    if (m === 'cardio') e.sets.push({ min: l ? l.min : (e.target.min || 20), speed: levelFits(exOr(e.id)) ? 0 : l ? l.speed : (e.target.speed || 8), ...inclineFrom(l), ...levelFrom(l), done: false })
     else if (m === 'time') {
       const sec = l ? l.sec : (e.target.sec || 45)
       const w = l ? (l.w || 0) : (e.target.weight || 0)
@@ -1184,11 +1189,9 @@ function ActiveWorkout() {
   // The set-number menu's Remove and the swipe both go through deleteActiveSet, Undo and all.
   const removeSetAt = (idx, i) => deleteActiveSet(idx, i, { editing })
   const pairAt = (first, second) => update(s => {
-    if (focusMode) focusPointerEpoch.current++
     s.active.entries = pairAdjacent(s.active.entries, first, second)
   })
   const unpairAt = idx => update(s => {
-    if (focusMode) focusPointerEpoch.current++
     s.active.entries = unpairSuperset(s.active.entries, idx)
   })
   const onPairPrev = !isSuperset && cur > 0 ? () => pairAt(cur - 1, cur) : null
@@ -1204,7 +1207,6 @@ function ActiveWorkout() {
     // Invalidate an old timed callback before indexes shift. A running rest is not cancelled:
     // it belongs to an exercise (timer.forIdx), and that exercise only changes position.
     ui.stopWork()
-    focusPointerEpoch.current++
     update(s => {
       const moved = (member ? moveActiveWorkoutEntry : moveActiveWorkoutUnit)(s.active, at, direction)
       if (!moved) return
@@ -1278,7 +1280,6 @@ function ActiveWorkout() {
   // exercise-level actions (swap, move, remove) address the entry itself, so the "more" menu of
   // a superset member acts on that member, not on whatever the marker happens to point at.
   const swapExercise = idx => {
-    if (focusMode) focusPointerEpoch.current++
     swapActiveWorkoutExercise(idx)
   }
   const blockProps = idx => ({
@@ -1290,26 +1291,19 @@ function ActiveWorkout() {
     canMoveDown: canMoveActiveWorkoutEntry(A, idx, 1),
     onRemoveExercise: () => confirmRemoveExercise(idx),
     busy: !!work,
-    onToggle: (i, onFocusProgress) => toggle(idx, i, undefined, { onFocusProgress }),
-    onToggleSide: (i, side, onFocusProgress) => toggle(idx, i, side, { onFocusProgress }),
+    onToggle: i => toggle(idx, i),
+    onToggleSide: (i, side) => toggle(idx, i, side),
     onField: (i, f, v) => setField(idx, i, f, v),
-    onMutateSet: (i, fn) => mutEntry(idx, entry => { entry.sets[i] = fn(entry.sets[i]) }),
     onAddSet: () => addSet(idx),
     onRemoveSet: () => removeSet(idx),
     onAddWarmup: () => addWarmup(idx),
     onRemoveSetAt: i => removeSetAt(idx, i),
     onCopySetAt: i => copyActiveSet(idx, i),
-    onStartTimed: (i, onFocusProgress) => startTimed(idx, i, onFocusProgress),
+    onStartTimed: i => startTimed(idx, i),
     onProgressionSettings: editing ? null : () => openProgressionSettings(idx),
     onRest: editing ? null : () => openExerciseRest(idx),
     onNoProg: routineKeepsOut(A.entries[idx]) ? null : on => setNoProg(idx, on),
     routineUpdate: routineUpdateFor(idx),
-  })
-  const selectFocusEntry = idx => update(s => { if (s.active) s.active.cur = idx })
-  const advanceFocusUnit = () => update(s => {
-    if (!s.active) return
-    const next = nextUnfinishedUnit(s.active.entries, supersetUnits(s.active.entries), s.active.cur)
-    if (next) s.active.cur = next[0]
   })
   const navigateUnit = direction => {
     const targetFor = active => {
@@ -1347,7 +1341,6 @@ function ActiveWorkout() {
     cards: t('Cards'),
     list: t('List'),
     compact: t('Compact'),
-    focus: t('Focus'),
   }
   const openLayoutMenu = () => menuSheet({
     title: t('Layout'),
@@ -1355,7 +1348,6 @@ function ActiveWorkout() {
       { icon: 'layout', label: t('Cards'), on: workoutView === 'cards', onClick: () => setWorkoutView('cards') },
       { icon: 'list', label: t('List'), on: workoutView === 'list', onClick: () => setWorkoutView('list') },
       { icon: 'compact', label: t('Compact'), on: workoutView === 'compact', onClick: () => setWorkoutView('compact') },
-      { icon: 'target', label: t('Focus'), on: workoutView === 'focus', onClick: () => setWorkoutView('focus') },
       listMode && { icon: 'minimize', label: t('Collapse completed exercises'),
         sub: t('Keep the current exercise open'), on: collapseOn,
         onClick: () => update(s => { if (s.active) s.active.collapseCompleted = !collapseOn }) },
@@ -1392,7 +1384,6 @@ function ActiveWorkout() {
     // target when progression is off, while progression-enabled sessions keep their path.
     const seed = freestyle ? freestyleConfig(sessionHistory(S), { id: ex.id, ...defaultConfig(ex.id) }) : null
     const commit = cfg => {
-      if (focusMode) focusPointerEpoch.current++
       update(s => {
         const full = { ...cfg, id: ex.id }
         // A planned session builds the exercise the way its routine would (prescription, reps
@@ -1566,7 +1557,7 @@ function ActiveWorkout() {
 
   // Remove a whole exercise from the session. The confirmation always asks first; in a
   // superset it asks WHICH exercise of the group to remove.
-  const removeExercise = idx => { focusPointerEpoch.current++; removeActiveExercise(idx) }
+  const removeExercise = idx => removeActiveExercise(idx)
   const confirmRemoveExercise = idx => {
     const e = A.entries[idx]
     if (!e) return
@@ -1600,7 +1591,7 @@ function ActiveWorkout() {
   // finish logs 0:38 of a 0:45 target rather than crediting the full prescription — and then
   // checks the set off through the normal path, so rest, supersets and the finish prompt all
   // behave exactly as they do for a reps set.
-  const startTimed = (idx, i, onFocusProgress) => {
+  const startTimed = (idx, i) => {
     if (editing) return
     const e = A.entries[idx]
     // This tap may be the only one before the hold's countdown beeps (a timed first exercise):
@@ -1614,13 +1605,13 @@ function ActiveWorkout() {
     // reaches S.workouts (lib/finish-workout.js).
     const plan = (!e.sets[i].done && e.sets[i].planSec) || e.sets[i].sec || 45
     const owner = { idx, i }
-    useUI.getState().startWork(plan, exerciseNameText(exOr(e.id)), holdDone(owner, plan, onFocusProgress), { idx, i, id: e.id })
+    useUI.getState().startWork(plan, exerciseNameText(exOr(e.id)), holdDone(owner, plan), { idx, i, id: e.id })
     // After startWork: a hold it displaced has already written its seconds to its own row.
     holdAt = { owner, idx, i }
   }
   // What a hold hands back to its row: on its end, its Done, or a rest displacing it. Also bound
   // again to a hold restored after a reload (useUI.bindWork, below).
-  const holdDone = (owner, plan, onFocusProgress) => (elapsed, { abandoned = false, chimed = false } = {}) => {
+  const holdDone = (owner, plan) => (elapsed, { abandoned = false, chimed = false } = {}) => {
     const { idx } = owner
     // The row may have moved while the hold ran (a set copied or removed above it): write to
     // where it is now. holdAt is that place (deleteActiveSet, copyActiveSet).
@@ -1640,7 +1631,7 @@ function ActiveWorkout() {
       return
     }
     mutEntry(idx, en => { en.sets[i].sec = elapsed; delete en.sets[i].planSec })
-    if (!useStore.getState().S.active.entries[idx].sets[i].done) toggle(idx, i, undefined, { quiet: chimed, onFocusProgress })
+    if (!useStore.getState().S.active.entries[idx].sets[i].done) toggle(idx, i, undefined, { quiet: chimed })
   }
   // A hold that came back from a reload has no handler yet: this screen gives it its own.
   const holdDoneRef = useRef(holdDone)
@@ -1658,7 +1649,7 @@ function ActiveWorkout() {
   // `quiet`: the hold that ticks this set has just ended with the chime and its buzz pattern
   // (store/useUI.js). The tick's own beep would sound over the chime's first note and clip it,
   // and its short buzz would cut the pattern off: a new vibrate call replaces the running one.
-  const toggle = (idx, i, side, { quiet = false, onFocusProgress } = {}) => {
+  const toggle = (idx, i, side, { quiet = false } = {}) => {
     // Ticking a set ends the typing in that row: drop the keyboard before the rest timer, the
     // effort sheet or the next exercise moves in. WebKit keeps the input focused across the
     // button tap, and a focused input with its keyboard gone is what leaves the tab bar
@@ -1762,19 +1753,17 @@ function ActiveWorkout() {
       if (freshUnitDone) stopRest()
       if (!freshUnit || freshUnit.length <= 1) {
         if (!restBeforeWarmup && restAfterSet({ unitDone: freshUnitDone, lastUnit: freshWorkoutDone })) startRest(restAfter, idx, { forSet: i })
-        onFocusProgress?.({ unitDone: freshUnitDone })
         return
       }
 
       const step = supersetFlowStep(fresh.entries, freshUnit, idx)
-      if (!step) { onFocusProgress?.({ unitDone: freshUnitDone }); return }
+      if (!step) return
       if (step.unitDone) {
         if (nextUnit?.length && !restBeforeWarmup) startRest(restAfter, idx, { forSet: i })
       } else {
         if (step.nextIdx != null) update(s => { if (s.active) s.active.cur = step.nextIdx })
         if (step.roundDone) startRest(restAfter, idx, { forSet: i })
       }
-      onFocusProgress?.({ unitDone: freshUnitDone })
     }
   }
 
@@ -1807,7 +1796,7 @@ function ActiveWorkout() {
     const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     el.scrollIntoView(glide && !still ? { block: 'start', behavior: 'smooth' } : { block: 'start' })
   }
-  // A tap on a chip at the top (#323). Cards and Focus show one unit, so the chip makes it the one
+  // A tap on a chip at the top (#323). Cards show one unit, so the chip makes it the one
   // on screen: the marker moves because you asked it to, never on its own. The list already shows
   // every unit, so there the chip only scrolls to it and leaves "Current" where it was, the same
   // as scrolling there by hand; the frame wait is the one opening the list uses (above).
@@ -2060,12 +2049,7 @@ function ActiveWorkout() {
             onPairNext={adjacent[0] < A.entries.length - 1 ? () => pairAt(adjacent[0], adjacent[0] + 1) : null}
             {...blockProps(adjacent[0])} />
         }}>
-      {focusMode ? (
-        <FocusView entryIdx={cur} unit={unit}
-          onSelectEntry={selectFocusEntry} onAdvanceUnit={advanceFocusUnit} pointerEpoch={focusPointerEpoch.current}
-          onPairPrev={onPairPrev} onPairNext={onPairNext} onUnpair={() => unpairAt(cur)}
-          {...blockProps(cur)} />
-      ) : isSuperset ? (
+      {isSuperset ? (
         <div className="ss-card">
           <div className="ss-hd" style={{ justifyContent: 'space-between' }}>
             <span className="row" style={{ gap: 5 }}><Icon name="link" />{ssTitle(unit)}</span>

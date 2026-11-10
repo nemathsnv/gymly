@@ -45,6 +45,7 @@ import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem } from '.
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { McpTokensRow } from '../components/McpTokens.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
+import { workoutLayoutOf } from '../lib/workout-layout.js'
 
 /* Settings (v1.3.11). The root is one screen: an account card, eleven rows that each open a page
    (/settings/<page>), and a search over every row. Rare things live one level further down
@@ -398,7 +399,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID,
   }
   const mode = scheduleModeOf(S)
-  const layout = ['list', 'compact', 'focus'].includes(S.workoutView) ? S.workoutView : 'cards'
+  const layout = workoutLayoutOf(S.workoutView)
   const layoutLabel = { cards: t('Cards'), list: t('List'), compact: t('Compact') }[layout]
   const activeProfile = (S.equipProfiles || []).find(p => p.id === S.activeEquipId)
   const themeLabel = { dark: t('Dark'), light: t('Light'), system: t('System') }[S.theme || 'dark'] || t('Dark')
@@ -471,10 +472,11 @@ export default function Settings({ page = null, find = null, via = null }) {
           ]} />
         {/* One exercise at a time (cards with Prev/Next), the whole session stacked as a
             scrollable list, or that list stripped to just names and set rows (compact). Legacy or
-            unknown values read as cards. The workout's ⋯ menu can override it for one session. */}
+            unknown values, the removed Focus layout among them, read as cards
+            (lib/workout-layout.js). The workout's ⋯ menu can override it for one session. */}
         <Row icon="layout" iconTint="var(--blue)" title={t('Layout')}>
           <Segmented className="seg-inline"
-            options={[{ value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
+            options={[{ value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }]}
             value={layout} onChange={v => update(s => { s.workoutView = v })} />
         </Row>
         {/* The saved side of the Layout menu's "Collapse completed exercises" (#241): on here, every

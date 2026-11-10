@@ -73,7 +73,9 @@ function entryView(e, S) {
       r: Number(s.r) || 0,
       sec: Number(s.sec) || 0,
       min: Number(s.min) || 0,
-      speed: Number(s.speed) || 0
+      speed: Number(s.speed) || 0,
+      // A stepmill's console level (frontend/src/lib/machine-level.js), only on a set that has one.
+      ...(Number(s.level) > 0 ? { level: Number(s.level) } : {})
     }))
   }
 }
@@ -615,7 +617,8 @@ export const previewSession = {
           r: Number(s.r) || 0,
           sec: Number(s.sec) || 0,
           min: Number(s.min) || 0,
-          speed: Number(s.speed) || 0
+          speed: Number(s.speed) || 0,
+          ...(Number(s.level) > 0 ? { level: Number(s.level) } : {})
         })),
         weight_source: wSrc,
         weight_source_text: SOURCE_TEXT[wSrc],

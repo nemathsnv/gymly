@@ -67,12 +67,13 @@ const mount = () => act(() => root.render(<Settings page="workout" />))
 const segButton = label => [...host.querySelectorAll('.seg button')].find(b => b.textContent === label)
 
 describe('Settings — workout view', () => {
-  it('offers Cards / List / Compact / Focus and writes workoutView to the store', () => {
+  it('offers Cards / List / Compact and writes workoutView to the store', () => {
     mount()
-    expect(['Cards', 'List', 'Compact', 'Focus'].every(label => segButton(label))).toBe(true)
+    expect(['Cards', 'List', 'Compact'].every(label => segButton(label))).toBe(true)
+    expect(segButton('Focus')).toBeUndefined()
     expect(segButton('Cards').getAttribute('aria-pressed')).toBe('true')
 
-    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Focus', 'focus'], ['Cards', 'cards']]) {
+    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Cards', 'cards']]) {
       act(() => { segButton(label).click() })
       expect(mocks.S.workoutView).toBe(value)
       mount()
@@ -84,6 +85,12 @@ describe('Settings — workout view', () => {
     mocks.S.workoutView = 'grid'
     mount()
     expect(segButton('Cards').getAttribute('aria-pressed')).toBe('true')
-    expect(segButton('Focus').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('shows a profile saved in the removed Focus layout as Cards', () => {
+    mocks.S.workoutView = 'focus'
+    mount()
+    expect(segButton('Cards').getAttribute('aria-pressed')).toBe('true')
+    expect(segButton('Focus')).toBeUndefined()
   })
 })
