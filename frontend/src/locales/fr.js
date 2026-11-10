@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Poulie',
   'Not set': 'Non défini',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Une note sur le montage de la poulie. Tu notes le poids affiché par la machine, et rien n’est recalculé à partir de cette note.',
+  'Log {0}': 'Noter {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Rien de noté pour l’instant. Note-le chaque matin pour voir la tendance.',
+  'That number looks too big. Check it and try again.': 'Ce nombre paraît trop grand. Vérifie-le et réessaie.',
 }

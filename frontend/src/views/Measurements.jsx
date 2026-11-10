@@ -6,7 +6,7 @@ import {
   MEASUREMENT_FIELDS, MEASUREMENT_KEYS, emptyMeasurement, enabledMeasurementFields,
   fromMeasurementDisplay, latestMeasurement, measurementEntryHasValues,
   measurementSeries, measurementUnit, measurementValue, normalizeMeasurementEntry,
-  toMeasurementDisplay, normalizeMeasurementsState,
+  toMeasurementDisplay, normalizeMeasurementsState, homeMeasurementField, setMeasurementValue,
 } from '../lib/measurements.js'
 import { fmtDate, fmtNum, todayISO, uid } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
@@ -102,6 +102,116 @@ export function measurementLogSheet(sourceDate = null) {
   return useUI.getState().openSheet(close => <MeasurementLog sourceDate={sourceDate} close={close} />)
 }
 
+// A circumference past this is a typo (a misplaced decimal), not a person: 9200 cm would draw
+// the whole curve flat. Generous on purpose; body fat has its own 100% ceiling.
+const MAX_CM = 400
+
+// One measurement, logged for today in a tap: the sheet behind the Home card's Log button. It
+// writes that single field into today's check-in (setMeasurementValue), so a morning belly
+// reading and a full check-in later the same day end up as one entry, not two.
+function QuickMeasurementLog({ fieldKey, close }) {
+  const S = useStore(s => s.S)
+  const field = homeMeasurementField({ ...S, homeMeasurement: fieldKey })
+  const today = todayISO()
+  const todays = S.measurements.find(e => e.d === today)
+  const percent = fieldKey === 'bodyFat'
+  const shown = entry => {
+    const v = measurementValue(entry, fieldKey)
+    return v == null ? null : percent ? v : toMeasurementDisplay(v, S.unit)
+  }
+  // Today's reading if there is one (to correct it), else the last one, so the usual morning
+  // change is a nudge of the ± buttons rather than typing the whole number again.
+  const [value, setValue] = useState(() => shown(todays) ?? shown(latestMeasurement(S, fieldKey)?.entry))
+  const unit = percent ? '%' : measurementUnit(S.unit)
+  const nudge = d => setValue(v => (v == null ? v : Math.max(0, Math.round((+v + d) * 10) / 10)))
+  const recent = measurementSeries(S, fieldKey).slice(-3).reverse()
+  if (!field) return null
+
+  const save = () => {
+    const n = value == null ? null : Math.round(+value * 10) / 10
+    if (!(n > 0)) { toast(t('Enter at least one measurement')); return }
+    if (percent ? n > 100 : fromMeasurementDisplay(n, S.unit) > MAX_CM) {
+      toast(percent ? t('Body fat must be between 0 and 100%.') : t('That number looks too big. Check it and try again.')); return
+    }
+    update(state => { setMeasurementValue(state, today, fieldKey, percent ? n : fromMeasurementDisplay(n, S.unit)) })
+    close()
+    toast(t('Measurements saved'))
+  }
+
+  return <>
+    <h3>{t('Log {0}', t(field.label))}</h3>
+    <div className="muted small">{t('Today') + ', ' + fmtDate(today, true)}</div>
+    <div className="bwstep">
+      <button className="bw-pm" onClick={() => nudge(-0.1)} aria-label={t('Decrease by {0}', fmtNum(0.1))}><Icon name="minus" /></button>
+      <label className="bw-read">
+        {/* The very first reading has nothing to start from: `fit` would shrink the empty field
+            to a sliver, so it gets a placeholder, room to tap, and the keyboard straight away. */}
+        <NumberField fit nullable value={value} onChange={setValue} aria-label={t(field.label)} enterKeyHint="done"
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+          {...(value == null ? { placeholder: '0', autoFocus: true, style: { width: '3ch' } } : {})} />
+        <span className="u"> {unit}</span>
+      </label>
+      <button className="bw-pm" onClick={() => nudge(0.1)} aria-label={t('Increase by {0}', fmtNum(0.1))}><Icon name="plus" /></button>
+    </div>
+    <div className="chips" style={{ justifyContent: 'center', margin: '8px 0' }}>
+      <button className="chip" onClick={() => nudge(-1)}>−1</button>
+      <button className="chip" onClick={() => nudge(-0.5)}>−0.5</button>
+      <button className="chip" onClick={() => nudge(0.5)}>+0.5</button>
+      <button className="chip" onClick={() => nudge(1)}>+1</button>
+    </div>
+    <div style={{ height: 14 }} />
+    <Button variant="primary" onClick={save}>{t('Save')}</Button>
+    {recent.length > 0 && <>
+      <h4 className="sec">{t('Measurement history')}</h4>
+      <div className="list" style={{ gap: 0 }}>
+        {recent.map(p => <div className="lrow" key={p.d}>
+          <span className="lrow-m"><span className="lrow-t">{fmtDate(p.d, true)}</span></span>
+          <b>{fmtNum(p.y)} {unit}</b>
+        </div>)}
+      </div>
+    </>}
+  </>
+}
+
+export function quickMeasurementSheet(fieldKey) {
+  return useUI.getState().openSheet(close => <QuickMeasurementLog fieldKey={fieldKey} close={close} />)
+}
+
+// The measurement pinned to Home (Settings → On Home): its latest reading, the change since the
+// one before, and a short curve — the body-weight card's shape, for a belly or waist logged each
+// morning. Nothing pinned, no card. The full screen stays one tap away.
+export function HomeMeasurementCard({ S, onOpen }) {
+  const field = homeMeasurementField(S)
+  if (!field) return null
+  const percent = field.key === 'bodyFat'
+  const unit = percent ? '%' : measurementUnit(S.unit)
+  const all = measurementSeries(S, field.key)
+  const latest = all.at(-1)
+  const previous = all.at(-2)
+  const delta = latest && previous ? Math.round((latest.y - previous.y) * 10) / 10 : null
+  return <div className="card">
+    <div className="row between" style={{ marginBottom: 6 }}>
+      <h2 style={{ margin: 0 }}>{t(field.label)}</h2>
+      <Button size="sm" icon="plus" onClick={() => quickMeasurementSheet(field.key)}>{t('Log')}</Button>
+    </div>
+    {latest ? <>
+      <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
+        <div className="big">{fmtNum(latest.y)} <span className="muted" style={{ fontSize: '1rem' }}>{unit}</span></div>
+        {/* Neutral, not red/green: whether a smaller number is good depends on what is measured. */}
+        {!!delta && <span className="small row" style={{ gap: 2, fontWeight: 500, color: 'var(--label-2)' }}>
+          <Icon name={delta > 0 ? 'arrowUp' : 'arrowDown'} style={{ fontSize: 12 }} />
+          {fmtNum(Math.abs(delta))}
+        </span>}
+        <span className="dim small" style={{ marginInlineStart: 'auto' }}>{fmtDate(latest.d, true)}</span>
+      </div>
+      {all.length > 1 && <div className="chart" style={{ marginTop: 8 }}><LineChart points={all.slice(-30)} h={130} unit={unit} color="var(--teal)" /></div>}
+    </> : <div className="muted small">{t('Nothing logged yet. Log it every morning to see the trend.')}</div>}
+    <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
+      <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={onOpen}>{t('Measurement history')}</Button>
+    </div>
+  </div>
+}
+
 function ManageMeasurements({ close }) {
   const S = useStore(s => s.S)
   const [name, setName] = useState('')
@@ -166,7 +276,8 @@ export default function Measurements() {
     }
     return out
   }, [S])
-  const fallback = available.find(f => f.key === 'waist')?.key || available[0]?.key || null
+  // The chart opens on the measurement pinned to Home, the one you came here from, then Waist.
+  const fallback = available.find(f => f.key === S.homeMeasurement)?.key || available.find(f => f.key === 'waist')?.key || available[0]?.key || null
   const [selected, setSelected] = useState(fallback)
   const key = available.some(f => f.key === selected) ? selected : fallback
   const field = available.find(f => f.key === key)

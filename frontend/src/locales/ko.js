@@ -2335,4 +2335,7 @@ export default {
   'Pulley': '도르래',
   'Not set': '설정 안 함',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': '케이블이 어떻게 연결되어 있는지에 대한 메모입니다. 기구에 표시된 무게를 기록하며, 이를 바탕으로 다시 계산하지 않습니다.',
+  'Log {0}': '{0} 기록',
+  'Nothing logged yet. Log it every morning to see the trend.': '아직 기록이 없어요. 매일 아침 기록하면 추세를 볼 수 있어요.',
+  'That number looks too big. Check it and try again.': '숫자가 너무 커 보여요. 확인하고 다시 시도해 주세요.',
 }

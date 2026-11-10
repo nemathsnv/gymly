@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Carrucola',
   'Not set': 'Non impostato',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Una nota su come è montato il cavo. Registri il peso indicato dalla macchina e nulla viene ricalcolato.',
+  'Log {0}': 'Registra {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Ancora niente registrato. Registralo ogni mattina per vedere l’andamento.',
+  'That number looks too big. Check it and try again.': 'Questo numero sembra troppo grande. Controllalo e riprova.',
 }

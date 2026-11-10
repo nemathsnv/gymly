@@ -20,6 +20,7 @@ import { Button } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
+import { HomeMeasurementCard } from './Measurements.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -260,6 +261,10 @@ export default function Home() {
         ? t('No weigh-ins yet. Log your weight to start the curve.')
         : t("No weigh-ins yet. Log your weight to start the curve (we also ask before every workout).")}</div>}
     </div>}
+
+    {/* The one body measurement pinned to Home (Settings → On Home), e.g. a belly logged each
+        morning next to the weigh-in. Nothing pinned, no card. */}
+    <HomeMeasurementCard S={S} onOpen={() => nav('/measurements')} />
 
     <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => calendarSheet())}>
       <div className="row between">

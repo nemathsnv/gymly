@@ -2355,4 +2355,7 @@ export default {
   'Pulley': 'Seilzug',
   'Not set': 'Nicht festgelegt',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Eine Notiz, wie der Seilzug übersetzt ist. Du trägst das Gewicht ein, das das Gerät anzeigt, und nichts wird daraus umgerechnet.',
+  'Log {0}': '{0} eintragen',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Noch nichts eingetragen. Trag es jeden Morgen ein, um den Verlauf zu sehen.',
+  'That number looks too big. Check it and try again.': 'Diese Zahl wirkt zu groß. Prüf sie und versuch es noch einmal.',
 }

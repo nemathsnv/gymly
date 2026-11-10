@@ -2332,4 +2332,7 @@ export default {
   'Pulley': 'Блок',
   'Not set': 'Не задано',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Нотатка про те, як влаштовано блок троса. Ви записуєте вагу, яку показує тренажер, і нічого не перераховується.',
+  'Log {0}': 'Записати: {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Ще нічого не записано. Записуйте щоранку, щоб бачити динаміку.',
+  'That number looks too big. Check it and try again.': 'Це число виглядає завеликим. Перевірте його та спробуйте ще раз.',
 }

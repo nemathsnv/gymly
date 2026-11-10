@@ -151,3 +151,56 @@ export function measurementEntryHasValues(entry) {
   return MEASUREMENT_KEYS.some(k => valid(entry?.[k]) != null) ||
     (entry?.other || []).some(o => valid(o?.value) != null)
 }
+
+// The one measurement pinned to Home (S.homeMeasurement, Settings → On Home), as a field the
+// card and the quick-log sheet can read, or null when none is pinned. A pinned custom measurement
+// that has since been removed reads as none, so the card goes away instead of naming an id.
+export function homeMeasurementField(state) {
+  const key = state?.homeMeasurement
+  if (!key || typeof key !== 'string') return null
+  if (key.startsWith('other:')) {
+    const custom = (state.customMeasurements || []).find(c => c.id === key.slice(6))
+    return custom ? { key, label: custom.name, group: 'Other', custom: true } : null
+  }
+  return MEASUREMENT_FIELDS.find(f => f.key === key) || null
+}
+
+// Pin `key` to Home (null unpins). The pinned field is also switched on for the full logging
+// form, so a reading logged from Home is one the Body measurements screen offers to edit.
+export function pinHomeMeasurement(state, key) {
+  state.homeMeasurement = key || null
+  if (!key) return state
+  if (key.startsWith('other:')) {
+    const custom = (state.customMeasurements || []).find(c => c.id === key.slice(6))
+    if (custom) custom.enabled = true
+  } else if (MEASUREMENT_KEYS.includes(key)) {
+    const enabled = Array.isArray(state.measurementEnabled) ? state.measurementEnabled : DEFAULT_MEASUREMENT_KEYS
+    if (!enabled.includes(key)) state.measurementEnabled = [...enabled, key]
+  }
+  return state
+}
+
+// Set one measurement of one day's check-in, leaving that day's other measurements as they are
+// — the quick log on Home writes a single field into the same one-entry-per-day list the full
+// form does. `value` is in storage units (cm, or % for body fat); null clears the field, and a
+// check-in left with nothing in it is dropped. `now` stamps the entry, so the edit wins a sync
+// merge the way any other save does.
+export function setMeasurementValue(state, date, key, value, now = Date.now()) {
+  if (!Array.isArray(state.measurements)) state.measurements = []
+  const custom = Array.isArray(state.customMeasurements) ? state.customMeasurements : []
+  const i = state.measurements.findIndex(e => e && e.d === date)
+  const entry = i >= 0 ? normalizeMeasurementEntry(state.measurements[i], custom) : emptyMeasurement(date, custom)
+  const v = valid(value)
+  if (key.startsWith('other:')) {
+    const id = key.slice(6)
+    const item = entry.other.find(o => o.id === id)
+    if (item) item.value = v
+    else if (v != null) entry.other.push({ id, name: custom.find(c => c.id === id)?.name || 'Other', value: v })
+  } else if (MEASUREMENT_KEYS.includes(key)) {
+    entry[key] = key === 'bodyFat' && v > 100 ? null : v
+  } else return state
+  entry.t = now
+  const rest = state.measurements.filter((_, j) => j !== i)
+  state.measurements = measurementEntryHasValues(entry) ? [...rest, entry] : rest
+  return normalizeMeasurementsState(state)
+}

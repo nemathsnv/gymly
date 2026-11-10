@@ -2335,4 +2335,7 @@ export default {
   'Pulley': 'Polea',
   'Not set': 'Sin definir',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': 'Una nota sobre cómo está montada la polea. Registras el peso que marca la máquina y no se recalcula nada a partir de ella.',
+  'Log {0}': 'Registrar {0}',
+  'Nothing logged yet. Log it every morning to see the trend.': 'Aún no hay nada registrado. Regístralo cada mañana para ver la tendencia.',
+  'That number looks too big. Check it and try again.': 'Ese número parece demasiado grande. Revísalo e inténtalo de nuevo.',
 }

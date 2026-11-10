@@ -2335,4 +2335,7 @@ export default {
   'Pulley': '滑轮',
   'Not set': '未设置',
   'A note on how the cable is rigged. You log the weight the machine shows, and nothing is recalculated from it.': '关于钢索如何连接的备注。你记录器械上显示的重量，不会据此重新计算任何数值。',
+  'Log {0}': '记录{0}',
+  'Nothing logged yet. Log it every morning to see the trend.': '还没有任何记录。每天早上记录一次，就能看到趋势。',
+  'That number looks too big. Check it and try again.': '这个数字看起来太大了。请检查后再试一次。',
 }
