@@ -51,6 +51,7 @@ const remind = c => !!c.mobile || !!c.pushOK
 const PUSH = 'Push notifications'
 export const SEARCH = [
   // Workout
+  { page: 'workout', title: 'Automatic warm-ups', icon: 'sunrise', tint: 'var(--orange)', kw: 'warm-up warmup ramp automatic generator compounds' },
   { page: 'workout', title: 'Rest timer', icon: 'timer', tint: 'var(--orange)', kw: 'rest pause break seconds minutes timer countdown' },
   { page: 'workout', title: 'Rest-pause rest', icon: 'bolt', tint: 'var(--orange)', kw: 'burst cluster rest pause' },
   { page: 'workout', title: 'Effort per set', icon: 'gauge', tint: 'var(--purple)', kw: 'rir rpe effort reps in reserve difficulty', opts: ['RIR', 'RPE'] },
@@ -114,6 +115,7 @@ export const SEARCH = [
   { page: 'look', title: 'At the gym / Check in', icon: 'qr', tint: 'var(--blue)', kw: 'gym check-in qr code membership card barcode home', tkw: () => t('Gym check-in') },
   { page: 'look', title: 'Body weight', icon: 'scale', tint: 'var(--green)', kw: 'weight card home' },
   { page: 'look', title: 'Weekly sets on Home', icon: 'figureStrength', tint: 'var(--teal)', kw: 'weekly sets muscle volume range home card line' },
+  { page: 'look', title: 'Week and month recap', icon: 'chart', tint: 'var(--purple)', kw: 'recap summary weekly monthly your week your month card home share image' },
   { page: 'look', title: 'Show connection status', icon: 'cloud', tint: 'var(--blue)', kw: 'sync offline banner bar connection', when: c => !c.demo },
   // Data & backup
   { page: 'data', title: 'Export backup (JSON)', icon: 'share', tint: 'var(--blue)', kw: 'export backup json download save' },

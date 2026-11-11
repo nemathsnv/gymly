@@ -1687,6 +1687,22 @@ body.no-tabbar #timer.working{box-shadow:inset 0 var(--hair) 0 var(--acc),0 -10p
 .share-card{margin:0 auto 14px;max-width:420px}
 .share-card img{display:block;width:100%;max-height:56vh;object-fit:contain;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.28)}
 .share-card-ph{aspect-ratio:4/5;max-height:56vh;margin:0 auto;border-radius:16px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;text-align:center;padding:16px}
+/* The recap's share sheet (components/ShareCard.jsx): the placeholder in the picked shape, and
+   the format and look side by side, one under the other on a narrow phone. */
+.share-card.share-story .share-card-ph{aspect-ratio:9/16;max-height:52vh}
+.share-card.share-square .share-card-ph{aspect-ratio:1/1;max-height:52vh}
+.share-card.share-story img,.share-card.share-square img{max-height:52vh}
+.share-opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.share-opts .seg{flex:1 1 140px;min-width:0}
+
+/* Your week / Your month (components/Recap.jsx): the Home card's lines, and four tiles in its sheet. */
+.recap-card .ttl{font-weight:600}
+.recap-card .ss{margin-top:2px}
+.recap-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.recap-tile{padding:12px;border-radius:var(--r-card);background:var(--surface-2);min-width:0}
+.recap-v{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recap-most{display:flex;align-items:center;gap:6px;margin:4px 0 16px}
+.recap-most .icn{flex:none}
 /* --- muscle map --- */
 /* Reuses the .hm-c level ramp above, so one accent scale means one thing app-wide. */
 /* An untrained muscle is derived from the text colour rather than a fixed surface, so
@@ -2138,6 +2154,9 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .sp-acct .lrow-t{font-size:19px;font-weight:600}
 .sp-avatar.on{background:var(--acc-soft);color:var(--acc);font-size:24px;font-weight:700}
 .sp-version{text-align:center;margin-top:4px;line-height:1.6}
+/* Privacy Policy · Terms of Service (components/LegalLinks.jsx) */
+.sp-legal{margin-top:8px}
+.login-legal{margin-top:14px;line-height:1.5}
 /* The root rows' previews ("2:00 de descanso · Tarjetas", "Som · Vibração") are two or three facts, and a
    one-line ellipsis cut all but the first. They wrap instead, up to three lines, and never below
    their longest word (min-content, since overflow:hidden would make auto mean 0). On the narrowest phones there is no room beside
@@ -2327,3 +2346,4 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .about-hint{display:flex;align-items:center;gap:5px;margin-top:6px}
 .about-hint .icn{flex:none}
 .stp.unset .num{color:var(--label-3)}
+.stp .val .stp-word{font-weight:600;min-width:2.5em;text-align:center;display:inline-block}

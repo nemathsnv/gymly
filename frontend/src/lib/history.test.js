@@ -1612,8 +1612,9 @@ describe('switching a row between warm-up and work', () => {
     const rows = [{ w: 40, r: 8, phase: 'warmup', warmup: true, done: true }, { w: 100, r: 5, done: true, at: 7 }, { w: 100, r: 5, done: false, type: 'dropset', drops: [{ w: 80, r: 4 }], rir: 2 }]
     const plain = [...rows.slice(0, 2), { w: 100, r: 5, done: false, rir: 2 }]
     const next = makeWarmupAt(plain, 2)
-    expect(next).toEqual([rows[0], { w: 100, r: 5, done: false, phase: 'warmup', warmup: true }, rows[1]])
-    expect(makeWarmupAt(rows, 1)[1]).toEqual({ w: 100, r: 5, done: true, phase: 'warmup', warmup: true, at: 7 })
+    // a warm-up you chose, so it is marked as set up by hand (#525)
+    expect(next).toEqual([rows[0], { w: 100, r: 5, done: false, phase: 'warmup', warmup: true, edited: true }, rows[1]])
+    expect(makeWarmupAt(rows, 1)[1]).toEqual({ w: 100, r: 5, done: true, phase: 'warmup', warmup: true, edited: true, at: 7 })
     expect(makeWarmupAt(rows, 0)).toBe(rows)
   })
 
