@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Your week, your month** (from openGym). When a new week starts (your first weekday, Monday or
+  Sunday as Settings has it) Home shows a small "Your week" card about the one that just ended, and
+  on the 1st a "Your month": workouts, volume, new bests, the streak and the muscle that did the
+  most work. Tap it for the numbers and share them as a picture (story or square, dark or light).
+  A week off gets no card, nobody needs a recap of the sofa. The × puts it away on all your
+  devices, and Settings → Look & Home → On Home → **Week and month recap** switches it off.
 - **Warm-ups that build themselves** (ported from openGym #156). Settings → Workout → Automatic
   warm-ups: Off (the default, nothing changes), Compound lifts or Every loaded lift. The ramp comes
   from your work weight, the way a coach would scribble it: a heavy squat gets the bar for ten and

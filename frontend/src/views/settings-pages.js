@@ -115,6 +115,7 @@ export const SEARCH = [
   { page: 'look', title: 'At the gym / Check in', icon: 'qr', tint: 'var(--blue)', kw: 'gym check-in qr code membership card barcode home', tkw: () => t('Gym check-in') },
   { page: 'look', title: 'Body weight', icon: 'scale', tint: 'var(--green)', kw: 'weight card home' },
   { page: 'look', title: 'Weekly sets on Home', icon: 'figureStrength', tint: 'var(--teal)', kw: 'weekly sets muscle volume range home card line' },
+  { page: 'look', title: 'Week and month recap', icon: 'chart', tint: 'var(--purple)', kw: 'recap summary weekly monthly your week your month card home share image' },
   { page: 'look', title: 'Show connection status', icon: 'cloud', tint: 'var(--blue)', kw: 'sync offline banner bar connection', when: c => !c.demo },
   // Data & backup
   { page: 'data', title: 'Export backup (JSON)', icon: 'share', tint: 'var(--blue)', kw: 'export backup json download save' },
