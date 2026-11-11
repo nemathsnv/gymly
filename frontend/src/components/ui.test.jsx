@@ -313,3 +313,16 @@ describe('NumberField select on tap', () => {
     expect(mouseup(input).defaultPrevented).toBe(false)
   })
 })
+
+// The warm-up editor's empty-bar row (#525): "Bar" instead of "0 %", and + still steps from 0.
+describe('Stepper display word', () => {
+  it('shows a word instead of the number at a special value, and the + still steps from it', () => {
+    const seen = []
+    act(() => root.render(<Stepper value={0} step={5} unit="%" display="Bar" onChange={v => seen.push(v)} />))
+    expect(host.querySelector('.stp-word').textContent).toBe('Bar')
+    expect(host.querySelector('input')).toBeNull()
+    expect(host.textContent).not.toContain('%')
+    act(() => { host.querySelectorAll('button')[1].click() })
+    expect(seen.at(-1)).toBe(5)
+  })
+})

@@ -51,6 +51,7 @@ const remind = c => !!c.mobile || !!c.pushOK
 const PUSH = 'Push notifications'
 export const SEARCH = [
   // Workout
+  { page: 'workout', title: 'Automatic warm-ups', icon: 'sunrise', tint: 'var(--orange)', kw: 'warm-up warmup ramp automatic generator compounds' },
   { page: 'workout', title: 'Rest timer', icon: 'timer', tint: 'var(--orange)', kw: 'rest pause break seconds minutes timer countdown' },
   { page: 'workout', title: 'Rest-pause rest', icon: 'bolt', tint: 'var(--orange)', kw: 'burst cluster rest pause' },
   { page: 'workout', title: 'Effort per set', icon: 'gauge', tint: 'var(--purple)', kw: 'rir rpe effort reps in reserve difficulty', opts: ['RIR', 'RPE'] },

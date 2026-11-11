@@ -3,12 +3,13 @@
 // to identical entries, or the two paths drift apart the first time a prescription rule changes.
 // Imports both history.js and progression.js (which itself imports history.js); nothing in
 // either imports this file, so there is no cycle.
-import { buildSets, applyIntensifierPlan, modeOf, barFloor } from './history.js'
-import { isWarmupRow } from './workout-model.js'
-import { nextPrescription, applyPrescription, defaultIncrement, weightIncrement, plannedOf } from './progression.js'
+import { buildSets, applyIntensifierPlan, modeOf, barFloor, lastEntryFor, insertWarmupRow } from './history.js'
+import { isWarmupRow, isSideSet, syncSideAggregate } from './workout-model.js'
+import { nextPrescription, applyPrescription, defaultIncrement, weightIncrement, plannedOf, policyFor } from './progression.js'
 import { dropGrid } from './plates.js'
 import { backoffStepOf, applyBackoff } from './backoff.js'
-import { dbLoadFor, historyAs, ownedWeightsFor } from './dumbbells.js'
+import { dbLoadFor, historyAs, ownedWeightsFor, withMeaning } from './dumbbells.js'
+import { warmupSource, warmupModeOf, withWarmupBlock } from './warmup-ramp.js'
 
 /**
  * Where a planned session's reps come from (Settings → During a workout). 'plan', the default:
@@ -18,6 +19,61 @@ import { dbLoadFor, historyAs, ownedWeightsFor } from './dumbbells.js'
  * this setting existed. A profile saved before it, or one that never chose, reads as 'plan'.
  */
 export const startsFromLast = st => st?.startFrom === 'last'
+
+/**
+ * One carried warm-up row: the load and reps (or duration) the last session logged, reset for
+ * the new one. Nothing else survives — not done, not effort, not the tick time, not drops or
+ * bursts. A per-side row keeps each side's own numbers and resyncs its aggregate. `edited`
+ * stays, so a warm-up you set by hand is carried again next time.
+ */
+const carriedWarmupRow = (row, mode) => {
+  if (isSideSet(row)) {
+    const side = s => ({ w: Number(s?.w) || 0, r: Number(s?.r) || 0, done: false })
+    return syncSideAggregate({ phase: 'warmup', warmup: true, edited: true, sides: { L: side(row.sides.L), R: side(row.sides.R) } })
+  }
+  if (mode === 'time') return { sec: row.sec, w: Number(row.w) || 0, done: false, phase: 'warmup', warmup: true, edited: true }
+  return { w: Number(row.w) || 0, r: Number(row.r) || 0, done: false, phase: 'warmup', warmup: true, edited: true }
+}
+
+/**
+ * Puts a carried warm-up block in front of the finished work rows. Only the rows you set by hand
+ * (`edited`, lib/workout-model.js markWarmupEdited) keep last time's numbers; an automatic rung in
+ * the block is built again with insertWarmupRow, so it still ramps toward today's work weight
+ * instead of freezing at the one it was made for. The block's length is last time's.
+ */
+function withCarriedWarmups(rows, carry, mode, cfg, step, floor) {
+  let out = rows
+  for (const row of carry) {
+    if (!row.edited) { out = insertWarmupRow(out, mode, cfg, step, floor); continue }
+    const at = out.findIndex(x => !isWarmupRow(x))
+    out = at === -1 ? [...out, carriedWarmupRow(row, mode)] : [...out.slice(0, at), carriedWarmupRow(row, mode), ...out.slice(at)]
+  }
+  return out
+}
+
+/**
+ * The warm-up block "Your last session" carries into a planned build (#525), or null when
+ * there is nothing to carry — no last entry, no warm-up rows in it, or rows that no longer fit
+ * the exercise's mode (a rep count for an exercise that is timed now, or none for one that is
+ * reps now). Null means the ramp is built from the routine's `warmupSets` exactly as before.
+ * A block with no row set by hand is an automatic ramp, so that is null too: carrying it would
+ * freeze the first session's 50/75% rungs while the work weight climbs, and the routine's own
+ * warm-up count would stop mattering. Rows from before the `edited` mark read as automatic.
+ */
+function carriedWarmups(st, cfg, routine, noProg) {
+  if (!startsFromLast(st) || noProg || cfg.intensifier?.type === 'restpause') return null
+  // A slot that chose its warm-ups (auto, its own saved rows, none) keeps that choice: today's
+  // tweaks are today's, and the saved block is not overwritten by them (#525).
+  if (warmupModeOf(cfg)) return null
+  const mode = modeOf(cfg)
+  // Progression switched off (its own choice, or a pyramid's) builds warm-ups from the
+  // routine as before. A timed exercise's only policy is 'off', so the gate is reps-only.
+  if (mode !== 'time' && (mode === 'cardio' || policyFor(cfg, routine, mode) === 'off')) return null
+  const rows = lastEntryFor(st, cfg.id, routine?.id)?.warmups || []
+  if (!rows.some(row => row.edited)) return null
+  const fits = row => (mode === 'time' ? row.sec > 0 : isSideSet(row) || row.r > 0)
+  return rows.every(fits) ? rows : null
+}
 
 /**
  * One planned exercise, built the way a session builds it: the prescription, the rows it opens
@@ -45,9 +101,19 @@ export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {})
   const ramp = (modeOf(cfg) === 'reps' && ownedWeightsFor(st, cfg)) || step
   // Back-off sets step down from the top set by the exercise's own step (lib/backoff.js).
   const backoffStep = modeOf(cfg) === 'reps' && backoffStepOf(cfg, st.unit) ? step : 0
-  const built = applyPrescription(buildSets(st, cfg, { step: ramp, rid: routine?.id, useTarget: plan.kind === 'off', planReps }), plan, ramp, barFloor(st, cfg.id))
+  // Warm-ups carried from the last session ("Your last session") are final: they go in front
+  // AFTER the prescription, back-off and intensifier steps, none of which may rewrite them.
+  const warmCarry = carriedWarmups(st, cfg, routine, noProg)
+  // A generated or saved warm-up block (lib/warmup-ramp.js) is built last too, from the weight the
+  // first work set really opens at, on the plates, dumbbells or machine stack you have.
+  const block = !warmCarry && ['auto', 'own'].includes(warmupSource(st, cfg).kind)
+  const floor = barFloor(st, cfg.id)
+  const built = applyPrescription(buildSets(st, warmCarry || block ? { ...cfg, warmupSets: 0 } : cfg, { step: ramp, rid: routine?.id, useTarget: plan.kind === 'off', planReps }), plan, ramp, floor)
   const rows = backoffStep ? applyBackoff(built, backoffStep) : built
-  const sets = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg))
+  const shaped = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg))
+  const sets = warmCarry ? withCarriedWarmups(shaped, warmCarry, modeOf(cfg), cfg, ramp, floor)
+    : block ? withWarmupBlock(st, cfg, shaped, { grid: dropGrid(st, cfg), floor, unit: st.unit })
+      : shaped
   const target = { ...cfg }
   // Stamped on the session, so the meaning it was logged with stays with it (dumbbells.js).
   if (meaning !== 'as') target.dbLoad = meaning
@@ -72,6 +138,22 @@ export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {})
   // `planned` is what the routine asked for, kept apart from the target the prescription moved,
   // so the next session can tell an edited plan from a progressed one (nextPrescription).
   return { target, plan, sets, planned: plannedOf(cfg), ...(carried ? { carried: true } : {}) }
+}
+
+/**
+ * An exercise added to or swapped into a freestyle session: last time's rows read in today's
+ * meaning of a dumbbell weight (lib/dumbbells.js), with the warm-up block a generated or saved
+ * source asks for (lib/warmup-ramp.js) in front. `st` is the profile, `past` the history the rows
+ * are built from (backfill.js sessionHistory: before the session's day when it is logged into the
+ * past). Both the add and the swap build through here.
+ */
+export function buildFreestyleEntry(st, past, cfg, id) {
+  const full = { ...cfg, id }
+  const step = modeOf(full) === 'reps' ? (ownedWeightsFor(st, full) || weightIncrement(full, st.unit)) : defaultIncrement(id, st.unit)
+  const block = ['auto', 'own'].includes(warmupSource(st, full).kind)
+  const rows = applyIntensifierPlan(buildSets(historyAs(past, id, dbLoadFor(st, full)), block ? { ...full, warmupSets: 0 } : full, { step, preferLast: true }), full, dropGrid(st, full))
+  const sets = block ? withWarmupBlock(st, full, rows, { grid: dropGrid(st, full), floor: barFloor(st, id), unit: st.unit }) : rows
+  return { target: withMeaning(st, cfg, id), plan: null, sets }
 }
 
 /**

@@ -33,6 +33,7 @@ import { setRestAccent } from '../lib/rest-alert.js'
 import { CUSTOM, accentKey, adjustedIn, applyAccent, cleanHex, inkOn, isGrey } from '../lib/accent.js'
 import { checkForUpdate, downloadAndInstall, fetchChecksum, RELEASES_PAGE } from '../lib/update.js'
 import { forgetCoach } from '../lib/coach-api.js'
+import LegalLinks from '../components/LegalLinks.jsx'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
@@ -42,6 +43,7 @@ import BackupFolderRow, { useBackupFolder, autoBackupSubtitle } from '../compone
 import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkeySignIn } from '../components/ServerSync.jsx'
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem, PairSheet } from '../components/Passkeys.jsx'
+import { warmupAutoOf } from '../lib/warmup-ramp.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { dailyModeOf, settleAll } from '../lib/weigh-ins.js'
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement, customMeasurementLabel } from '../lib/measurements.js'
@@ -453,6 +455,18 @@ export default function Settings({ page = null, find = null, via = null }) {
 
   const pages = {
     workout: () => <>
+      {/* Warm-ups that build themselves from the work weight (#156, lib/warmup-ramp.js). Off by
+          default, so nothing changes until someone asks; an exercise can still pick Auto, its own
+          rows or none in its settings, and one with its own number of ramp sets keeps them. */}
+      <Section title={t('Warm-ups')} footer={t('Built from your work weight and rounded down to the plates, dumbbells and machine stacks you have. An exercise can pick its own in its settings.')}>
+        <SelectRow icon="sunrise" iconTint="var(--orange)" title={t('Automatic warm-ups')}
+          value={warmupAutoOf(S)} onChange={v => update(s => { s.warmupAuto = v })}
+          options={[
+            { value: 'off', label: t('Off'), subtitle: t('Only the warm-ups you plan yourself.') },
+            { value: 'compounds', label: t('Compound lifts'), subtitle: t('Squats, presses, rows and friends get a ramp. Curls and raises start cold.') },
+            { value: 'all', label: t('Every loaded lift'), subtitle: t('Heavy lifts get more rungs, light ones one or none.') },
+          ]} />
+      </Section>
       <Section title={t('Rest')} footer={t('Each exercise can have its own rest too. Set it in the exercise settings of a routine.')}>
         {restRow}
         {restPauseRow}
@@ -541,7 +555,7 @@ export default function Settings({ page = null, find = null, via = null }) {
             value={S.startFrom === 'last' ? 'last' : 'plan'} onChange={v => update(s => { s.startFrom = v })}
             options={[
               { value: 'plan', label: t('Your plan'), subtitle: t('The routine’s sets and reps. Your history decides the weight.') },
-              { value: 'last', label: t('Your last session'), subtitle: t('The reps you logged last time in that routine, carried over.') },
+              { value: 'last', label: t('Your last session'), subtitle: t('The reps you logged last time in that routine, carried over, and any warm-ups you set up yourself.') },
             ]} />
           <Row icon="stopwatch" iconTint="var(--orange)" title={t('Keep timing after target')}
             subtitle={t('Timed sets continue up to 15 extra minutes. Tap Done to log the actual duration.')}>
@@ -892,6 +906,7 @@ export default function Settings({ page = null, find = null, via = null }) {
         {/* Attribution the media licence asks for word for word (agreement §8c), so it is not translated */}
         Exercise media © Aliaksandr Makatserchyk, <a href="https://gymvisual.com/" target="_blank" rel="noopener">Gym visual</a>, gymvisual.com.
         Exercise media license restrictions: see <a href="https://github.com/nemathsnv/gymly/blob/main/NOTICE.md" target="_blank" rel="noopener">NOTICE.md</a>
+        <LegalLinks className="sp-legal" />
       </div>
     </>,
 

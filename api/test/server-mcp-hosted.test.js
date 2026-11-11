@@ -554,3 +554,123 @@ test('a device with unsynced edits merges with an assistant\'s change: both surv
   const blocked = await h.call(at, 'undo_change', { change_id: a2.structuredContent.change_id });
   assert.equal(blocked.structuredContent.error, 'stale');
 });
+
+/* log_workout (openGym #739, ported): a session described by name, resolved or asked about,
+   saved once, synced like a device's write, shown by the read tools, undone; 20 an hour. */
+const daysAgo = n => { const d = new Date(Date.now() - n * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const curls = (over = {}) => ({ exercises: [{ exercise: 'dumbbell curl', sets: [{ reps: 12, weight: 12 }, { reps: 12, weight: 12 }, { reps: 10, weight: 12 }] }], ...over });
+
+test('log a workout by name: asked about when ambiguous, saved once, synced, read back, undone', async t => {
+  const { mergeStates, stampChange } = await import('../../frontend/src/lib/sync-merge.js');
+  const h = await startServer(t);
+  const { tokens } = await connect(h);
+  const at = tokens.access_token;
+
+  // The write tools say what they do without an em dash, and the server's instructions too.
+  const list = await h.rpc(at, 'tools/list');
+  const writes = list.body.result.tools.filter(x => ['preview_workout_log', 'log_workout', 'undo_change', 'list_recent_changes', 'preview_routine_changes', 'apply_routine_changes', 'apply_destructive_routine_changes', 'create_routine'].includes(x.name));
+  assert.equal(writes.length, 8);
+  assert.doesNotMatch(JSON.stringify(writes), /—/);
+  const init = await h.rpc(at, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test', version: '1' } });
+  assert.doesNotMatch(init.body.result.instructions, /—/);
+
+  // A name the library spells twice: a question with both answers, nothing saved.
+  const ask = await h.call(at, 'preview_workout_log', { exercises: [{ exercise: 'lever chest press', sets: [{ reps: 10, weight: 40 }] }] });
+  assert.equal(ask.isError, true);
+  assert.equal(ask.structuredContent.error, 'needs_choice');
+  assert.deepEqual(ask.structuredContent.problems[0].candidates.map(c => c.id), ['0576', '0577']);
+  assert.match(ask.content[0].text, /Candidates: 0576/);
+  assert.equal(h.state('u_one')._rev, 3);
+
+  // "Dumbbell curls, 12 kg, 12/12/10", just now.
+  const pv = await h.call(at, 'preview_workout_log', curls());
+  assert.ok(!pv.isError, JSON.stringify(pv));
+  assert.equal(pv.structuredContent.date, daysAgo(0));
+  assert.deepEqual(pv.structuredContent.exercises.map(e => [e.you_said, e.id]), [['dumbbell curl', '0294']]);
+  assert.deepEqual(pv.structuredContent.prs_if_saved, ['Dumbbell Biceps Curl']);
+  assert.doesNotMatch(JSON.stringify(pv), /—/);
+  const logged = await h.call(at, 'log_workout', { preview_id: pv.structuredContent.preview_id });
+  assert.ok(!logged.isError, JSON.stringify(logged));
+  assert.equal(logged.structuredContent.logged, true);
+  assert.deepEqual(logged.structuredContent.prs, ['Dumbbell Biceps Curl']);
+  const S1 = h.state('u_one');
+  const w = S1.workouts.find(x => x.id === logged.structuredContent.workout_id);
+  assert.deepEqual(w.entries[0].sets, [{ w: 12, r: 12, done: true }, { w: 12, r: 12, done: true }, { w: 12, r: 10, done: true }]);
+  assert.deepEqual(w.prs, ['0294']);
+  assert.deepEqual(S1.exWeights['0294'], { w: 12, d: daysAgo(0) }, 'the next weight moved, as Finish moves it');
+  assert.equal(S1._rev, 4);
+  // The operator's line on stderr, without the token.
+  assert.match(h.log, new RegExp(`\\[gymly-mcp\\] log_workout saved ${w.id} for ${w.d} \\(1 exercises, 3 sets\\), rev 4`));
+  assert.ok(!h.log.includes(at));
+  assert.match(h.files(), /auth\.mcp\.write/);
+
+  // Never twice: the same preview, the same description previewed again, the same sets reworded.
+  assert.equal((await h.call(at, 'log_workout', { preview_id: pv.structuredContent.preview_id })).structuredContent.replayed, true);
+  const again = await h.call(at, 'preview_workout_log', curls());
+  assert.equal(again.structuredContent.already_logged, true);
+  assert.equal(again.structuredContent.same_request, true);
+  assert.equal(again.structuredContent.preview_id, undefined);
+  const reworded = await h.call(at, 'preview_workout_log', curls({ note: 'felt strong' }));
+  assert.equal(reworded.structuredContent.already_logged, true);
+  assert.equal(reworded.structuredContent.same_request, false);
+  assert.equal(h.state('u_one').workouts.length, 2);
+
+  // The read tools (an assistant's History) show it.
+  const recent = await h.call(at, 'list_workouts');
+  assert.match(JSON.stringify(recent.structuredContent), new RegExp(w.id));
+
+  // A phone offline since before the log: its push is a conflict, and its merge keeps both.
+  const json = { ...cookie('u_one'), 'Content-Type': 'application/json' };
+  const stale = structuredClone(STATE_ONE);
+  const local = structuredClone(stale);
+  local.bodyweight = [...local.bodyweight, { d: daysAgo(1), w: 79.9, t: Date.now() }];
+  local._ts = stampChange(stale, local, Date.now());
+  const first = await h.fetch('/api/data', { method: 'PUT', headers: json, body: JSON.stringify({ state: local, baseRev: 3, stamped: true }) });
+  assert.equal(first.status, 409);
+  const conflict = await first.json();
+  const merged = mergeStates(local, conflict.state);
+  const second = await h.fetch('/api/data', { method: 'PUT', headers: json, body: JSON.stringify({ state: merged, baseRev: conflict.rev, stamped: true }) });
+  assert.equal(second.status, 200, await second.clone().text());
+  const S2 = h.state('u_one');
+  assert.ok(S2.workouts.some(x => x.id === w.id), 'the logged workout survived the phone\'s merge');
+  assert.ok(S2.bodyweight.some(b => b.w === 79.9), 'and the phone\'s weigh-in too');
+
+  // Undo takes it back, and the next weight with it.
+  const undo = await h.call(at, 'undo_change', { change_id: logged.structuredContent.change_id });
+  assert.ok(!undo.isError, JSON.stringify(undo));
+  const S3 = h.state('u_one');
+  assert.ok(!S3.workouts.some(x => x.id === w.id));
+  assert.equal(S3.exWeights?.['0294'], undefined);
+  assert.ok(S3.bodyweight.some(b => b.w === 79.9));
+  // A device that still has it does not bring it back: the removal is on record.
+  const pull = await (await h.fetch('/api/data', { headers: cookie('u_one') })).json();
+  const back = mergeStates(structuredClone(S2), pull.state);
+  assert.ok(!back.workouts.some(x => x.id === w.id));
+});
+
+test('log_workout takes 20 workouts an hour per profile; duplicates and previews do not count', async t => {
+  const h = await startServer(t);
+  const { tokens: { access_token: at } } = await connect(h);
+  for (let i = 1; i <= 20; i++) {
+    const pv = await h.call(at, 'preview_workout_log', curls({ date: daysAgo(i + 1) }));
+    assert.ok(!pv.isError, JSON.stringify(pv));
+    const r = await h.call(at, 'log_workout', { preview_id: pv.structuredContent.preview_id });
+    assert.equal(r.structuredContent.logged, true, `save ${i}: ${JSON.stringify(r)}`);
+  }
+  // A duplicate is answered as one, not refused for the rate.
+  const dup = await h.call(at, 'preview_workout_log', curls({ date: daysAgo(2) }));
+  assert.equal(dup.structuredContent.already_logged, true);
+  // The 21st new one is previewed, but not saved.
+  const pv = await h.call(at, 'preview_workout_log', curls({ date: daysAgo(30) }));
+  assert.ok(!pv.isError);
+  const over = await h.call(at, 'log_workout', { preview_id: pv.structuredContent.preview_id });
+  assert.equal(over.isError, true);
+  assert.equal(over.structuredContent.error, 'rate_limited');
+  assert.ok(over.structuredContent.retry_after > 3000);
+  assert.doesNotMatch(over.content[0].text, /—/);
+  assert.equal(h.state('u_one').workouts.length, 21);
+  // Another profile is not held back by this one.
+  const two = await connect(h, { uid: 'u_two' });
+  const pv2 = await h.call(two.tokens.access_token, 'preview_workout_log', { date: daysAgo(3), exercises: [{ exercise: 'bench press', sets: [{ reps: 5, weight: 135 }] }] });
+  assert.equal((await h.call(two.tokens.access_token, 'log_workout', { preview_id: pv2.structuredContent.preview_id })).structuredContent.logged, true);
+});

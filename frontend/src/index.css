@@ -2154,6 +2154,9 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .sp-acct .lrow-t{font-size:19px;font-weight:600}
 .sp-avatar.on{background:var(--acc-soft);color:var(--acc);font-size:24px;font-weight:700}
 .sp-version{text-align:center;margin-top:4px;line-height:1.6}
+/* Privacy Policy · Terms of Service (components/LegalLinks.jsx) */
+.sp-legal{margin-top:8px}
+.login-legal{margin-top:14px;line-height:1.5}
 /* The root rows' previews ("2:00 de descanso · Tarjetas", "Som · Vibração") are two or three facts, and a
    one-line ellipsis cut all but the first. They wrap instead, up to three lines, and never below
    their longest word (min-content, since overflow:hidden would make auto mean 0). On the narrowest phones there is no room beside
@@ -2325,3 +2328,4 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .about-hint{display:flex;align-items:center;gap:5px;margin-top:6px}
 .about-hint .icn{flex:none}
 .stp.unset .num{color:var(--label-3)}
+.stp .val .stp-word{font-weight:600;min-width:2.5em;text-align:center;display:inline-block}
