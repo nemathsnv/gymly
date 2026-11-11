@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Your week, your month** (from openGym). When a new week starts (your first weekday, Monday or
+  Sunday as Settings has it) Home shows a small "Your week" card about the one that just ended, and
+  on the 1st a "Your month": workouts, volume, new bests, the streak and the muscle that did the
+  most work. Tap it for the numbers and share them as a picture (story or square, dark or light).
+  A week off gets no card, nobody needs a recap of the sofa. The × puts it away on all your
+  devices, and Settings → Look & Home → On Home → **Week and month recap** switches it off.
 - **Weigh in as often as you like, with the time** (ported from openGym #859). A day can now hold
   several weigh-ins, each with its time. The weigh-in sheet has a date and a time field (now for
   today; for an earlier day, that day's first time or 08:00), so a weigh-in can also be logged for

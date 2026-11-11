@@ -890,12 +890,14 @@ export function moveRoutineEntry(items, index, direction) {
 }
 export function unitOf(units, idx) { return units.find(u => u.includes(idx)) || [idx] }
 
-export function streakWeeks(S) {
+// Weeks in a row with a workout, up to the week of `today` (a local date; the week recap counts
+// it as of the week it looks back on). The current week not trained yet does not break it.
+export function streakWeeks(S, today = todayISO()) {
   if (!S.workouts.length) return 0
   const ws = weekStartOf(S)
   const weeks = new Set(S.workouts.map(w => weekKey(w.d, ws)))
   let streak = 0
-  const cur = new Date()
+  const cur = new Date(today + 'T12:00:00')
   for (let i = 0; i < 520; i++) {
     const wk = weekKey(isoOf(cur), ws)
     if (weeks.has(wk)) streak++

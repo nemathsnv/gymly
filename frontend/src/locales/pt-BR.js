@@ -1585,6 +1585,23 @@ export const PT_BR_OVERRIDES = {
   "{0} measurement check-in imported": "{0} registro de medidas importado",
   "{0} measurement check-ins imported": "{0} registros de medidas importados",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Este aplicativo não consegue confirmar com uma chave de acesso. Crie o código em um navegador conectado a este perfil, ou adicione uma senha lá primeiro.',
+  // --- Your week / Your month (recap) and its share picture ---
+  "workout": "treino",
+  "workouts": "treinos",
+  "new best": "novo recorde",
+  "new bests": "novos recordes",
+  "week in a row": "semana seguida",
+  "weeks in a row": "semanas seguidas",
+  "Most work: {0}, {1} sets": "Mais trabalho: {0}, {1} séries",
+  "{0} new best": "{0} novo recorde",
+  "{0} new bests": "{0} novos recordes",
+  "Put it away": "Guardar",
+  "Your week": "Sua semana",
+  "Your month": "Seu mês",
+  "Week and month recap": "Resumo da semana e do mês",
+  "A small card when a new week or month starts: what the last one added up to.": "Um cartãozinho quando começa uma semana ou um mês: como foi o anterior.",
+  "Story 9:16": "Story 9:16",
+  "Square 1:1": "Quadrado 1:1",
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

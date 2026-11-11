@@ -23,6 +23,7 @@ import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
 import { HomeMeasurementCard } from './Measurements.jsx'
 import { WeeklySetsHomeLine } from '../components/WeeklySets.jsx'
+import { RecapHomeCard } from '../components/Recap.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -186,6 +187,10 @@ export default function Home() {
         </Button>
       </div>}
     </div>
+
+    {/* The first day of a week: Your week; the 1st: Your month (lib/recap.js). Settings → On Home
+        → "Week and month recap" switches it off, its × puts that one away. */}
+    <RecapHomeCard S={S} today={habitToday} />
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
         arrival at the gym; Settings → On Home → "At the gym / Check in" hides it (the screen stays). */}
