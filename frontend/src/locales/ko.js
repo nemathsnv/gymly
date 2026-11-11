@@ -2338,4 +2338,11 @@ export default {
   'Log {0}': '{0} 기록',
   'Nothing logged yet. Log it every morning to see the trend.': '아직 기록이 없어요. 매일 아침 기록하면 추세를 볼 수 있어요.',
   'That number looks too big. Check it and try again.': '숫자가 너무 커 보여요. 확인하고 다시 시도해 주세요.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "측정 단위",
+  "Logged values keep their type. Add a new measurement to use a different type.": "기록된 값의 유형은 유지됩니다. 다른 유형을 사용하려면 새 측정 항목을 추가하세요.",
+  "{0} must be between 0 and 100%.": "{0} 값은 0~100% 사이여야 합니다.",
+  "No unit": "단위 없음",
+  "{0} measurement check-in imported": "측정 기록 {0}개를 가져왔습니다",
+  "{0} measurement check-ins imported": "측정 기록 {0}개를 가져왔습니다",
 }

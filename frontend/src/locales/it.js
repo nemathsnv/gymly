@@ -2338,4 +2338,11 @@ export default {
   'Log {0}': 'Registra {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Ancora niente registrato. Registralo ogni mattina per vedere l’andamento.',
   'That number looks too big. Check it and try again.': 'Questo numero sembra troppo grande. Controllalo e riprova.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Unità di misura",
+  "Logged values keep their type. Add a new measurement to use a different type.": "I valori registrati mantengono il proprio tipo. Aggiungi una nuova misura per usare un tipo diverso.",
+  "{0} must be between 0 and 100%.": "{0} deve essere tra 0 e 100%.",
+  "No unit": "Senza unità",
+  "{0} measurement check-in imported": "{0} rilevazione di misure importata",
+  "{0} measurement check-ins imported": "{0} rilevazioni di misure importate",
 }

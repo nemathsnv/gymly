@@ -2331,4 +2331,11 @@ export default {
   'Log {0}': '記錄{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '還沒有任何紀錄。每天早上記錄一次，就能看到趨勢。',
   'That number looks too big. Check it and try again.': '這個數字看起來太大了。請檢查後再試一次。',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "測量單位",
+  "Logged values keep their type. Add a new measurement to use a different type.": "已記錄的數值會保留原有類型。如需其他類型，請新增測量項目。",
+  "{0} must be between 0 and 100%.": "{0}必須介於 0% 到 100% 之間。",
+  "No unit": "無單位",
+  "{0} measurement check-in imported": "已匯入 {0} 筆身體測量紀錄",
+  "{0} measurement check-ins imported": "已匯入 {0} 筆身體測量紀錄",
 }

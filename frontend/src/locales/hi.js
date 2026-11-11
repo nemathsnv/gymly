@@ -2338,4 +2338,11 @@ export default {
   'Log {0}': '{0} दर्ज करें',
   'Nothing logged yet. Log it every morning to see the trend.': 'अभी तक कुछ दर्ज नहीं है। रुझान देखने के लिए इसे हर सुबह दर्ज करें।',
   'That number looks too big. Check it and try again.': 'यह संख्या बहुत बड़ी लगती है। जाँचें और फिर से कोशिश करें।',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "माप की इकाई",
+  "Logged values keep their type. Add a new measurement to use a different type.": "दर्ज किए गए मानों का प्रकार बना रहता है। दूसरे प्रकार के लिए नया माप जोड़ें।",
+  "{0} must be between 0 and 100%.": "{0} का मान 0 से 100% के बीच होना चाहिए।",
+  "No unit": "कोई इकाई नहीं",
+  "{0} measurement check-in imported": "{0} माप रिकॉर्ड आयात हुआ",
+  "{0} measurement check-ins imported": "{0} माप रिकॉर्ड आयात हुए",
 }

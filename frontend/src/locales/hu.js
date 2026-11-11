@@ -2341,4 +2341,11 @@ export default {
   'Log {0}': '{0} rögzítése',
   'Nothing logged yet. Log it every morning to see the trend.': 'Még nincs rögzítve semmi. Rögzítsd minden reggel, hogy lásd a változást.',
   'That number looks too big. Check it and try again.': 'Ez a szám túl nagynak tűnik. Ellenőrizd, és próbáld újra.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Mértékegység",
+  "Logged values keep their type. Add a new measurement to use a different type.": "A rögzített értékek típusa megmarad. Más típushoz adj hozzá új mérést.",
+  "{0} must be between 0 and 100%.": "{0} értékének 0 és 100% között kell lennie.",
+  "No unit": "Nincs mértékegység",
+  "{0} measurement check-in imported": "{0} méretfelvétel importálva",
+  "{0} measurement check-ins imported": "{0} méretfelvétel importálva",
 }

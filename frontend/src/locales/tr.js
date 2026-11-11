@@ -2338,4 +2338,11 @@ export default {
   'Log {0}': '{0} kaydet',
   'Nothing logged yet. Log it every morning to see the trend.': 'Henüz kayıt yok. Eğilimi görmek için her sabah kaydet.',
   'That number looks too big. Check it and try again.': 'Bu sayı çok büyük görünüyor. Kontrol edip tekrar dene.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Ölçü birimi",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Kaydedilen değerler türlerini korur. Farklı bir tür için yeni bir ölçüm ekle.",
+  "{0} must be between 0 and 100%.": "{0}, %0 ile %100 arasında olmalı.",
+  "No unit": "Birimsiz",
+  "{0} measurement check-in imported": "{0} ölçüm kaydı içe aktarıldı",
+  "{0} measurement check-ins imported": "{0} ölçüm kaydı içe aktarıldı",
 }

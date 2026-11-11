@@ -2349,4 +2349,11 @@ export default {
   'Log {0}': 'บันทึก{0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'ยังไม่มีบันทึก บันทึกทุกเช้าเพื่อดูแนวโน้ม',
   'That number looks too big. Check it and try again.': 'ตัวเลขนี้ดูมากเกินไป ตรวจสอบแล้วลองอีกครั้ง',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "หน่วยวัด",
+  "Logged values keep their type. Add a new measurement to use a different type.": "ค่าที่บันทึกไว้จะคงประเภทเดิม หากต้องการประเภทอื่น ให้เพิ่มรายการวัดใหม่",
+  "{0} must be between 0 and 100%.": "{0} ต้องอยู่ระหว่าง 0 ถึง 100%",
+  "No unit": "ไม่มีหน่วย",
+  "{0} measurement check-in imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
+  "{0} measurement check-ins imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
 }
