@@ -20,6 +20,7 @@
 
 import { EXDB, EXIDX, canonicalExId, isCardio as isCardioEx } from './exercises.js'
 import { uid } from './format.js'
+import { addWeighIn, readingsOf, hashId } from './weigh-ins.js'
 import {
   MEASUREMENT_FIELDS, builtinCsvColumn, parseCustomCsvColumn, fromCsvUnit, sameMeasurementKind,
   emptyMeasurement, measurementEntryHasValues, normalizeMeasurementEntry, normalizeMeasurementsState,
@@ -707,7 +708,15 @@ export function parseWorkoutCSV(text, { unit = 'kg', customEx = [] } = {}) {
  */
 export function parseBodyweight(text, { unit = 'kg' } = {}) {
   const s = String(text)
-  const out = new Map()          // iso date -> { w, t }  (one weigh-in per day, the last)
+  // iso date -> [{ w, unit, t, at }]: every weigh-in with a time of day (#859); of the ones
+  // without a time, the day's last, as before. A second one at the same minute replaces the first.
+  const out = new Map()
+  const put = (d, b, hm) => {
+    const at = hm != null ? `${p2(Math.floor(hm / 3600000))}:${p2(Math.floor(hm % 3600000 / 60000))}` : null
+    const day = (out.get(d) || []).filter(x => (at ? x.at !== at : x.at))
+    day.push({ ...b, at })
+    out.set(d, day)
+  }
   let fileUnit = '', measurements = []
 
   if (s.includes('HKQuantityTypeIdentifierBodyMass')) {
@@ -727,7 +736,7 @@ export function parseBodyweight(text, { unit = 'kg' } = {}) {
       // no weigh-in either — the same gate the CSV branch below applies with `!w`.
       const w = parseFloat(val[1])
       if (!isFinite(w) || !w || !bodyOk(w, recUnit || unit)) continue
-      out.set(when.d, { w, unit: recUnit, t: new Date(dt[1]).getTime() || null })
+      put(when.d, { w, unit: recUnit, t: new Date(dt[1]).getTime() || null }, when.t)
     }
   } else {
     const rows = parseCSV(s)
@@ -744,12 +753,12 @@ export function parseBodyweight(text, { unit = 'kg' } = {}) {
       const when = parseWhen(String(rows[i][dCol] ?? ''))
       const w = num(rows[i][wCol])
       if (!when || !w || !bodyOk(w, fileUnit || unit)) continue
-      out.set(when.d, { w, t: new Date(when.d).getTime() + (when.t ?? 0) })
+      put(when.d, { w, t: new Date(when.d).getTime() + (when.t ?? 0) }, when.t)
     }
   }
 
   if (!out.size && !measurements.length) return { error: 'unrecognised' }
-  const units = new Set([...out.values()].map(b => b.unit || fileUnit).filter(Boolean))
+  const units = new Set([...out.values()].flat().map(b => b.unit || fileUnit).filter(Boolean))
   fileUnit = [...units].sort().join(' / ')
   const converted = [...units].some(sourceUnit => sourceUnit !== unit)
   const conv = b => {
@@ -763,7 +772,10 @@ export function parseBodyweight(text, { unit = 'kg' } = {}) {
   const all = [...new Set([...dates, ...measurements.map(m => m.d)])].sort()
   return {
     kind: 'bodyweight', source: 'Apple Health',
-    bodyweight: dates.map(d => ({ d, w: conv(out.get(d)), t: out.get(d).t || new Date(d).getTime() })),
+    // One entry per weigh-in, several on a day that has them, each with its time (`at`) when the
+    // file gave one; mergeImport files them by day.
+    bodyweight: dates.flatMap(d => out.get(d).slice().sort((x, y) => ((x.at || '') < (y.at || '') ? -1 : 1))
+      .map(b => ({ d, w: conv(b), t: b.t || new Date(d).getTime(), ...(b.at ? { at: b.at } : {}) }))),
     // Measurements from a body CSV ride along as they are; mergeImport files them.
     ...(measurements.length ? { measurements } : {}),
     fileUnit, converted, from: all[0], to: all[all.length - 1],
@@ -799,6 +811,19 @@ function bodyCsvMeasurements(rows) {
 
 /** A weigh-in a person could have: above zero and below MAX_BODY_KG in the given unit. */
 const bodyOk = (w, u) => w > 0 && w <= (u === 'lb' ? MAX_BODY_KG / LB_TO_KG : MAX_BODY_KG)
+
+/**
+ * Whether the profile already has an imported weigh-in: one at the same time on its day, or, for
+ * one without a time, any weigh-in on its day (the day keeps its own, as it always did).
+ */
+export function importHasWeighIn(S, b) {
+  const day = (S?.bodyweight || []).find(x => x && x.d === b?.d)
+  if (!day) return false
+  if (!b.at) return true
+  return readingsOf(day).some(r => r.id === importReadingId(b) || r.at === b.at)
+}
+// The same imported weigh-in gets the same id on every device that imports the file.
+const importReadingId = b => 'i' + hashId(`${b.d}|${b.at || ''}|${b.w}`)
 
 /**
  * Measurements read from a body CSV (bodyCsvMeasurements), into state the way weigh-ins go: a
@@ -856,10 +881,15 @@ export function parseImport(text, opts) {
  */
 export function mergeImport(S, parsed) {
   if (parsed.kind === 'bodyweight') {
-    const have = new Set(S.bodyweight.map(b => b.d))
-    const fresh = parsed.bodyweight.filter(b => !have.has(b.d))
-    S.bodyweight = [...S.bodyweight, ...fresh].sort((a, b) => (a.d < b.d ? -1 : 1))
-    const res = { added: fresh.length, skipped: parsed.bodyweight.length - fresh.length }
+    // Each weigh-in joins its day with its time (#859); one the day already has
+    // (importHasWeighIn) is skipped, so importing the same file twice adds nothing. One without
+    // a time on a day that has none yet goes in as that day's only weigh-in, as before.
+    let added = 0
+    for (const b of parsed.bodyweight) {
+      if (importHasWeighIn(S, b)) continue
+      if (addWeighIn(S, { d: b.d, at: b.at || null, w: b.w, t: b.t, id: importReadingId(b) })) added++
+    }
+    const res = { added, skipped: parsed.bodyweight.length - added }
     if (parsed.measurements?.length) res.measurements = mergeMeasurements(S, parsed.measurements)
     return res
   }

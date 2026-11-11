@@ -93,7 +93,8 @@ export function convertStateUnit(S, to) {
     return out
   }
   const out = { ...S, unit: to }
-  if (Array.isArray(S.bodyweight)) out.bodyweight = S.bodyweight.map(b => ({ ...b, w: bw(b.w) }))
+  // A day's readings (lib/weigh-ins.js) move with it; `w` stays their daily value.
+  if (Array.isArray(S.bodyweight)) out.bodyweight = S.bodyweight.map(b => ({ ...b, w: bw(b.w), ...(Array.isArray(b?.ins) ? { ins: b.ins.map(r => (r && r.w != null ? { ...r, w: bw(r.w) } : r)) } : {}) }))
   if (S.targetW != null) out.targetW = bw(S.targetW)
   if (S.exWeights) out.exWeights = Object.fromEntries(Object.entries(S.exWeights).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v, w: c(v.w) } : c(v)]))
   if (S.barWeights) out.barWeights = convBarWeights(S.barWeights, from, to)

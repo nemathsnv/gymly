@@ -139,3 +139,25 @@ describe('writtenIds', () => {
       .toEqual({ sessions: ['a'], weights: ['b'] })
   })
 })
+
+// #859: each weigh-in of a day is its own record, at its own time.
+describe('several weigh-ins a day', () => {
+  const S = {
+    unit: 'kg',
+    bodyweight: [
+      { d: '2026-09-17', w: 80, t: 3, ins: [{ id: '0', at: '07:10', w: 80, t: 1 }, { id: 'ab', at: '21:30', w: 81, t: 2 }] },
+      { d: '2026-09-18', w: 79, t: 1 },
+    ],
+  }
+  it('writes every weigh-in at its time, the old day keeping its id', () => {
+    const w = healthRecords(S, { nameOf }).weights
+    expect(w.map(r => r.id)).toEqual(['opengym-bw-2026-09-17', 'opengym-bw-2026-09-17-ab', 'opengym-bw-2026-09-18'])
+    expect([new Date(w[1].time).getHours(), new Date(w[1].time).getMinutes()]).toEqual([21, 30])
+    expect(w[1].kg).toBe(81)
+  })
+  it('takes out the record of a weigh-in removed from its day', () => {
+    const before = planSync(healthRecords(S, { nameOf }), {}).written
+    const after = { ...S, bodyweight: [{ ...S.bodyweight[0], ins: [S.bodyweight[0].ins[0]], gone: { ab: 4 } }, S.bodyweight[1]] }
+    expect(planSync(healthRecords(after, { nameOf }), before).remove.weights).toEqual(['opengym-bw-2026-09-17-ab'])
+  })
+})

@@ -89424,10 +89424,10 @@ function applyBackoff(rows, step) {
 // frontend/src/lib/dumbbells.js
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
-const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const tidy = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
-	const m = isMap$1(value) ? value.mode : value;
+	const m = isMap$2(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
 }
 function dbLoadFor(S, cfgOrId) {
@@ -89450,14 +89450,14 @@ function meaningFactor(from, to, cfg) {
 	return from === "each" ? n : 1 / n;
 }
 const scaleRow = (row, f) => {
-	if (!isMap$1(row)) return row;
+	if (!isMap$2(row)) return row;
 	const out = { ...row };
 	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy(Number(row.w) * f);
-	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$1(d) ? {
+	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$2(d) ? {
 		...d,
 		w: tidy((Number(d.w) || 0) * f)
 	} : d);
-	if (isMap$1(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
+	if (isMap$2(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
 };
 function entryAs(entry, to) {
@@ -90351,7 +90351,7 @@ function rankOf(load) {
 }
 
 // frontend/src/lib/exercise-merge.js
-const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const list = (v) => Array.isArray(v) ? v : [];
 const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
 const MOVE_MAPS = [
@@ -90371,7 +90371,7 @@ const RESTORE = [
 ];
 const mergedInto = (S, id) => mergedTarget(S?.exMerged, id);
 function mergedAway(S) {
-	const m = isMap(S?.exMerged) ? S.exMerged : null;
+	const m = isMap$1(S?.exMerged) ? S.exMerged : null;
 	if (!m) return null;
 	const out = /* @__PURE__ */ new Set();
 	for (const [k, v] of Object.entries(m)) if (v && v.into) out.add(k);
@@ -91505,16 +91505,16 @@ const UNCOMMON = {
 const DEFAULT_PAIRS = 6;
 const SINGLE_EQ = /* @__PURE__ */ new Set(["weighted", "sled machine"]);
 const exOf = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
-const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0;
+const num$1 = (v) => typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0;
 const unitOf = (S) => S?.unit === "lb" ? "lb" : "kg";
-const sizesOf = (entry) => entry && typeof entry === "object" && !Array.isArray(entry) ? Object.entries(entry).filter(([k]) => num(k) > 0) : [];
+const sizesOf = (entry) => entry && typeof entry === "object" && !Array.isArray(entry) ? Object.entries(entry).filter(([k]) => num$1(k) > 0) : [];
 const ownsPlates = (S) => sizesOf(S?.plates?.[unitOf(S)]).length > 0;
 function inventoryFor(S) {
 	const unit = unitOf(S);
 	const own = sizesOf(S?.plates?.[unit]);
 	const out = [];
 	if (own.length) for (const [k, v] of own) {
-		const w = num(k), n = Math.floor(num(v));
+		const w = num$1(k), n = Math.floor(num$1(v));
 		if (w > 0 && n > 0) out.push({
 			w,
 			n
@@ -91533,7 +91533,7 @@ function loadKindOf(value) {
 const Q = 4;
 const q = (w) => Math.round(w * Q);
 function plateStack(weight, inv) {
-	const requested = Math.max(0, num(weight));
+	const requested = Math.max(0, num$1(weight));
 	const target = Math.floor(requested * Q);
 	if (target === 0) return {
 		plates: [],
@@ -91606,9 +91606,9 @@ function baseWeightFor(S, exOrId) {
 }
 function rowLoad(kind, weight, base, inv) {
 	if (kind !== "pairs" && kind !== "single") return null;
-	const w = num(weight);
+	const w = num$1(weight);
 	if (!(w > 0)) return null;
-	const b = Math.max(0, num(base));
+	const b = Math.max(0, num$1(base));
 	if (w <= b) return {
 		kind,
 		barOnly: true,
@@ -91697,6 +91697,60 @@ function buildSessionEntries(st, r) {
 			...noProg ? { noProg: true } : {}
 		};
 	});
+}
+
+// frontend/src/lib/weigh-ins.js
+const DAILY_MODES = [
+	"first",
+	"avg",
+	"last"
+];
+const LEGACY_ID = "0";
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const num = (v) => Number(v) || 0;
+const p2 = (n) => String(n).padStart(2, "0");
+const dailyModeOf = (S) => DAILY_MODES.includes(S?.bwDaily) ? S.bwDaily : "first";
+const dayOf = (ms) => {
+	const x = new Date(ms);
+	return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`;
+};
+const timeOf = (ms) => {
+	const x = new Date(ms);
+	return `${p2(x.getHours())}:${p2(x.getMinutes())}`;
+};
+function cleanTime(v) {
+	const m = /^(\d{1,2}):(\d{2})/.exec(String(v ?? "").trim());
+	if (!m || +m[1] > 23 || +m[2] > 59) return null;
+	return `${p2(+m[1])}:${m[2]}`;
+}
+const byTime = (a, b) => {
+	const x = a.at || "", y = b.at || "";
+	return x < y ? -1 : x > y ? 1 : num(a.t) - num(b.t);
+};
+function cleanReading(r) {
+	if (!isMap(r) || r.id == null || !(Number(r.w) > 0)) return null;
+	const out = {
+		...r,
+		id: String(r.id),
+		at: cleanTime(r.at),
+		w: Number(r.w)
+	};
+	if (out.t != null) out.t = num(out.t);
+	return out;
+}
+function readingsOf(e) {
+	if (!isMap(e)) return [];
+	if (Array.isArray(e.ins)) return e.ins.map(cleanReading).filter(Boolean).sort(byTime);
+	if (!(Number(e.w) > 0)) return [];
+	const t = num(e.t);
+	const r = {
+		id: LEGACY_ID,
+		at: t > 0 && dayOf(t) === e.d ? timeOf(t) : null,
+		w: Number(e.w),
+		t
+	};
+	if (e.src) r.src = e.src;
+	return [r];
 }
 
 // mcp/src/tools.js
@@ -92047,7 +92101,7 @@ const getWorkout = {
 };
 const getBodyweight = {
 	name: "get_bodyweight",
-	description: "Get the body-weight log: chronological weigh-ins with weights, current goal, deltas vs goal (signed positive = above goal), and a latest summary. Useful for \"am I trending toward my weight goal?\" questions.",
+	description: "Get the body-weight log: one entry per day, chronological, with the day's weight, current goal, deltas vs goal (signed positive = above goal), and a latest summary. A day can hold several weigh-ins: each entry lists them under `readings` with their local time (HH:MM, null when unknown), and the day's `weight` is the one the profile's daily-value setting picks (`daily_value`: first = morning, avg = average of the day, last). Useful for \"am I trending toward my weight goal?\" questions.",
 	schema: {
 		from: isoDate().optional().describe("Inclusive start date YYYY-MM-DD."),
 		to: isoDate().optional().describe("Inclusive end date YYYY-MM-DD. Defaults to today.")
@@ -92066,6 +92120,7 @@ const getBodyweight = {
 		return {
 			unit: S.unit || "kg",
 			goal,
+			daily_value: dailyModeOf(S),
 			count: bw.length,
 			latest: latest ? {
 				date: latest.d,
@@ -92075,7 +92130,12 @@ const getBodyweight = {
 			entries: bw.map((b) => ({
 				date: b.d,
 				weight: b.w,
-				delta_vs_goal: goal != null ? Math.round((b.w - goal) * 10) / 10 : null
+				delta_vs_goal: goal != null ? Math.round((b.w - goal) * 10) / 10 : null,
+				readings: readingsOf(b).map((r) => ({
+					time: r.at || null,
+					weight: r.w,
+					...r.src ? { source: r.src } : {}
+				}))
 			}))
 		};
 	}
