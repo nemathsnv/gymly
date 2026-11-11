@@ -2331,4 +2331,13 @@ export default {
   'Log {0}': '記錄{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '還沒有任何紀錄。每天早上記錄一次，就能看到趨勢。',
   'That number looks too big. Check it and try again.': '這個數字看起來太大了。請檢查後再試一次。',
+  'Merge into…': '合併到…',
+  'Merge into “{0}”?': '合併到「{0}」？',
+  '{0} move to “{1}”, with every set, note and record.': '{0}將移到「{1}」，每組、備註和紀錄都會一起過去。',
+  'Nothing is logged or planned with it yet.': '還沒有用它記錄或計畫過任何內容。',
+  'Then “{0}” is deleted.': '然後「{0}」會被刪除。',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': '然後「{0}」會從清單中隱藏，搜尋它會找到「{1}」。',
+  'Merge': '合併',
+  'Merged into “{0}”': '已合併到「{0}」',
+  'Pick a different exercise.': '請選一個不同的動作。',
 }

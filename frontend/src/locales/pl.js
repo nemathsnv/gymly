@@ -2338,4 +2338,13 @@ export default {
   'Log {0}': 'Zapisz: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Nic jeszcze nie zapisano. Zapisuj to każdego ranka, żeby zobaczyć trend.',
   'That number looks too big. Check it and try again.': 'Ta liczba wygląda na zbyt dużą. Sprawdź ją i spróbuj ponownie.',
+  'Merge into…': 'Scal z…',
+  'Merge into “{0}”?': 'Scalić z „{0}”?',
+  '{0} move to “{1}”, with every set, note and record.': '{0} przechodzą do „{1}”, z każdą serią, notatką i rekordem.',
+  'Nothing is logged or planned with it yet.': 'Nic jeszcze nie jest z nim zapisane ani zaplanowane.',
+  'Then “{0}” is deleted.': 'Potem „{0}” zostanie usunięte.',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': 'Potem „{0}” zniknie z twoich list, a wyszukanie go znajdzie „{1}”.',
+  'Merge': 'Scal',
+  'Merged into “{0}”': 'Scalono z „{0}”',
+  'Pick a different exercise.': 'Wybierz inne ćwiczenie.',
 }

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Merge two exercises into one** (ported from openGym #656). Imported "Bench Press (Barbell)"
+  from FitNotes and now have two bench presses? An exercise's details have **Merge into…**: pick
+  the one it should be, see what moves ("38 workouts, 3 routines move"), confirm. Every logged set
+  (a stepmill's machine level with it), note and record goes over, and so do routine slots (with
+  their warm-ups and superset), the kept working weight, the standing note, the favourite star and
+  its bar, plate, dumbbell and weight-step settings. Your own exercise is then deleted; a catalogue
+  one is hidden from your lists, and searching for its name finds the one you merged it into. Undo
+  on the toast puts everything back. Another device that still logged against the old one is
+  brought in line when it syncs, and the MCP bridge (local, remote and hosted) reads it the same way.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

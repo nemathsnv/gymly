@@ -2338,4 +2338,13 @@ export default {
   'Log {0}': '{0} दर्ज करें',
   'Nothing logged yet. Log it every morning to see the trend.': 'अभी तक कुछ दर्ज नहीं है। रुझान देखने के लिए इसे हर सुबह दर्ज करें।',
   'That number looks too big. Check it and try again.': 'यह संख्या बहुत बड़ी लगती है। जाँचें और फिर से कोशिश करें।',
+  'Merge into…': 'इसमें मिलाएँ…',
+  'Merge into “{0}”?': '“{0}” में मिलाएँ?',
+  '{0} move to “{1}”, with every set, note and record.': '{0} “{1}” में चले जाएँगे, हर सेट, नोट और रिकॉर्ड के साथ।',
+  'Nothing is logged or planned with it yet.': 'इसके साथ अभी कुछ लॉग या प्लान नहीं है।',
+  'Then “{0}” is deleted.': 'फिर “{0}” मिटा दिया जाएगा।',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': 'फिर “{0}” आपकी सूचियों से छिप जाएगा, और इसे खोजने पर “{1}” मिलेगा।',
+  'Merge': 'मिलाएँ',
+  'Merged into “{0}”': '“{0}” में मिला दिया',
+  'Pick a different exercise.': 'कोई दूसरी एक्सरसाइज़ चुनें।',
 }

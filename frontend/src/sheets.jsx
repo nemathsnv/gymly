@@ -35,6 +35,7 @@ import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines } fr
 import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML } from './lib/plan-share.js'
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP, formulaOf, FORMULA_NAMES } from './lib/onerm.js'
 import { exerciseHistory } from './lib/exercise-history.js'
+import { mergeExercise, undoMerge, mergePreview, mergeBlocked } from './lib/exercise-merge.js'
 import { isBellEx, dbLoadOf, dbLoadFor, withDbLoad, withMeaning, historyAs, entryDbLoad, currentDbLoad, isOneArm, ownedWeightsFor, dumbbellsOf, ownsDumbbells, withDumbbells, presetWeights, cleanWeights } from './lib/dumbbells.js'
 import { weightStepper, ownStepFor, pulleyFor, withExEquip, takesPulley, fmtStep, PULLEYS, STEP_PRESETS } from './lib/weight-step.js'
 import { policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS, MAX_TRIPLE_SETS, weightIncrement } from './lib/progression.js'
@@ -1047,6 +1048,9 @@ function ExerciseDetail({ ex, close }) {
   const last = lastEntryFor(st, ex.id)
   const best = bestWeightFor(st, ex.id, currentDbLoad(st, ex.id))
   const fav = isFav(st, ex.id)
+  // Merge into… (#656) is offered for your own exercise, or a catalogue one with something logged
+  // or planned to move.
+  const canMerge = !ex.missing && (isCustomEx(ex) || (() => { const p = mergePreview(st, ex.id, null); return p.workouts + p.routines > 0 })())
   const flipFav = () => {
     let on = false
     update(s => { on = toggleFav(s, ex.id) })
@@ -1072,6 +1076,10 @@ function ExerciseDetail({ ex, close }) {
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
     </div>}
+    {/* Merge into… (#656, lib/exercise-merge.js): this exercise's history and plans onto another,
+        for an import that made "Bench Press (Barbell)" next to the catalogue's bench press. It
+        deletes or hides this exercise afterwards, so it sits with Delete, right under it. It asks. */}
+    {canMerge && <Button icon="merge" style={{ marginTop: 8 }} onClick={() => mergeExerciseFlow(ex, close)}>{t('Merge into…')}</Button>}
     {modeOf({ id: ex.id }) === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} extra={t('You still log the total weight. This only feeds the plate line under each set.')} />
@@ -1334,6 +1342,40 @@ export function deleteCustomEx(ex, afterDelete) {
       afterDelete && afterDelete()
     }
   })
+}
+
+// Merge into… (#656): pick the exercise this one's history goes to (the picker opens on what
+// trains the same muscle), see what moves, confirm; the toast's Undo puts it all back
+// (lib/exercise-merge.js).
+export function mergeExerciseFlow(ex, afterMerge) {
+  if (S().active?.entries.some(e => e.id === ex.id)) { toast(t('Finish your current workout first')); return }
+  const name = exerciseNameText(ex)
+  const picker = exercisePicker(target => {
+    picker.close()
+    const live = S()
+    const why = mergeBlocked(live, ex.id, target.id)
+    if (why) { toast(t(why)); return }
+    const p = mergePreview(live, ex.id, target.id)
+    const into = exerciseNameText(target)
+    const moves = [
+      p.workouts && tn('{0} workout', '{0} workouts', p.workouts),
+      p.routines && tn('{0} routine', '{0} routines', p.routines),
+    ].filter(Boolean)
+    confirmSheet({
+      title: t('Merge into “{0}”?', into),
+      message: [
+        moves.length ? t('{0} move to “{1}”, with every set, note and record.', moves.join(', '), into) : t('Nothing is logged or planned with it yet.'),
+        p.custom ? t('Then “{0}” is deleted.', name) : t('Then “{0}” is hidden from your lists, and searching for it finds “{1}”.', name, into),
+      ].join(' '),
+      confirmText: t('Merge'),
+      onConfirm: () => {
+        let undo = null
+        try { update(s => { undo = mergeExercise(s, ex.id, target.id).undo }) } catch (e) { toast(t(e.message)); return }
+        afterMerge && afterMerge()
+        ui().toast(t('Merged into “{0}”', into), { action: t('Undo'), onAction: () => { if (undo) update(s => undoMerge(s, undo)) } })
+      },
+    })
+  }, { title: t('Merge into…'), like: ex.id })
 }
 
 /* ============================ exercise picker ============================ */

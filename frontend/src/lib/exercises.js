@@ -114,8 +114,61 @@ export function healCustomEx(list) {
   })
   return changed ? out : list
 }
-// Full searchable catalogue — customs first so your own exercises are easy to find.
-export const allExercises = st => [...(st.customEx || []), ...CATALOGUE]
+// Where exercise `id` went in a profile's merges (#656, lib/exercise-merge.js: S.exMerged,
+// `{ [fromId]: { into, n?, _ts } }`), following a merge of a merge; `id` itself when it was never
+// merged away (or the merge was undone, `into: null`).
+export function mergedTarget(exMerged, id) {
+  const m = exMerged && typeof exMerged === 'object' && !Array.isArray(exMerged) ? exMerged : {}
+  let cur = id
+  for (let i = 0; i < 16; i++) {
+    const into = m[cur]?.into
+    if (!into || into === id) return cur
+    cur = into
+  }
+  return cur
+}
+
+// The names an exercise also answers to in a search: every exercise merged into it (#656). A
+// catalogue exercise cannot be removed, so a merge hides it from the lists (allExercises), and
+// searching for its name has to land on the exercise it went into. Kept here, beside the search
+// cache it feeds, as `targetId -> [{ id, n? }]`: `n` is a custom source's own name (it is
+// deleted by the merge), a catalogue source is named by the catalogue in the language shown.
+// `akaRev` moves whenever the set changes, which retires every cached corpus (corpusOf).
+let AKA = new Map()
+let akaSig = ''
+let akaRev = 0
+function registerMerged(exMerged) {
+  const m = exMerged && typeof exMerged === 'object' && !Array.isArray(exMerged) ? exMerged : null
+  const away = m ? Object.keys(m).filter(k => m[k] && m[k].into).sort() : []
+  const sig = away.map(k => `${k}>${m[k].into}>${m[k].n || ''}`).join('|')
+  if (sig === akaSig) return away
+  akaSig = sig
+  akaRev++
+  AKA = new Map()
+  for (const from of away) {
+    const to = mergedTarget(m, from)
+    if (!to || to === from) continue
+    if (!AKA.has(to)) AKA.set(to, [])
+    AKA.get(to).push({ id: from, n: typeof m[from].n === 'string' ? m[from].n : null })
+  }
+  return away
+}
+const akaText = e => {
+  const aka = e?.id != null && AKA.get(e.id)
+  if (!aka) return ''
+  return aka.map(a => a.n || (EXIDX[a.id] && !customIds.has(a.id) ? exerciseNameSearchText(EXIDX[a.id]) : '')).join(' ')
+}
+
+// Every exercise you can pick, for the lists and the searches: yours first so they are easy to
+// find, then the catalogue's, less any merged into another (#656): a catalogue exercise cannot be
+// removed, so a merge hides it instead, and its name now finds the one it went into (AKA above).
+export const allExercises = st => {
+  const all = [...(st?.customEx || []), ...CATALOGUE]
+  const away = registerMerged(st?.exMerged)
+  if (!away.length) return all
+  const gone = new Set(away)
+  return all.filter(e => !gone.has(e.id))
+}
 
 function searchableText(value) {
   if (Array.isArray(value)) return value.map(searchableText).join(' ')
@@ -307,9 +360,11 @@ const VOCAB = new Set()
 function corpusOf(e) {
   const v = getVersion()
   const hit = corpusCache.get(e)
-  if (hit && hit.v === v) return hit
+  if (hit && hit.v === v && hit.a === akaRev) return hit
   const sm = Array.isArray(e?.sm) ? e.sm : []
-  const name = normalizeStr(exerciseNameSearchText(e))
+  // The names of what was merged into it count as its own (#656, AKA above).
+  const aka = akaText(e)
+  const name = normalizeStr(exerciseNameSearchText(e) + (aka ? ' ' + aka : ''))
   const s = normalizeStr([
     name,
     e?.tg || '', t(e?.tg || ''),
@@ -323,7 +378,7 @@ function corpusOf(e) {
   // a body part and an equipment word would start matching as one.
   // The joined form only counts from the start of a name word, or "thigh" would find "sumo
   // deadlift high pull" through "deadlifthighpull".
-  const entry = { v, s, name, ...joinedOf(name), nameWords: name.split(/[\s\-‐-―()/,]+/).filter(Boolean) }
+  const entry = { v, a: akaRev, s, name, ...joinedOf(name), nameWords: name.split(/[\s\-‐-―()/,]+/).filter(Boolean) }
   for (const w of entry.nameWords) VOCAB.add(w)
   corpusCache.set(e, entry)
   return entry

@@ -2335,4 +2335,13 @@ export default {
   'Log {0}': 'Записати: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Ще нічого не записано. Записуйте щоранку, щоб бачити динаміку.',
   'That number looks too big. Check it and try again.': 'Це число виглядає завеликим. Перевірте його та спробуйте ще раз.',
+  'Merge into…': 'Об’єднати з…',
+  'Merge into “{0}”?': 'Об’єднати з «{0}»?',
+  '{0} move to “{1}”, with every set, note and record.': '{0} переходять до «{1}» з усіма підходами, нотатками й рекордами.',
+  'Nothing is logged or planned with it yet.': 'З ним поки нічого не записано й не заплановано.',
+  'Then “{0}” is deleted.': 'Потім «{0}» буде видалено.',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': 'Потім «{0}» зникне з ваших списків, а пошук за ним знайде «{1}».',
+  'Merge': 'Об’єднати',
+  'Merged into “{0}”': 'Об’єднано з «{0}»',
+  'Pick a different exercise.': 'Виберіть іншу вправу.',
 }

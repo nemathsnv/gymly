@@ -2338,4 +2338,13 @@ export default {
   'Log {0}': '记录{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '还没有任何记录。每天早上记录一次，就能看到趋势。',
   'That number looks too big. Check it and try again.': '这个数字看起来太大了。请检查后再试一次。',
+  'Merge into…': '合并到…',
+  'Merge into “{0}”?': '合并到“{0}”？',
+  '{0} move to “{1}”, with every set, note and record.': '{0}将移到“{1}”，每组、备注和纪录都会一起过去。',
+  'Nothing is logged or planned with it yet.': '还没有用它记录或计划过任何内容。',
+  'Then “{0}” is deleted.': '然后“{0}”会被删除。',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': '然后“{0}”会从列表中隐藏，搜索它会找到“{1}”。',
+  'Merge': '合并',
+  'Merged into “{0}”': '已合并到“{0}”',
+  'Pick a different exercise.': '请选一个不同的动作。',
 }
