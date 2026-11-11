@@ -2312,3 +2312,4 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .about-hint{display:flex;align-items:center;gap:5px;margin-top:6px}
 .about-hint .icn{flex:none}
 .stp.unset .num{color:var(--label-3)}
+.stp .val .stp-word{font-weight:600;min-width:2.5em;text-align:center;display:inline-block}
