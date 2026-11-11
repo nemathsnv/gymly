@@ -8,9 +8,10 @@
  * Rotating the client secret makes stored tokens unreadable. The connection then reads as gone
  * and the person connects again, which is the right outcome for a rotated secret anyway.
  *
- * No Oura health data is ever written here or anywhere else on disk (client.js keeps it in
- * memory only). What is stored is the minimum a connection needs: tokens, when it was made,
- * which scopes Oura reported as granted, and when it last synced.
+ * No Oura health data is ever written here or anywhere else on disk (sync.js keeps a
+ * summary in memory only). What is stored is the minimum a connection needs: tokens, when it was made,
+ * which scopes Oura reported as granted, when it last synced, the last sync error's code, and the
+ * device's time zone name.
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -73,7 +74,7 @@ export function createOuraStore({ dir, key = null }) {
     /** Facts only, without decrypting: what the status route shows. */
     meta(uid) {
       const raw = readRaw(uid);
-      return raw && raw.tok ? { connectedAt: raw.connectedAt || null, scopes: raw.scopes || null, lastSync: raw.lastSync || null } : null;
+      return raw && raw.tok ? { connectedAt: raw.connectedAt || null, scopes: raw.scopes || null, lastSync: raw.lastSync || null, lastError: raw.lastError || null } : null;
     },
     put(uid, { tokens, connectedAt, scopes, lastSync }) {
       if (!key) throw new Error('oura store: not configured');

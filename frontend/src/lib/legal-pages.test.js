@@ -151,10 +151,11 @@ describe('Oura API Agreement statements', () => {
     expect(privacy).toMatch(/within 72 hours/)
   })
 
-  it('privacy: Oura data is not stored — memory only, minutes, never in sync, exports or backups (§3(m), §4(c))', () => {
-    expect(privacy).toMatch(/kept in the server.s memory for up to 10 minutes/)
+  it('privacy: Oura data is never saved — memory only, bounded, dropped when unused, never in sync, exports, webhooks or backups (§3(m), §4(c))', () => {
+    expect(privacy).toMatch(/kept in the server.s memory only: for the last 90 days at most/)
+    expect(privacy).toMatch(/If you do not open the screen for 14 days, they are discarded and automatic syncing stops/)
     expect(privacy).toMatch(/never written to Gymly.s database or files/)
-    expect(privacy).toMatch(/not part of your synced data, exports or backups/)
+    expect(privacy).toMatch(/not part of your synced data, exports, webhooks or backups/)
     // and every Oura scope the server asks for by default is named (api/oura/oauth.js DEFAULT_SCOPES)
     for (const kind of ['sleep', 'readiness', 'activity', 'stress', 'SpO2', 'heart health', 'heart rate', 'workouts']) expect(privacy).toContain(kind)
     expect(privacy).toMatch(/does not ask for your Oura email address or personal information/)

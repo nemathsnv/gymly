@@ -3780,10 +3780,13 @@ paths:
         Per day: readiness, sleep (score, duration, efficiency, HRV, heart rate), activity,
         stress, SpO2, cardiovascular age, VO2 max and the day's heart-rate range (last 7 days);
         plus Oura's workouts. `available` says per data type whether it was read, not shared
-        (`not-shared`, a scope switched off on Oura's screen) or failed. Held in memory for
-        10 minutes.
+        (`not-shared`, a scope switched off on Oura's screen) or failed. Answered from what the
+        server holds in memory (at most 90 days, kept current by automatic sync while the
+        overview is in use); the first look backfills, a look after an hour syncs first.
+        `lastSync`, `lastError`, `retryAt` say how current it is.
       parameters:
-        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 14 } }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 90, default: 14 } }
+        - { name: tz, in: query, schema: { type: string }, description: IANA time zone of the device }
       responses:
         '200': { description: The overview. }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -3796,16 +3799,37 @@ paths:
     post:
       tags: [integrations]
       operationId: postOuraSync
-      summary: Fetch the overview from Oura now
-      description: Same answer as the overview, read fresh. A second call within 30 seconds gets the first one's result.
+      summary: Sync from Oura now
+      description: An incremental sync (the last few days, plus anything new), then the overview's answer. A second call within 30 seconds gets the first one's result (`cached: true`).
       parameters:
-        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 14 } }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 90, default: 14 } }
+        - { name: tz, in: query, schema: { type: string }, description: IANA time zone of the device }
       responses:
         '200': { description: The overview. }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { description: The connection is gone (`code` `reauth`). }
         '429': { description: Oura is rate limiting (`code` `rate`). }
         '502': { description: Oura could not be reached or answered an error. }
+        '503': { description: Oura is not set up on this server (`code` `off`). }
+
+  /api/integrations/oura/diagnostics:
+    get:
+      tags: [integrations]
+      operationId: getOuraDiagnostics
+      summary: Check the connection per data type, without any values
+      description: |
+        Runs a sync, then answers per data type only whether Oura shared it (`status`: `ok`,
+        `not-shared`, `rate-limited`, `error`) and whether any records are held in the window
+        (`records`: boolean) — never a measurement. With `refresh=1` it also spends a refresh
+        token to prove refresh works (`refresh`: `ok`, or the error code); the new pair is
+        stored as usual. Made for checking the integration without reading health data.
+      parameters:
+        - { name: refresh, in: query, schema: { type: string, enum: ['1'] } }
+        - { name: tz, in: query, schema: { type: string }, description: IANA time zone of the device }
+      responses:
+        '200': { description: Per-type availability, token lifetime in minutes, last sync time. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Not connected (`code` `reauth`). }
         '503': { description: Oura is not set up on this server (`code` `off`). }
 
   /api/integrations/oura/disconnect:

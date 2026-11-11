@@ -7,8 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { exchangeCode } from '../oura/oauth.js';
 import { createOuraStore, deriveKey } from '../oura/store.js';
-import { createOuraClient, offsetOf } from '../oura/client.js';
-import { summarize, heartRateByDay } from '../oura/summarize.js';
+import { createOuraClient } from '../oura/client.js';
+import { summarize, heartRateByDay, localDay } from '../oura/summarize.js';
 import { fakeOura, fixtures, CFG, day } from './oura-fake.mjs';
 
 async function setup(t, opts = {}) {
@@ -19,7 +19,7 @@ async function setup(t, opts = {}) {
   const tokens = await exchangeCode(CFG, { code: oura.issueCode('v'), verifier: 'v' }, oura.fetch);
   store.put('u1', { tokens, connectedAt: 1, scopes: tokens.scope });
   let clock = Date.now();
-  const client = createOuraClient({ cfg: CFG, store, fetchImpl: oura.fetch, now: () => clock });
+  const client = createOuraClient({ cfg: CFG, store, fetchImpl: (...a) => oura.fetch(...a), now: () => clock, sleep: async () => {} });
   return { oura, store, client, tokens, advance: ms => { clock += ms; } };
 }
 
@@ -82,20 +82,20 @@ test('a scope that was not shared answers "forbidden" for that type only', async
   assert.equal((await client.collection('u1', 'daily_readiness', {})).length, 2);
 });
 
-test('fetchWindow reads each type over the window, heart rate over the last 7 days at most', async t => {
+test('a passing failure (dropped connection, 503) is retried once; a second failure is reported', async t => {
   const { oura, client } = await setup(t);
-  const raw = await client.fetchWindow('u1', 30);
-  assert.deepEqual(Object.keys(raw).sort(), ['daily_activity', 'daily_cardiovascular_age', 'daily_readiness', 'daily_sleep', 'daily_spo2', 'daily_stress', 'heartrate', 'sleep', 'vO2_max', 'workout'].sort());
-  const hr = oura.calls.find(c => c.url.includes('/heartrate'));
-  const from = Date.parse(new URL(hr.url).searchParams.get('start_datetime'));
-  assert.ok(Date.now() - from <= 7 * 86400000 + 5000);
-  const daily = new URL(oura.calls.find(c => c.url.includes('/daily_readiness')).url).searchParams;
-  assert.equal(daily.get('start_date'), day(-29));
-  assert.equal(daily.get('end_date'), day(1));
+  const real = oura.fetch;
+  let hiccups = 1;
+  oura.fetch = async (url, init) => (String(url).includes('/v2/') && hiccups-- > 0 ? new Response('{}', { status: 503 }) : real(url, init));
+  assert.equal((await client.collection('u1', 'daily_readiness', {})).length, 2);
+  hiccups = 2;
+  assert.deepEqual(await client.collection('u1', 'daily_readiness', {}), { error: 'http', status: 503 });
+  oura.fetch = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(client.collection('u1', 'daily_readiness', {}), e => e.code === 'network');
 });
 
 test('summary: one row per day, main sleep over the nap, only the fields on screen', () => {
-  const s = summarize(fixtures(), { tzOffsetMin: 60 });
+  const s = summarize(fixtures(), { tz: 'Europe/Berlin' });
   const today = s.days[0];
   assert.equal(today.day, day(0));
   assert.deepEqual(today.readiness, { score: 82, temperatureDeviation: -0.1, hrvBalance: 77, restingHeartRate: 90 });
@@ -127,11 +127,15 @@ test('summary: a type that was not shared or failed is marked, and a doubled wor
   assert.equal(s.days[0].spo2, undefined);
 });
 
-test('heart rate per local day, and the offset read off a localized timestamp', () => {
-  assert.equal(offsetOf('2026-11-10T07:00:00+01:00'), 60);
-  assert.equal(offsetOf('2026-11-10T07:00:00-05:30'), -330);
-  assert.equal(offsetOf('nonsense'), 0);
-  // 23:30 UTC is already the next day at UTC+1
-  const byDay = heartRateByDay([{ bpm: 60, timestamp: '2026-11-10T23:30:00+00:00' }], 60);
-  assert.deepEqual(Object.keys(byDay), ['2026-11-11']);
+test('heart rate falls on the person\'s own days, daylight saving included', () => {
+  // 23:30 UTC is already the next day in Berlin (UTC+1 in winter)…
+  assert.deepEqual([...heartRateByDay([{ bpm: 60, timestamp: '2026-11-10T23:30:00+00:00' }], 'Europe/Berlin').keys()], ['2026-11-11']);
+  // …and 22:30 UTC is the next day in summer (UTC+2), not in winter.
+  assert.deepEqual([...heartRateByDay([{ bpm: 60, timestamp: '2026-07-10T22:30:00+00:00' }], 'Europe/Berlin').keys()], ['2026-07-11']);
+  assert.deepEqual([...heartRateByDay([{ bpm: 60, timestamp: '2026-11-10T22:30:00+00:00' }], 'Europe/Berlin').keys()], ['2026-11-10']);
+  // New York, the other way
+  assert.equal(localDay(Date.parse('2026-11-11T03:00:00Z'), 'America/New_York'), '2026-11-10');
+  // a zone this runtime does not know is UTC, never a crash; zero or junk readings are skipped
+  assert.equal(localDay(Date.parse('2026-11-11T03:00:00Z'), 'Mars/Olympus'), '2026-11-11');
+  assert.equal(heartRateByDay([{ bpm: 0, timestamp: '2026-11-10T10:00:00Z' }, { bpm: 'x', timestamp: 'y' }]).size, 0);
 });

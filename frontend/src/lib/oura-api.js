@@ -2,15 +2,20 @@
 // the tokens; the app only ever sees the consent URL, connection facts and the overview. Nothing
 // returned here is written into the store: the overview stays in the screen's own memory.
 import { api } from './api.js'
+import { localTZ } from './format.js'
 
 const BASE = '/api/integrations/oura'
-// An overview is about eleven requests to Oura made one after another by the server.
+// A first look backfills 90 days: about eleven requests to Oura, one after another.
 const SLOW_MS = 90000
 
 export const ouraStatus = () => api(BASE + '/status')
 export const ouraConnectUrl = () => api(BASE + '/connect', { method: 'POST', body: '{}' }).then(r => r.url)
-export const ouraOverview = (days = 14) => api(`${BASE}/overview?days=${days}`, { timeout: SLOW_MS })
-export const ouraSync = (days = 14) => api(`${BASE}/sync?days=${days}`, { method: 'POST', body: '{}', timeout: SLOW_MS })
+// The device's zone goes along, so Oura's heart-rate samples fall on the person's own days.
+const tz = () => encodeURIComponent(localTZ())
+export const ouraOverview = (days = 14) => api(`${BASE}/overview?days=${days}&tz=${tz()}`, { timeout: SLOW_MS })
+export const ouraSync = (days = 14) => api(`${BASE}/sync?days=${days}&tz=${tz()}`, { method: 'POST', body: '{}', timeout: SLOW_MS })
+// Per data type: shared or not, records or not — never a value (api/oura/routes.js).
+export const ouraDiagnostics = (refresh = false) => api(`${BASE}/diagnostics?tz=${tz()}${refresh ? '&refresh=1' : ''}`, { timeout: SLOW_MS })
 export const ouraDisconnect = () => api(BASE + '/disconnect', { method: 'POST', body: '{}' })
 
 /** What the callback's ?oura= result means, for a toast. Null for nothing to say. */

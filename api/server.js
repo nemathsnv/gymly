@@ -133,11 +133,14 @@ const integrations = createIntegrations({ dataDir: DATA, secret: SECRET, version
 
 /* ---------- Oura (api/oura) ---------- */
 // Off unless OURA_CLIENT_ID and OURA_CLIENT_SECRET are set. Tokens are kept encrypted under
-// DATA/oura/; Oura health data is never written to disk (oura/routes.js says why).
+// DATA/oura/; Oura health data is never written to disk, only held in memory while it is used,
+// and an automatic sync keeps it current for those profiles (oura/routes.js, oura/sync.js).
 const OURA = ouraRoutes({
   json: (...a) => json(...a), readSession: req => readSession(req), audit: (...a) => audit(...a),
   env: process.env, origin: ORIGIN, dataDir: DATA, instanceSecret: SECRET,
   version: JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version,
+  // Sync failures name the error class only: no profile id, no data (oura/sync.js).
+  log: msg => console.warn(msg),
 });
 
 const dbFile = path.join(DATA, 'db.json');

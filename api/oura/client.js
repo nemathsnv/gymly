@@ -7,22 +7,22 @@
  * that got a 401 refreshes only if the token it used is still the stored one — if another request
  * already refreshed, it simply takes the new token.
  *
- * Nothing fetched here is written anywhere. The caller (routes.js) summarises it and holds the
- * summary in memory for a few minutes; disk never sees Oura health data.
+ * Nothing fetched here is written anywhere. The caller (sync.js) summarises it and holds the
+ * summary in memory; disk never sees Oura health data.
  */
 import { API_BASE, OuraError, refreshTokens } from './oauth.js';
 
 const TIMEOUT_MS = 20000;
-const MAX_PAGES = 10;
+const MAX_PAGES = 50;
+const RETRY_PAUSE_MS = 2000;
 const EARLY_MS = 60000;          // refresh a minute before the stated expiry
 
 /** The data types the overview reads, by endpoint name. */
 export const DAILY_TYPES = ['daily_readiness', 'daily_sleep', 'sleep', 'daily_activity', 'daily_stress', 'daily_spo2', 'daily_cardiovascular_age', 'vO2_max', 'workout'];
 export const HEART_RATE_DAYS = 7;   // the heart-rate series is large; only the last week is read
 
-const ymd = t => new Date(t).toISOString().slice(0, 10);
 
-export function createOuraClient({ cfg, store, fetchImpl = globalThis.fetch, now = Date.now }) {
+export function createOuraClient({ cfg, store, fetchImpl = globalThis.fetch, now = Date.now, sleep = ms => new Promise(r => setTimeout(r, ms)) }) {
   const queues = new Map();
   function withLock(uid, fn) {
     const prev = queues.get(uid) || Promise.resolve();
@@ -57,14 +57,22 @@ export function createOuraClient({ cfg, store, fetchImpl = globalThis.fetch, now
     });
   }
 
+  // One retry for what is usually passing (a dropped connection, a 502/503/504 from Oura's edge),
+  // after a short pause. Anything that fails twice is the caller's to report and back off from.
   async function request(url, access) {
-    try {
-      return await fetchImpl(url, {
-        headers: { Authorization: 'Bearer ' + access, Accept: 'application/json', 'User-Agent': cfg.userAgent },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch (e) {
-      throw new OuraError('network', 'Oura could not be reached' + (e?.name === 'TimeoutError' ? ' in time' : ''));
+    for (let attempt = 0; ; attempt++) {
+      let res = null, failure = null;
+      try {
+        res = await fetchImpl(url, {
+          headers: { Authorization: 'Bearer ' + access, Accept: 'application/json', 'User-Agent': cfg.userAgent },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+      } catch (e) {
+        failure = new OuraError('network', 'Oura could not be reached' + (e?.name === 'TimeoutError' ? ' in time' : ''));
+      }
+      const transient = failure || [502, 503, 504].includes(res.status);
+      if (!transient || attempt >= 1) { if (failure) throw failure; return res; }
+      await sleep(RETRY_PAUSE_MS);
     }
   }
 
@@ -100,29 +108,5 @@ export function createOuraClient({ cfg, store, fetchImpl = globalThis.fetch, now
     return out;
   }
 
-  /**
-   * The raw documents the overview is built from, for the last `days` days (today included).
-   * Types are read one after another: about ten small requests, well inside Oura's limits, and a
-   * rate limit stops the rest instead of firing them all at once.
-   */
-  async function fetchWindow(uid, days) {
-    const t = now();
-    const startDate = ymd(t - (days - 1) * 86400000);
-    // end_date one day ahead: the newest day's documents carry today's local date, which can be
-    // ahead of the server's UTC date for someone east of Greenwich.
-    const endDate = ymd(t + 86400000);
-    const raw = {};
-    for (const type of DAILY_TYPES) raw[type] = await collection(uid, type, { start_date: startDate, end_date: endDate });
-    const hrFrom = new Date(t - Math.min(days, HEART_RATE_DAYS) * 86400000).toISOString().replace(/\.\d+Z$/, 'Z');
-    raw.heartrate = await collection(uid, 'heartrate', { start_datetime: hrFrom, end_datetime: new Date(t).toISOString().replace(/\.\d+Z$/, 'Z') });
-    return raw;
-  }
-
-  return { accessToken, collection, fetchWindow };
-}
-
-/** The UTC offset in minutes a localized Oura timestamp ("…T07:12:00+01:00") carries, or 0. */
-export function offsetOf(localized) {
-  const m = /([+-])(\d{2}):(\d{2})$/.exec(String(localized || ''));
-  return m ? (m[1] === '-' ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0;
+  return { accessToken, collection };
 }
