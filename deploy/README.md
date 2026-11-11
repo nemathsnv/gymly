@@ -68,6 +68,30 @@ To switch it off again, remove the line and recreate the API; connections stay i
 but are refused while the variable is unset. Connections and the undo journal
 (`data/mcp-journal-*.json`) are part of the normal data snapshot.
 
+## Webhooks (Home Assistant, n8n, ntfy)
+
+Off until enabled, the same way as the hosted MCP. After a release containing them is deployed and
+verified, add this line to `/etc/gymly/gymly.env` and recreate only the API:
+
+```sh
+INTEGRATIONS=webhook
+```
+
+Then check: signed in on `https://gymly.churntech.com`, Settings → Account shows a **Webhooks** row
+(it is absent while the variable is unset), and `sudo ls -ld /opt/gymly/data/integrations` shows the
+directory the API creates at boot. No tunnel, port, edge or compose change is needed: webhooks are
+outbound requests from the API container, and the env file already reaches it.
+
+Leave `INTEGRATIONS_ALLOW_LAN` unset on KVM2. Its "home network" would be the Docker network and the
+VPS's private ranges, not a home: setting it would let any signed-in profile make the API call
+`web`, `edge` or other services on the host. Home Assistant at home is reached over its own HTTPS
+URL (Nabu Casa, a tunnel), which needs no exception.
+
+To switch it off again, remove the line and recreate the API: the Webhooks row disappears and
+nothing is sent; stored webhooks and their queue stay in `data/integrations/` (part of the normal
+data snapshot, URLs and secrets encrypted with `data/secret`) and resume if it is switched back on.
+Payloads, signatures and retries: `docs/INTEGRATIONS.md`.
+
 ## Failed deployments and recovery
 
 Before the new release can receive traffic, the receiver gates edge with HTTP 503, stops old
