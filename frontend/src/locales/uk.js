@@ -2335,4 +2335,18 @@ export default {
   'Log {0}': 'Записати: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Ще нічого не записано. Записуйте щоранку, щоб бачити динаміку.',
   'That number looks too big. Check it and try again.': 'Це число виглядає завеликим. Перевірте його та спробуйте ще раз.',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'Змінити зважування',
+  'Weigh-in updated': 'Зважування оновлено',
+  'Weigh-in deleted': 'Зважування видалено',
+  'Daily weigh-in value': 'Значення ваги за день',
+  'Morning (first)': 'Ранок (перше)',
+  'Average': 'Середнє',
+  'Last': 'Останнє',
+  'Before breakfast is the one to compare.': 'До сніданку: саме його варто порівнювати.',
+  'Every weigh-in of the day counts the same.': 'Усі зважування за день важать однаково.',
+  'The most recent one of the day.': 'Найпізніше за день.',
+  'Day average {0}': 'Середнє за день {0}',
+  'Last value {0}': 'Останнє значення {0}',
+  'Morning value {0}': 'Ранкове значення {0}',
 }

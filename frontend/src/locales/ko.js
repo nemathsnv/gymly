@@ -2338,4 +2338,18 @@ export default {
   'Log {0}': '{0} 기록',
   'Nothing logged yet. Log it every morning to see the trend.': '아직 기록이 없어요. 매일 아침 기록하면 추세를 볼 수 있어요.',
   'That number looks too big. Check it and try again.': '숫자가 너무 커 보여요. 확인하고 다시 시도해 주세요.',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': '체중 기록 수정',
+  'Weigh-in updated': '체중 기록을 수정했어요',
+  'Weigh-in deleted': '체중 기록 삭제됨',
+  'Daily weigh-in value': '하루 체중 값',
+  'Morning (first)': '아침 (첫 기록)',
+  'Average': '평균',
+  'Last': '마지막',
+  'Before breakfast is the one to compare.': '아침 식사 전 체중이 비교하기 가장 좋아요.',
+  'Every weigh-in of the day counts the same.': '하루의 모든 체중 기록을 똑같이 계산해요.',
+  'The most recent one of the day.': '그날의 가장 최근 기록.',
+  'Day average {0}': '하루 평균 {0}',
+  'Last value {0}': '마지막 값 {0}',
+  'Morning value {0}': '아침 값 {0}',
 }

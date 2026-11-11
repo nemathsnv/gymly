@@ -80,6 +80,7 @@ import { bestWeightForEntry } from './history.js'
 import { convertStateUnit, convertBodyWeight } from './units.js'
 import { sanitizeAccent } from './accent.js'
 import { readDayNote as readNote } from './day-notes.js'
+import { mergeDay, dailyModeOf, settleAll, readingsOf } from './weigh-ins.js'
 
 const clone = o => JSON.parse(JSON.stringify(o))
 const list = v => (Array.isArray(v) ? v : [])
@@ -166,13 +167,24 @@ export function mergeWorkoutMedia(kept, other) {
 }
 const byDayStart = (a, b) => (a.d === b.d ? (a.start || 0) - (b.start || 0) : a.d < b.d ? -1 : 1)
 
-/** One entry per day; where both have a day, the one edited later (`t`); sorted by day. */
-export function mergeBodyweight(a = [], b = []) {
+/**
+ * One entry per day; where both have a day, the one edited later (`t`); sorted by day. A day with
+ * several weigh-ins (`ins`, lib/weigh-ins.js) joins both copies' readings instead, each reading
+ * as edited last, and leaves out the ones either copy removed; `mode` (S.bwDaily) picks the day's
+ * value from them. Days without readings (every weigh-in from before, and a day's measurements)
+ * keep the old rule.
+ */
+export function mergeBodyweight(a = [], b = [], mode = 'first') {
   const byDay = new Map()
   for (const e of [...list(a), ...list(b)]) {
     if (!e || e.d == null) continue
     const cur = byDay.get(e.d)
-    if (!cur || (e.t || 0) > (cur.t || 0)) byDay.set(e.d, e)
+    if (!cur) byDay.set(e.d, e)
+    else if (!Array.isArray(cur.ins) && !Array.isArray(e.ins)) { if ((e.t || 0) > (cur.t || 0)) byDay.set(e.d, e) }
+    else {
+      const m = mergeDay(cur, e, mode)
+      if (m) byDay.set(e.d, m); else byDay.delete(e.d)
+    }
   }
   return [...byDay.values()].sort((x, y) => (x.d < y.d ? -1 : 1))
 }
@@ -821,7 +833,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
       })
     }
   }
-  out.bodyweight = mergeBodyweight(n.bodyweight, o.bodyweight).map(clone)
+  out.bodyweight = mergeBodyweight(n.bodyweight, o.bodyweight, dailyModeOf(out)).map(clone)
   // A day's body measurements are one check-in, kept and merged the way a weigh-in is.
   if (list(n.measurements).length || list(o.measurements).length) out.measurements = mergeBodyweight(n.measurements, o.measurements).map(clone)
   if (list(n.favEx).length || list(o.favEx).length) out.favEx = [...new Set([...list(n.favEx), ...list(o.favEx)])]
@@ -883,6 +895,8 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   delete out._prior
   // The accent fields end up in CSS: whatever either copy brought, only a clean value goes on.
   sanitizeAccent(out)
+  // The day's value of a day with several weigh-ins follows the daily-value setting as merged.
+  settleAll(out)
   return out
 }
 
@@ -1061,7 +1075,19 @@ export function stampChange(prev, next, wall = Date.now()) {
     for (const e of list(next[f])) {
       if (!e || typeof e !== 'object' || e.d == null || e.t == null) continue
       const old = before.get(e.d)
-      if (!old || old.t !== e.t) e.t = Math.max(Number(e.t) || 0, now)
+      if (old && old.t === e.t) continue
+      const was = Number(e.t) || 0
+      e.t = Math.max(was, now)
+      // A day with several weigh-ins (lib/weigh-ins.js): the readings and removals this change
+      // made take the same time, so the day's `t` stays the one its readings explain (an older
+      // app's edit is told apart by exactly that, absorbLegacyEdit).
+      if (f !== 'bodyweight' || !Array.isArray(e.ins) || e.t === was) continue
+      const prior = new Map(list(old?.ins).filter(r => r && r.id != null).map(r => [String(r.id), r]))
+      for (const r of e.ins) {
+        const p = r && prior.get(String(r.id))
+        if (r && (!p || p.t !== r.t || p.w !== r.w || p.at !== r.at)) r.t = e.t
+      }
+      if (isMap(e.gone)) for (const k of Object.keys(e.gone)) if (Number(e.gone[k]) !== Number(old?.gone?.[k])) e.gone[k] = e.t
     }
   }
   // A routine put back by an Undo keeps the edit time it had: what puts it back is the add-back
@@ -1132,8 +1158,11 @@ export function localExtras(local, server) {
   const days = new Map(list(server?.bodyweight).filter(e => e && e.d != null).map(e => [e.d, e]))
   const ex = new Set(list(server?.customEx).map(e => e?.id))
   const from = unitOf(local), to = unitOf(server)
+  // A day with several weigh-ins (lib/weigh-ins.js) counts too when it holds one the server's
+  // day lacks: an evening weigh-in leaves the morning one the day's value, so the weights agree.
   const differs = (mine, theirs) =>
-    (Number(mine.t) || 0) > (Number(theirs.t) || 0) && Number(convertBodyWeight(mine.w, from, to)) !== Number(theirs.w)
+    (Number(mine.t) || 0) > (Number(theirs.t) || 0) && (Number(convertBodyWeight(mine.w, from, to)) !== Number(theirs.w) ||
+      readingsOf(mine).some(r => !readingsOf(theirs).some(x => x.id === r.id)))
   // Routines, and the rest of what a device sets up (plan days, exercise notes, gym cards,
   // equipment profiles), count too: a guest who only built a plan was never asked, and signing in
   // dropped it. Present only when there are any.

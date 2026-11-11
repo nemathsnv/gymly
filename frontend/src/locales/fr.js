@@ -2338,4 +2338,18 @@ export default {
   'Log {0}': 'Noter {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Rien de noté pour l’instant. Note-le chaque matin pour voir la tendance.',
   'That number looks too big. Check it and try again.': 'Ce nombre paraît trop grand. Vérifie-le et réessaie.',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'Modifier la pesée',
+  'Weigh-in updated': 'Pesée mise à jour',
+  'Weigh-in deleted': 'Pesée supprimée',
+  'Daily weigh-in value': 'Valeur du jour des pesées',
+  'Morning (first)': 'Matin (première)',
+  'Average': 'Moyenne',
+  'Last': 'Dernière',
+  'Before breakfast is the one to compare.': 'Avant le petit-déjeuner, c’est celle à comparer.',
+  'Every weigh-in of the day counts the same.': 'Chaque pesée du jour compte autant.',
+  'The most recent one of the day.': 'La plus récente de la journée.',
+  'Day average {0}': 'Moyenne du jour {0}',
+  'Last value {0}': 'Dernière valeur {0}',
+  'Morning value {0}': 'Valeur du matin {0}',
 }

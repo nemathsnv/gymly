@@ -2417,4 +2417,18 @@ export default {
   'Log {0}': '{0} লগ করুন',
   'Nothing logged yet. Log it every morning to see the trend.': 'এখনও কিছু লগ করা হয়নি। প্রবণতা দেখতে প্রতিদিন সকালে লগ করুন।',
   'That number looks too big. Check it and try again.': 'সংখ্যাটা খুব বড় মনে হচ্ছে। দেখে নিয়ে আবার চেষ্টা করুন।',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'ওজন সম্পাদনা',
+  'Weigh-in updated': 'ওজন আপডেট হয়েছে',
+  'Weigh-in deleted': 'ওজন মুছে ফেলা হয়েছে',
+  'Daily weigh-in value': 'দিনের ওজনের মান',
+  'Morning (first)': 'সকাল (প্রথম)',
+  'Average': 'গড়',
+  'Last': 'শেষ',
+  'Before breakfast is the one to compare.': 'সকালের নাস্তার আগেরটাই তুলনার জন্য সেরা।',
+  'Every weigh-in of the day counts the same.': 'দিনের প্রতিটি ওজন সমান গোনা হয়।',
+  'The most recent one of the day.': 'দিনের সবচেয়ে নতুনটি।',
+  'Day average {0}': 'দিনের গড় {0}',
+  'Last value {0}': 'শেষ মান {0}',
+  'Morning value {0}': 'সকালের মান {0}',
 }

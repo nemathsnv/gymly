@@ -120,6 +120,21 @@ test('PUT /api/data: an older app\'s push does not wipe the records, and its del
   assert.ok(doc.deleted.workouts.w2 > 1000);
 });
 
+// #859: a day's weigh-ins ride inside the day (`ins`, `gone`; frontend/src/lib/weigh-ins.js). The
+// server keeps a day whole, so they pass through a stamping and a non-stamping push alike, and a
+// day an older app removed as a whole is recorded by its date as it always was.
+test('a day with several weigh-ins passes through a push whole', () => {
+  const day = { d: '2026-10-28', w: 80.2, t: NOW - 3000, ins: [{ id: 'am', at: '07:10', w: 80.2, t: NOW - 4000 }, { id: 'pm', at: '21:30', w: 81.4, t: NOW - 3000 }], gone: { x: NOW - 3500 } };
+  for (const stamped of [true, false]) {
+    const cur = { ...stored(), bodyweight: [clone(day), { d: '2026-10-27', w: 82, t: NOW - 6000 }] };
+    const next = clone(cur);
+    next.bodyweight = next.bodyweight.filter(b => b.d !== '2026-10-27');
+    stampPut(cur, next, { overRead: true, stamped, now: NOW });
+    assert.deepEqual(next.bodyweight, [day]);
+    if (!stamped) assert.ok(next.deleted.bodyweight['2026-10-27'] >= NOW);
+  }
+});
+
 // RC review 2026-10-07: a v1.3.9 phone saving a routine rebuilt each exercise from the fields it
 // knows, and the pyramid made on an updated phone was deleted on every device.
 test('an older app saving a routine keeps the pyramid it does not know', () => {

@@ -2393,4 +2393,18 @@ export default {
   'Log {0}': 'تسجيل {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'لا شيء مسجّل بعد. سجّله كل صباح لترى الاتجاه.',
   'That number looks too big. Check it and try again.': 'يبدو هذا الرقم كبيرًا جدًا. تحقّق منه وحاول مرة أخرى.',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'تعديل الوزن',
+  'Weigh-in updated': 'تم تحديث الوزن',
+  'Weigh-in deleted': 'تم حذف الوزن',
+  'Daily weigh-in value': 'قيمة الوزن اليومية',
+  'Morning (first)': 'الصباح (الأول)',
+  'Average': 'المتوسط',
+  'Last': 'الأخير',
+  'Before breakfast is the one to compare.': 'وزن ما قبل الفطور هو الأنسب للمقارنة.',
+  'Every weigh-in of the day counts the same.': 'كل أوزان اليوم لها الوزن نفسه.',
+  'The most recent one of the day.': 'آخر وزن في اليوم.',
+  'Day average {0}': 'متوسط اليوم {0}',
+  'Last value {0}': 'القيمة الأخيرة {0}',
+  'Morning value {0}': 'قيمة الصباح {0}',
 }

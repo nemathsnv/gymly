@@ -43,6 +43,7 @@ import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkey
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem } from '../components/Passkeys.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
+import { dailyModeOf, settleAll } from '../lib/weigh-ins.js'
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
@@ -706,6 +707,16 @@ export default function Settings({ page = null, find = null, via = null }) {
             { value: 'wathan', label: 'Wathan' },
             { value: 'lander', label: 'Lander' },
             { value: 'weighted', label: t('Blend of all'), subtitle: t('Averages seven formulas and reads your RIR when you log it.') },
+          ]} />
+        {/* #859: a day can hold several weigh-ins. Which one is the day's number for the charts,
+            the trend, the goal line, the Coach and the MCP servers (lib/weigh-ins.js). Morning is
+            the default: it is the weight worth comparing from one day to the next. */}
+        <SelectRow icon="scale" iconTint="var(--teal)" title={t('Daily weigh-in value')}
+          value={dailyModeOf(S)} onChange={v => update(s => { s.bwDaily = v; settleAll(s, v) })}
+          options={[
+            { value: 'first', label: t('Morning (first)'), subtitle: t('Before breakfast is the one to compare.') },
+            { value: 'avg', label: t('Average'), subtitle: t('Every weigh-in of the day counts the same.') },
+            { value: 'last', label: t('Last'), subtitle: t('The most recent one of the day.') },
           ]} />
       </Section>
     </>,

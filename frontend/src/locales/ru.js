@@ -2342,4 +2342,18 @@ export default {
   'Log {0}': 'Записать: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Пока ничего не записано. Записывай каждое утро, чтобы видеть динамику.',
   'That number looks too big. Check it and try again.': 'Число выглядит слишком большим. Проверь его и попробуй снова.',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'Изменить взвешивание',
+  'Weigh-in updated': 'Взвешивание обновлено',
+  'Weigh-in deleted': 'Взвешивание удалено',
+  'Daily weigh-in value': 'Значение веса за день',
+  'Morning (first)': 'Утро (первое)',
+  'Average': 'Среднее',
+  'Last': 'Последнее',
+  'Before breakfast is the one to compare.': 'До завтрака: его и стоит сравнивать.',
+  'Every weigh-in of the day counts the same.': 'Все взвешивания за день считаются одинаково.',
+  'The most recent one of the day.': 'Самое позднее за день.',
+  'Day average {0}': 'Среднее за день {0}',
+  'Last value {0}': 'Последнее значение {0}',
+  'Morning value {0}': 'Утреннее значение {0}',
 }

@@ -2338,4 +2338,18 @@ export default {
   'Log {0}': '{0} दर्ज करें',
   'Nothing logged yet. Log it every morning to see the trend.': 'अभी तक कुछ दर्ज नहीं है। रुझान देखने के लिए इसे हर सुबह दर्ज करें।',
   'That number looks too big. Check it and try again.': 'यह संख्या बहुत बड़ी लगती है। जाँचें और फिर से कोशिश करें।',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'वज़न बदलें',
+  'Weigh-in updated': 'वज़न अपडेट हुआ',
+  'Weigh-in deleted': 'वज़न हटाया गया',
+  'Daily weigh-in value': 'दिन का वज़न मान',
+  'Morning (first)': 'सुबह (पहला)',
+  'Average': 'औसत',
+  'Last': 'आखिरी',
+  'Before breakfast is the one to compare.': 'नाश्ते से पहले वाला ही तुलना के लिए सही है।',
+  'Every weigh-in of the day counts the same.': 'दिन का हर वज़न बराबर गिना जाता है।',
+  'The most recent one of the day.': 'दिन का सबसे नया वज़न।',
+  'Day average {0}': 'दिन का औसत {0}',
+  'Last value {0}': 'आखिरी मान {0}',
+  'Morning value {0}': 'सुबह का मान {0}',
 }

@@ -2349,4 +2349,18 @@ export default {
   'Log {0}': 'บันทึก{0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'ยังไม่มีบันทึก บันทึกทุกเช้าเพื่อดูแนวโน้ม',
   'That number looks too big. Check it and try again.': 'ตัวเลขนี้ดูมากเกินไป ตรวจสอบแล้วลองอีกครั้ง',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': 'แก้ไขการชั่งน้ำหนัก',
+  'Weigh-in updated': 'อัปเดตการชั่งน้ำหนักแล้ว',
+  'Weigh-in deleted': 'ลบการชั่งน้ำหนักแล้ว',
+  'Daily weigh-in value': 'ค่าน้ำหนักประจำวัน',
+  'Morning (first)': 'ตอนเช้า (ครั้งแรก)',
+  'Average': 'ค่าเฉลี่ย',
+  'Last': 'ล่าสุด',
+  'Before breakfast is the one to compare.': 'ก่อนอาหารเช้าคือค่าที่ควรเอามาเทียบ',
+  'Every weigh-in of the day counts the same.': 'ทุกครั้งที่ชั่งในวันนั้นนับเท่ากัน',
+  'The most recent one of the day.': 'ครั้งล่าสุดของวัน',
+  'Day average {0}': 'เฉลี่ยของวัน {0}',
+  'Last value {0}': 'ค่าล่าสุด {0}',
+  'Morning value {0}': 'ค่าตอนเช้า {0}',
 }

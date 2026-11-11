@@ -2338,4 +2338,18 @@ export default {
   'Log {0}': '记录{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '还没有任何记录。每天早上记录一次，就能看到趋势。',
   'That number looks too big. Check it and try again.': '这个数字看起来太大了。请检查后再试一次。',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': '编辑称重',
+  'Weigh-in updated': '称重已更新',
+  'Weigh-in deleted': '称重记录已删除',
+  'Daily weigh-in value': '每日体重取值',
+  'Morning (first)': '早上（第一次）',
+  'Average': '平均',
+  'Last': '最后',
+  'Before breakfast is the one to compare.': '早餐前的那次最值得比较。',
+  'Every weigh-in of the day counts the same.': '当天每次称重都同样计算。',
+  'The most recent one of the day.': '当天最近的一次。',
+  'Day average {0}': '当天平均 {0}',
+  'Last value {0}': '最后一次 {0}',
+  'Morning value {0}': '早上 {0}',
 }

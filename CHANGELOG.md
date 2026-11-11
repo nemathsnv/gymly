@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Weigh in as often as you like, with the time** (ported from openGym #859). A day can now hold
+  several weigh-ins, each with its time. The weigh-in sheet has a date and a time field (now for
+  today; for an earlier day, that day's first time or 08:00), so a weigh-in can also be logged for
+  a day gone by. **All weigh-ins** lists every one under its day, and a tap on one changes its
+  weight, time or day. Delete has Undo. The charts, the trend, the goal, the Coach and the MCP
+  servers use one value per day, and **Settings → Units & language → Daily weigh-in value** says
+  which: the morning one (the default, the one worth comparing), the day's average or the last.
+  Health Connect gets every weigh-in at its time, and an Apple Health export or a CSV with times
+  brings in every reading instead of one a day. Your old weigh-ins stay exactly as they were, and
+  an older app on another device keeps the extra ones when it syncs.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

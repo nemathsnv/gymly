@@ -8,6 +8,7 @@
 import { workoutText } from './workout-text.js'
 import { modeForEntry, hasCompletedWork } from './workout-model.js'
 import { isoOf } from './format.js'
+import { readingsOf, readingAt, cleanTime } from './weigh-ins.js'
 
 const LB_PER_KG = 2.2046226218
 // Health Connect refuses a title or notes over 1000 characters (ExerciseSessionRecord).
@@ -61,18 +62,26 @@ export function sessionRecord(w, { unit, nameOf, speedUnit }) {
 }
 
 /**
- * One weight record per weigh-in day. `t` is when it was typed, which for a weigh-in added to an
- * earlier day is not on that day; then it is put at 08:00 local time on the day it belongs to.
+ * One weight record per weigh-in. A day from before has one, without a time: `t` is when it was
+ * typed, which for a weigh-in added to an earlier day is not on that day; then it is put at 08:00
+ * local time on the day it belongs to. A weigh-in with a time (#859, lib/weigh-ins.js) goes in at
+ * that time. The record of a day's reading '0' (every day from before) keeps the day's old id, so
+ * nothing written earlier is written twice; the others are named by day and reading. A reading
+ * taken off a day is no longer in the list, so the next sync removes its record (planSync).
  */
-export function weightRecord(b, unit) {
-  const w = Number(b?.w)
+export function weightRecord(b, unit, r = null) {
+  const w = Number(r ? r.w : b?.w)
   if (!b?.d || !(w > 0)) return null
-  const typed = Number(b.t)
-  const time = typed > 0 && isoOf(new Date(typed)) === b.d ? typed : localMorning(b.d)
+  const typed = Number(r ? r.t : b.t)
+  const at = r && cleanTime(r.at)
+  const time = at ? readingAt(b.d, at) : typed > 0 && isoOf(new Date(typed)) === b.d ? typed : localMorning(b.d)
   if (!(time > 0)) return null
   const kg = unit === 'lb' ? w / LB_PER_KG : w
-  return { id: 'opengym-bw-' + b.d, time, kg: Math.round(kg * 1000) / 1000 }
+  return { id: weightRecordId(b.d, r?.id), time, kg: Math.round(kg * 1000) / 1000 }
 }
+
+/** Health Connect's id of one weigh-in Gymly wrote: its day, and its reading unless that is '0'. */
+export const weightRecordId = (d, rid) => 'opengym-bw-' + d + (rid != null && String(rid) !== '0' ? '-' + rid : '')
 
 function localMorning(iso) {
   const [y, m, d] = String(iso).split('-').map(Number)
@@ -85,7 +94,10 @@ export function healthRecords(S, { nameOf, speedUnit }) {
   const unit = S?.unit === 'lb' ? 'lb' : 'kg'
   return {
     sessions: (S?.workouts || []).map(w => sessionRecord(w, { unit, nameOf, speedUnit })).filter(Boolean),
-    weights: (S?.bodyweight || []).map(b => weightRecord(b, unit)).filter(Boolean),
+    // Every weigh-in of a day with several (lib/weigh-ins.js), each at its own time.
+    weights: (S?.bodyweight || []).flatMap(b => (Array.isArray(b?.ins)
+      ? readingsOf(b).map(r => weightRecord(b, unit, r))
+      : [weightRecord(b, unit)])).filter(Boolean),
   }
 }
 

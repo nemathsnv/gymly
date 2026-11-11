@@ -2331,4 +2331,18 @@ export default {
   'Log {0}': '記錄{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '還沒有任何紀錄。每天早上記錄一次，就能看到趨勢。',
   'That number looks too big. Check it and try again.': '這個數字看起來太大了。請檢查後再試一次。',
+  // --- several weigh-ins a day, each with its time (#859) ---
+  'Edit weigh-in': '編輯量體重紀錄',
+  'Weigh-in updated': '體重紀錄已更新',
+  'Weigh-in deleted': '已刪除體重紀錄',
+  'Daily weigh-in value': '每日體重取值',
+  'Morning (first)': '早上（第一次）',
+  'Average': '平均',
+  'Last': '最後',
+  'Before breakfast is the one to compare.': '早餐前的那次最值得比較。',
+  'Every weigh-in of the day counts the same.': '當天每次量體重都同樣計算。',
+  'The most recent one of the day.': '當天最近的一次。',
+  'Day average {0}': '當天平均 {0}',
+  'Last value {0}': '最後一次 {0}',
+  'Morning value {0}': '早上 {0}',
 }
