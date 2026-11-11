@@ -2368,7 +2368,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'Yayımlanmış güç standartlarına göre, bu cihazda hesaplanır.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'Şimdilik erkek tablosu kullanılıyor. Daha adil bir okuma için cinsiyetini ve doğum yılını ekle.',
   'About you': 'Hakkında',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'Yalnızca bu cihazda güç seviyelerini belirlemek için kullanılır. İstersen boş bırak.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'Yalnızca güç seviyelerini belirlemek için kullanılır, yapay zekâ asistanlarıyla veya Koç ile asla paylaşılmaz. İstersen boş bırak.',
   'Sex': 'Cinsiyet',
   'Year of birth': 'Doğum yılı',
   'For your strength levels': 'Güç seviyelerin için',

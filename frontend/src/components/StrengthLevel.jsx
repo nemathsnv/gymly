@@ -77,7 +77,7 @@ function AboutYou() {
   const born = Number(S.birthYear) > 0 ? Number(S.birthYear) : null
   return <>
     <h3>{t('About you')}</h3>
-    <div className="muted small" style={{ marginBottom: 14 }}>{t('Only used to grade your strength levels, on this device. Leave it blank if you like.')}</div>
+    <div className="muted small" style={{ marginBottom: 14 }}>{t('Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.')}</div>
     <div className="about-lbl" id="about-sex">{t('Sex')}</div>
     <Segmented ariaLabelledby="about-sex" options={[{ value: '', label: t('Not set') }, { value: 'female', label: t('Female') }, { value: 'male', label: t('Male') }]}
       value={sexOf(S) || ''} onChange={v => update(s => { if (v) s.sex = v; else delete s.sex })} />

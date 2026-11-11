@@ -2423,7 +2423,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'مقارنةً بمعايير قوة منشورة، ويُحسب على هذا الجهاز.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'نستخدم جدول الرجال حاليًا. أضف جنسك وسنة ميلادك لتقدير أدق.',
   'About you': 'عنك',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'يُستخدم فقط لتقدير مستويات قوتك، على هذا الجهاز. اتركه فارغًا إن أردت.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'يُستخدم فقط لتقدير مستويات قوتك، ولا يُشارك أبدًا مع مساعدي الذكاء الاصطناعي أو المدرّب. اتركه فارغًا إن أردت.',
   'Sex': 'الجنس',
   'Year of birth': 'سنة الميلاد',
   'For your strength levels': 'لمستويات قوتك',

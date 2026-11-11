@@ -1529,7 +1529,7 @@ export const PT_BR_OVERRIDES = {
   'Against published strength standards, worked out on this device.': 'Com base em padrões de força publicados, calculado neste aparelho.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'Por enquanto vale a tabela masculina. Informe seu sexo e ano de nascimento para uma leitura mais justa.',
   'About you': 'Sobre você',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'Só serve para seus níveis de força, neste aparelho. Pode deixar em branco.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'Só serve para seus níveis de força e nunca é compartilhado com assistentes de IA nem com o Coach. Pode deixar em branco.',
   'Sex': 'Sexo',
   'Year of birth': 'Ano de nascimento',
   'For your strength levels': 'Para seus níveis de força',

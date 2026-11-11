@@ -2388,7 +2388,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'Gemessen an veröffentlichten Kraftstandards, berechnet auf diesem Gerät.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'Vorerst gilt die Männertabelle. Gib Geschlecht und Geburtsjahr an, dann wird es fairer.',
   'About you': 'Über dich',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'Wird nur für deine Kraftniveaus genutzt, auf diesem Gerät. Darf auch leer bleiben.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'Wird nur für deine Kraftniveaus genutzt und nie mit KI-Assistenten oder dem Coach geteilt. Darf auch leer bleiben.',
   'Sex': 'Geschlecht',
   'Year of birth': 'Geburtsjahr',
   'For your strength levels': 'Für deine Kraftniveaus',

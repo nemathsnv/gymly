@@ -2372,7 +2372,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'По опубликованным нормативам силы, считается на этом устройстве.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'Пока используется мужская таблица. Укажите пол и год рождения для более точной оценки.',
   'About you': 'О вас',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'Используется только для оценки уровней силы, на этом устройстве. Можно оставить пустым.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'Используется только для оценки уровней силы и никогда не передаётся ИИ-ассистентам и Коучу. Можно оставить пустым.',
   'Sex': 'Пол',
   'Year of birth': 'Год рождения',
   'For your strength levels': 'Для уровней силы',

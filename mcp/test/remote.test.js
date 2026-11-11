@@ -94,7 +94,7 @@ describe('remoteConfig', () => {
 
 describe('createRemoteSource against a Gymly route', () => {
   let stub
-  const STATE = { unit: 'kg', routines: [{ id: 'r1', name: 'Push' }], workouts: [], gymCards: [{ code: 'MEMBER-1234' }], coach: { x: 1 }, _prior: { y: 1 } }
+  const STATE = { unit: 'kg', routines: [{ id: 'r1', name: 'Push' }], workouts: [], gymCards: [{ code: 'MEMBER-1234' }], coach: { x: 1 }, _prior: { y: 1 }, sex: 'female', birthYear: 1966 }
   beforeAll(async () => { stub = await startStub({ token: TOKEN, state: STATE }) })
   afterAll(() => stub.close())
   beforeEach(() => { stub.seen.length = 0; stub.override = null; stub.rev = 1 })
@@ -114,6 +114,7 @@ describe('createRemoteSource against a Gymly route', () => {
     const src = createRemoteSource({ base: stub.url, token: TOKEN })
     await src.refresh()
     for (const k of WITHHELD) expect(src.state).not.toHaveProperty(k)
+    expect(WITHHELD).toEqual(expect.arrayContaining(['sex', 'birthYear']))
     expect(JSON.stringify(src.state)).not.toContain('MEMBER-1234')
     expect(withhold(null)).toBeNull()
     expect(withhold([1])).toBeNull()

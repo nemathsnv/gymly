@@ -2368,7 +2368,7 @@ export default {
   'Against published strength standards, worked out on this device.': '对照公开的力量标准，在本设备上计算。',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': '暂时使用男性标准。填写性别和出生年份会更公平。',
   'About you': '关于你',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': '只在本设备上用于评定力量等级，不想填可以留空。',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': '只用于评定力量等级，不会与 AI 助手或教练共享。不想填可以留空。',
   'Sex': '性别',
   'Year of birth': '出生年份',
   'For your strength levels': '用于你的力量等级',

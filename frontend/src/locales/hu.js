@@ -2371,7 +2371,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'Közzétett erőnormákhoz mérve, ezen az eszközön számolva.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'Egyelőre a férfi táblázat számít. Add meg a nemed és a születési éved a pontosabb képhez.',
   'About you': 'Rólad',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'Csak az erőszintjeidhez használjuk, ezen az eszközön. Üresen is hagyhatod.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'Csak az erőszintjeidhez használjuk, és soha nem osztjuk meg MI-asszisztensekkel vagy az Edzővel. Üresen is hagyhatod.',
   'Sex': 'Nem',
   'Year of birth': 'Születési év',
   'For your strength levels': 'Az erőszintjeidhez',

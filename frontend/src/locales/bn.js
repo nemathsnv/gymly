@@ -2447,7 +2447,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'প্রকাশিত শক্তির মানদণ্ডের সাথে তুলনা, এই ডিভাইসেই হিসাব।',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'আপাতত পুরুষদের তালিকা ব্যবহার হচ্ছে। আরও ন্যায্য হিসাবের জন্য লিঙ্গ ও জন্মসাল দিন।',
   'About you': 'আপনার সম্পর্কে',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'শুধু এই ডিভাইসে আপনার শক্তির স্তর নির্ধারণে ব্যবহার হয়। চাইলে ফাঁকা রাখুন।',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'শুধু আপনার শক্তির স্তর নির্ধারণে ব্যবহার হয়, কখনও এআই সহকারী বা কোচের সঙ্গে শেয়ার করা হয় না। চাইলে ফাঁকা রাখুন।',
   'Sex': 'লিঙ্গ',
   'Year of birth': 'জন্মসাল',
   'For your strength levels': 'আপনার শক্তির স্তরের জন্য',

@@ -38,6 +38,17 @@ test('payload never carries identity, credentials or device data', () => {
   }
 });
 
+/* About you (sex, year of birth) is read only by the strength levels on the device; the sheet
+   that asks for it promises it never reaches the Coach. Every kind of payload, checked. */
+test('payload never carries About you (sex, year of birth)', () => {
+  const S = sampleState({ sex: 'female', birthYear: 1966 });
+  const w = S.workouts[S.workouts.length - 1];
+  for (const opts of [{ kind: 'review' }, { kind: 'create' }, { kind: 'debrief', workoutId: w.id }]) {
+    const json = JSON.stringify(payload.build(S, { handle: handleFor('u1'), ...opts }));
+    assert.doesNotMatch(json, /"sex"|birthYear|1966/, opts.kind);
+  }
+});
+
 test('the same profile always gets the same handle, and two profiles never share one', () => {
   const S = sampleState();
   const a1 = payload.build(S, { handle: handleFor('uid-a'), kind: 'review' }).meta.profile;

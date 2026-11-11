@@ -18,6 +18,8 @@
   level takes, and a Stats card lists every lift you have one for. Add your sex and year of birth
   under Settings → Units & language → **About you** for a fairer read (from 40 on, the masters age
   coefficients ease the lines). Worked out on your device, and hidden until you have weighed in.
+  Sex and year of birth sync with your profile but are never sent to the Coach or to AI
+  assistants (MCP).
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

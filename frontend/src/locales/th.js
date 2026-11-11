@@ -2379,7 +2379,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'เทียบกับมาตรฐานความแข็งแรงที่เผยแพร่ คำนวณบนอุปกรณ์นี้',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'ตอนนี้ใช้ตารางของผู้ชายไปก่อน ใส่เพศและปีเกิดเพื่อผลที่ยุติธรรมกว่า',
   'About you': 'เกี่ยวกับคุณ',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'ใช้เพื่อจัดระดับความแข็งแรงบนอุปกรณ์นี้เท่านั้น เว้นว่างไว้ก็ได้',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'ใช้เพื่อจัดระดับความแข็งแรงเท่านั้น และจะไม่แชร์กับผู้ช่วย AI หรือโค้ช เว้นว่างไว้ก็ได้',
   'Sex': 'เพศ',
   'Year of birth': 'ปีเกิด',
   'For your strength levels': 'สำหรับระดับความแข็งแรงของคุณ',

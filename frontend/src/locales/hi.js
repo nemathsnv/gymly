@@ -2368,7 +2368,7 @@ export default {
   'Against published strength standards, worked out on this device.': 'प्रकाशित ताक़त मानकों के मुकाबले, इसी डिवाइस पर गणना।',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': 'अभी पुरुषों की तालिका इस्तेमाल हो रही है। बेहतर आकलन के लिए अपना लिंग और जन्म वर्ष जोड़ें।',
   'About you': 'आपके बारे में',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': 'सिर्फ़ इसी डिवाइस पर आपके ताक़त के स्तर के लिए। चाहें तो खाली छोड़ दें।',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': 'सिर्फ़ आपके ताक़त के स्तर के लिए, और इसे AI सहायकों या कोच के साथ कभी साझा नहीं किया जाता। चाहें तो खाली छोड़ दें।',
   'Sex': 'लिंग',
   'Year of birth': 'जन्म वर्ष',
   'For your strength levels': 'आपके ताक़त के स्तर के लिए',

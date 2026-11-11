@@ -152,3 +152,26 @@ describe('the habit log never reaches a tool', () => {
     for (const x of [null, undefined, [1], 'x']) expect(dropPrivate(x)).toBe(x)
   })
 })
+
+// About you (sex, year of birth) is read only by the strength levels on the device; the sheet
+// promises it never reaches an assistant, whichever way the profile reaches a tool.
+describe('About you never reaches a tool', () => {
+  const doc = { unit: 'kg', routines: [], workouts: [], sex: 'female', birthYear: 1966 }
+
+  test('local mode drops it when the profile is read from ./data', async () => {
+    const dir = mk({ 'db.json': DB, 'state-alex.json': JSON.stringify(doc) })
+    const { getState } = await load(dir)
+    expect(getState().unit).toBe('kg')
+    expect(getState()).not.toHaveProperty('sex')
+    expect(getState()).not.toHaveProperty('birthYear')
+  })
+
+  test('the hosted state (what the API runs the read tools on) drops it too', async () => {
+    const { withState, getState } = await import('../src/hosted-state.js')
+    const seen = withState(doc, { id: 'u1', name: 'One' }, () => getState())
+    expect(seen.unit).toBe('kg')
+    expect(seen).not.toHaveProperty('sex')
+    expect(seen).not.toHaveProperty('birthYear')
+    expect(doc.sex).toBe('female')
+  })
+})

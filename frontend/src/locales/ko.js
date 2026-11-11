@@ -2368,7 +2368,7 @@ export default {
   'Against published strength standards, worked out on this device.': '공개된 근력 기준과 비교해 이 기기에서 계산해요.',
   'Using the men’s table for now. Add your sex and year of birth for a fairer read.': '지금은 남성 기준표를 써요. 성별과 출생 연도를 넣으면 더 공정해져요.',
   'About you': '내 정보',
-  'Only used to grade your strength levels, on this device. Leave it blank if you like.': '이 기기에서 근력 수준을 매길 때만 써요. 비워 둬도 돼요.',
+  'Only used to grade your strength levels, and never shared with AI assistants or the Coach. Leave it blank if you like.': '근력 수준을 매길 때만 쓰고, AI 어시스턴트나 코치와는 절대 공유하지 않아요. 비워 둬도 돼요.',
   'Sex': '성별',
   'Year of birth': '출생 연도',
   'For your strength levels': '근력 수준에 쓰여요',
