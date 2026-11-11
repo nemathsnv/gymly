@@ -2356,4 +2356,7 @@ export default {
   'Lower level than last time': 'Niższy poziom niż ostatnio',
   'Compare sets with last time': 'Porównuj serie z ostatnim razem',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Mała ↑, = lub ↓ przy każdej ukończonej serii, w treningu i w historii.',
+  'A word about this set': 'Słowo o tej serii',
+  'Grip slipped, a little twinge, felt easy…': 'Chwyt się ześlizgnął, lekkie ukłucie, poszło łatwo…',
+  'Note: {0}': 'Notatka: {0}',
 }

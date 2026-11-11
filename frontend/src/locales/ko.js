@@ -2356,4 +2356,7 @@ export default {
   'Lower level than last time': '지난번보다 레벨이 낮음',
   'Compare sets with last time': '세트를 지난번과 비교',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': '끝낸 세트마다 작은 ↑, = 또는 ↓ 표시. 운동 중과 기록에서.',
+  'A word about this set': '이 세트에 대한 한마디',
+  'Grip slipped, a little twinge, felt easy…': '그립이 미끄러짐, 살짝 찌릿함, 쉬웠음…',
+  'Note: {0}': '메모: {0}',
 }

@@ -2353,4 +2353,7 @@ export default {
   'Lower level than last time': 'Рівень нижчий, ніж минулого разу',
   'Compare sets with last time': 'Порівнювати підходи з минулим разом',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Маленька ↑, = або ↓ біля кожного завершеного підходу, у тренуванні та в історії.',
+  'A word about this set': 'Кілька слів про цей підхід',
+  'Grip slipped, a little twinge, felt easy…': 'Хват зісковзнув, легке поколювання, було легко…',
+  'Note: {0}': 'Нотатка: {0}',
 }

@@ -2356,4 +2356,7 @@ export default {
   'Lower level than last time': 'पिछली बार से नीचा लेवल',
   'Compare sets with last time': 'सेट को पिछली बार से तुलना करें',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'हर पूरे किए सेट पर छोटा ↑, = या ↓, वर्कआउट में और इतिहास में।',
+  'A word about this set': 'इस सेट के बारे में एक बात',
+  'Grip slipped, a little twinge, felt easy…': 'ग्रिप फिसली, हल्का खिंचाव, आसान लगा…',
+  'Note: {0}': 'नोट: {0}',
 }

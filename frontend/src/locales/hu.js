@@ -2359,4 +2359,7 @@ export default {
   'Lower level than last time': 'Alacsonyabb szint, mint legutóbb',
   'Compare sets with last time': 'Sorozatok összevetése a legutóbbival',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Egy kis ↑, = vagy ↓ minden befejezett sorozaton, edzés közben és az előzményekben.',
+  'A word about this set': 'Pár szó erről a sorozatról',
+  'Grip slipped, a little twinge, felt easy…': 'Megcsúszott a fogás, kis nyilallás, könnyűnek tűnt…',
+  'Note: {0}': 'Jegyzet: {0}',
 }

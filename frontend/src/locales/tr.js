@@ -2356,4 +2356,7 @@ export default {
   'Lower level than last time': 'Seviye geçen seferden düşük',
   'Compare sets with last time': 'Setleri geçen seferle karşılaştır',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Bitirdiğin her sette küçük bir ↑, = ya da ↓, antrenmanda ve geçmişte.',
+  'A word about this set': 'Bu set hakkında bir not',
+  'Grip slipped, a little twinge, felt easy…': 'Kavrama kaydı, hafif bir sızı, kolay geldi…',
+  'Note: {0}': 'Not: {0}',
 }

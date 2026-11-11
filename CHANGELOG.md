@@ -10,6 +10,11 @@
   "1.25 kg more". Saved workouts in History get the arrows too, held against the workout before
   them, never a later one. Screen readers hear it in words ("2.5 kg more than last time").
   Settings → Workout → **Compare sets with last time** switches it off.
+- **A note on any set** (from openGym). Tap a set's number and pick **Note**: "grip slipped", "a
+  little twinge", "felt easy". It shows as a quiet line under the row (tap it to change it),
+  sticks with the set when the workout is saved, and appears in History under that exercise's
+  sets. AI assistants read it in a workout's sets (the MCP bridge's `get_workout`, local and
+  hosted), and it reaches the Coach the way your workout notes already do.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

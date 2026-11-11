@@ -2360,4 +2360,7 @@ export default {
   'Lower level than last time': 'Уровень ниже, чем в прошлый раз',
   'Compare sets with last time': 'Сравнивать подходы с прошлым разом',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Маленькая ↑, = или ↓ у каждого законченного подхода, в тренировке и в истории.',
+  'A word about this set': 'Пара слов об этом подходе',
+  'Grip slipped, a little twinge, felt easy…': 'Хват соскользнул, лёгкий прострел, было легко…',
+  'Note: {0}': 'Заметка: {0}',
 }

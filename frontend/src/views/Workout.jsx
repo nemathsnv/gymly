@@ -26,7 +26,7 @@ import WorkoutThumb, { hasWorkoutMedia } from '../components/WorkoutThumb.jsx'
 import { workoutSettingsSheet } from '../components/WorkoutSettingsSheet.jsx'
 import { durationSheet } from '../components/DurationWheel.jsx'
 import { REST_MAX, fmtRest } from '../lib/duration.js'
-import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, finishWorkout, exitWorkoutEdit, workoutCompleteSheet, confirmSheet, exerciseNoteSheet, sessionNoteSheet, renameWorkoutSheet, swapActiveWorkoutExercise, barWeightSheet, weightStepSheet, menuSheet, effortPickerSheet, exerciseHistorySheet, addRoutineToSessionSheet, finishWorkoutSheet } from '../sheets.jsx'
+import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, finishWorkout, exitWorkoutEdit, workoutCompleteSheet, confirmSheet, exerciseNoteSheet, sessionNoteSheet, renameWorkoutSheet, swapActiveWorkoutExercise, barWeightSheet, weightStepSheet, menuSheet, effortPickerSheet, exerciseHistorySheet, addRoutineToSessionSheet, finishWorkoutSheet, setNoteSheet } from '../sheets.jsx'
 import { afterScrollRestore, scrollRestorePending } from '../components/Modals.jsx'
 import { effortColor } from '../lib/effort.js'
 import Elapsed from '../components/Elapsed.jsx'
@@ -51,6 +51,7 @@ import { workoutLayoutOf } from '../lib/workout-layout.js'
 import { clampLevel, levelFits, levelFrom } from '../lib/machine-level.js'
 import { setTrendOn, setTrendsFor, lastTimeFor, trendGlyph, trendLabel, trendClass } from '../lib/set-trend.js'
 import { formulaOf } from '../lib/onerm.js'
+import { setNoteOf } from '../lib/set-notes.js'
 import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFor } from '../lib/dumbbells.js'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
@@ -457,6 +458,9 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
   const openSetMenu = (s, i) => {
     const warm = isWarmupRow(s)
     const sideTag = sideTagOf(s)
+    // A timed per-side pair is one set: its note lives on the L row, where the pair starts.
+    const spanStart = setSpanAt(entry.sets, i)[0]
+    const noteHere = setNoteOf(entry.sets[spanStart])
     menuSheet({
       title: warm ? t('Warm-up') : sideTag ? t('Set {0} ({1})', setNumOf(s, i), sideTag) : t('Set {0}', setNumOf(s, i)),
       subtitle: setLabel(entry.id, s, entry.target, speedUnit),
@@ -478,6 +482,8 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
         ] },
         { items: [
           onCopySetAt && { icon: 'copy', label: t('Copy this set'), onClick: () => onCopySetAt(i) },
+          // A word about this one set (lib/set-notes.js), kept with the workout.
+          { icon: 'note', label: noteHere ? t('Edit note') : t('Note'), sub: noteHere || t('A word about this set'), onClick: () => setNoteSheet(entryIdx, spanStart, warm ? t('Warm-up') : t('Set {0}', setNumOf(s, i))) },
           { icon: 'trash', label: t('Remove this set'), danger: true, disabled: !editing && entry.sets.length <= setSpanAt(entry.sets, i)[1], onClick: () => onRemoveSetAt(i) },
         ] },
       ],
@@ -753,6 +759,11 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
             </button>
           </div>}
           {loadLine(String(i))}
+          {/* The set's own note (lib/set-notes.js): a quiet line under the row, a tap edits it. */}
+          {!pairTail && setNoteOf(s) && <button type="button" className="setnote-line" aria-label={t('Edit note') + ': ' + setNoteOf(s)}
+            onClick={() => setNoteSheet(entryIdx, i, warm ? t('Warm-up') : t('Set {0}', setNumOf(s, i)))}>
+            <Icon name="note" /><span>{setNoteOf(s)}</span>
+          </button>}
           {/* Drop-sets and rest-pause bursts extend this same row — no long rest, no new set.
               A planned exercise arrives with these already filled in (applyIntensifierPlan);
               every value here is just as editable as the main row's own weight/reps. */}

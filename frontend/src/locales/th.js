@@ -2367,4 +2367,7 @@ export default {
   'Lower level than last time': 'ระดับต่ำกว่าครั้งที่แล้ว',
   'Compare sets with last time': 'เทียบเซ็ตกับครั้งที่แล้ว',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'สัญลักษณ์ ↑, = หรือ ↓ เล็ก ๆ บนทุกเซ็ตที่ทำเสร็จ ทั้งระหว่างเวิร์กเอาต์และในประวัติ',
+  'A word about this set': 'โน้ตสั้น ๆ ของเซ็ตนี้',
+  'Grip slipped, a little twinge, felt easy…': 'มือลื่น เจ็บนิดหน่อย รู้สึกง่าย…',
+  'Note: {0}': 'โน้ต: {0}',
 }

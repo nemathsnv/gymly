@@ -2411,4 +2411,7 @@ export default {
   'Lower level than last time': 'مستوى أقل من المرة الماضية',
   'Compare sets with last time': 'قارن المجموعات بالمرة الماضية',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'علامة صغيرة ↑ أو = أو ↓ على كل مجموعة تنهيها، في التمرين وفي السجل.',
+  'A word about this set': 'كلمة عن هذه المجموعة',
+  'Grip slipped, a little twinge, felt easy…': 'انزلقت القبضة، وخزة خفيفة، كانت سهلة…',
+  'Note: {0}': 'ملاحظة: {0}',
 }

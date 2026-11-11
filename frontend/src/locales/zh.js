@@ -2356,4 +2356,7 @@ export default {
   'Lower level than last time': '等级比上次低',
   'Compare sets with last time': '与上次逐组对比',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': '每完成一组就显示小小的 ↑、= 或 ↓，训练中和历史里都有。',
+  'A word about this set': '给这一组写一句',
+  'Grip slipped, a little twinge, felt easy…': '握把打滑、有点刺痛、感觉轻松…',
+  'Note: {0}': '备注：{0}',
 }

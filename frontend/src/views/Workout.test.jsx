@@ -2456,7 +2456,7 @@ describe('workout controls: the more menu and the set menu', () => {
   it('opens a per-set menu from the set number with drop, burst and remove', async () => {
     await mount([exercise('plain-bench', [false, false])])
     await act(async () => { container.querySelector('button[aria-label="Set 2"]').dispatchEvent(new dom.Event('click', { bubbles: true })) })
-    expect(menuItemsOf(lastMenu()).map(it => it.label)).toEqual(['Make it a warm-up set', 'Taken to failure', 'Drop set', 'Rest-pause burst', 'Copy this set', 'Remove this set'])
+    expect(menuItemsOf(lastMenu()).map(it => it.label)).toEqual(['Make it a warm-up set', 'Taken to failure', 'Drop set', 'Rest-pause burst', 'Copy this set', 'Note', 'Remove this set'])
     expect(item('Make it a warm-up set').icon).toBe('sunrise')
 
     await act(async () => { item('Drop set').onClick() })

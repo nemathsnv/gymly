@@ -1517,6 +1517,9 @@ export const PT_BR_OVERRIDES = {
   'Lower level than last time': 'Nível mais baixo que da última vez',
   'Compare sets with last time': 'Comparar séries com a última vez',
   'A small ↑, = or ↓ on each set you finish, in the workout and in History.': 'Um pequeno ↑, = ou ↓ em cada série que você termina, no treino e no histórico.',
+  'A word about this set': 'Uma palavra sobre esta série',
+  'Grip slipped, a little twinge, felt easy…': 'A pegada escorregou, uma fisgada, pareceu fácil…',
+  'Note: {0}': 'Nota: {0}',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

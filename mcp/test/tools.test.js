@@ -1310,3 +1310,19 @@ describe('date arguments must be dates the calendar has', () => {
     }
   })
 })
+
+/* ---------- a note on one set (openGym 765dd3018) ---------- */
+
+describe('get_workout set notes', () => {
+  test('a set with a note carries it, one without has no note field', () => {
+    const w0 = S.workouts.find(w => (w.entries || []).some(e => (e.sets || []).length > 1))
+    const e0 = w0.entries.find(e => (e.sets || []).length > 1)
+    const at = w0.entries.indexOf(e0)
+    e0.sets[0].note = '  grip slipped '
+    delete e0.sets[1].note
+    _seedStateForTests(S)
+    const w = call('get_workout', { workout_id: w0.id })
+    expect(w.entries[at].sets[0].note).toBe('grip slipped')
+    expect('note' in w.entries[at].sets[1]).toBe(false)
+  })
+})

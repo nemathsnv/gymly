@@ -1360,6 +1360,17 @@ body.chips-dragging *{cursor:inherit}
 .settrend.up{color:var(--green-ink)}
 .settrend.same{color:var(--label-2)}
 .settrend.down{color:var(--orange-ink)}
+/* A note on one set (lib/set-notes.js): a quiet line under the row in the workout, a mark after
+   the set in History. Its gold is --gold-ink: the system yellow as text is 1.6:1 on white, so the
+   light theme takes a darker gold (openGym 86e29a8). */
+:root{--gold-ink:var(--yellow)}
+:root[data-theme="light"]{--gold-ink:#8f5e00}
+.setnote-line{display:flex;align-items:center;gap:5px;width:100%;margin:2px 0 4px;padding:2px 4px;padding-inline-start:34px;border:0;background:none;color:var(--label-2);font:inherit;font-size:12px;text-align:start;cursor:pointer;min-width:0}
+.setnote-line .icn{flex:none;font-size:12px;color:var(--gold-ink)}
+.setnote-line span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.setnote-mark{display:inline-block;margin-inline-start:3px;font-size:11px;color:var(--gold-ink);vertical-align:-1px}
+.setnote-hist{margin-top:3px;display:flex;gap:4px;align-items:baseline}
+.setnote-hist .icn{flex:none;font-size:11px;color:var(--gold-ink);transform:translateY(1px)}
 /* No +/- buttons: the number field takes the whole cell and is the tap target. */
 .stp.plain{grid-template-columns:1fr}
 .stp.plain .val{width:100%}

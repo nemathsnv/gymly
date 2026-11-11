@@ -60,3 +60,18 @@ describe('set vs last time in a saved workout (#907)', () => {
     expect(mountTopSheet().querySelectorAll('.settrend')).toHaveLength(0)
   })
 })
+
+// A note on one set (openGym 765dd3018), in History.
+describe('set notes in a saved workout', () => {
+  const withNote = (i, note) => ({ ...today, entries: [{ ...today.entries[0], sets: today.entries[0].sets.map((s, j) => (j === i ? { ...s, note } : s)) }] })
+  it('marks the set and lists the note under the sets', () => {
+    workoutDetailSheet(withNote(2, 'grip slipped'))
+    const host = mountTopSheet()
+    expect(host.querySelector('.setnote-mark').getAttribute('aria-label')).toBe('Note: grip slipped')
+    expect(host.querySelector('.setnote-hist').textContent).toBe('Set 2: grip slipped')
+  })
+  it('a warm-up note is numbered as a warm-up', () => {
+    workoutDetailSheet(withNote(0, 'stiff'))
+    expect(mountTopSheet().querySelector('.setnote-hist').textContent).toBe('Warm-up 1: stiff')
+  })
+})
