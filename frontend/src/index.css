@@ -2176,6 +2176,24 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 @keyframes spflash{0%,45%{background:var(--acc-soft)}100%{background:transparent}}
 .sp-empty{color:var(--label-2);text-align:center;padding:28px 12px;line-height:1.4}
 
+/* ------------------------------------------- Webhooks (Settings → Account) -- */
+/* The webhook sheets (components/Webhooks.jsx), ported with upstream openGym's Integrations
+   classes (b397ab84b): a status pill, a monospace masked URL and the secret shown once. */
+.intg-pill{display:inline-flex;align-self:flex-start;margin-top:5px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;
+  line-height:1.35;background:var(--surface-2);color:var(--label-2)}
+.intg-pill.connected{background:rgba(48,209,88,.16);color:var(--green)}
+.intg-pill.attention{background:rgba(255,159,10,.18);color:var(--orange)}
+.lrow-s .intg-pill{margin-inline-start:6px;margin-top:0;vertical-align:1px}
+.intg-h{display:flex;align-items:center;gap:8px}
+.intg-h .icn{flex:none;color:var(--acc)}
+.intg-lead{margin:-4px 0 14px;line-height:1.45}
+.intg-sheet-pill{margin:-8px 0 12px}
+.intg-line{font-size:15px;line-height:1.35}
+.intg-url{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--label-2);overflow-wrap:anywhere}
+.intg-secret{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;padding:12px 14px;margin-bottom:12px;
+  background:var(--surface);border-radius:var(--r-sm);overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+.intg-problem{color:var(--red);font-size:13px;line-height:1.35;margin-top:8px}
+
 /* ----------------------------------------------------------- RTL (Arabic) -- */
 /* Directional icons flip: back chevrons point right, trailing chevrons point left. */
 [dir="rtl"] [data-icon="chevronLeft"],

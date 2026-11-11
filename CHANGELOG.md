@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Webhooks** (self-hosted, `INTEGRATIONS=webhook`; ported from openGym 1.4.4). Tell Home
+  Assistant, n8n, ntfy or Node-RED when you finish a workout, set a record or weigh in, from
+  whichever device you logged it on, or an AI assistant over the hosted MCP endpoint. Add them in
+  **Settings → Account → Webhooks**, a row that is only there when your server offers them. Each
+  message is signed, retried for about an hour if the other side is down, never sent twice, and a
+  test event is one tap away. With several weigh-ins a day, each weigh-in is its own message, the
+  evening's too. Home Assistant on your home network needs `INTEGRATIONS_ALLOW_LAN=1` from your
+  admin. Payloads and a signature checker are in docs/INTEGRATIONS.md.
 - **Your week, your month** (from openGym). When a new week starts (your first weekday, Monday or
   Sunday as Settings has it) Home shows a small "Your week" card about the one that just ended, and
   on the 1st a "Your month": workouts, volume, new bests, the streak and the muscle that did the

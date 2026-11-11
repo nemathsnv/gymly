@@ -95,6 +95,9 @@ info:
       the language of the sign-in screen and of every profile that never picked one.
     - `TRUST_PROXY=1`: the throttle reads the client address from proxy headers (set by
       the bundled `docker-compose.yml`, where only the web container can reach the API).
+    - `INTEGRATIONS` (unset by default, e.g. `webhook`): the providers of the `integrations`
+      routes, and the `integrations` block of `GET /api/config`. `INTEGRATIONS_ALLOW_LAN=1`
+      lets a webhook reach the home network (http too), never loopback or link-local.
     - `MEDIA_UPLOADS` (default on; `0` removes the `media` routes and the `media` block of
       `GET /api/config`), `MEDIA_QUOTA_MB` (200 per profile, `0` = no cap),
       `MEDIA_IMAGE_MAX_MB` (2), `MEDIA_GIF_MAX_MB` (8), `MEDIA_VIDEO_MAX_MB` (40),
@@ -175,6 +178,11 @@ tags:
     description: >-
       AI Coach: plans, reviews and debriefs. Every route here answers 503 unless the
       instance has the Coach switched on and a provider connected.
+  - name: integrations
+    description: >-
+      Outbound webhooks (Settings → Account → Webhooks). Off unless the server runs with
+      `INTEGRATIONS` (e.g. `INTEGRATIONS=webhook`); then a profile can add its own webhooks.
+      Secrets are sealed at rest and shown once. See docs/INTEGRATIONS.md.
 
 security:
   - cookieAuth: []
@@ -303,6 +311,14 @@ paths:
                       always wins; a tag the app has no translation for is ignored.
                   media:
                     $ref: '#/components/schemas/MediaConfig'
+                  integrations:
+                    type: object
+                    description: >-
+                      Present for a signed-in caller when the server runs with INTEGRATIONS:
+                      the provider ids it offers, and `lan: true` with INTEGRATIONS_ALLOW_LAN=1.
+                    properties:
+                      providers: { type: array, items: { type: string }, example: [webhook] }
+                      lan: { type: boolean, const: true }
               examples:
                 anonymous: { value: { invite_only: true, allow_guest: false } }
                 signedInNoCoach: { value: { invite_only: true, allow_guest: false, coach: null } }
@@ -2532,6 +2548,253 @@ paths:
               schema: { $ref: '#/components/schemas/Ok' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /api/integrations:
+    get:
+      tags: [integrations]
+      operationId: listIntegrations
+      summary: The integrations this server offers, and the caller's connections
+      description: |
+        `providers` is what the admin switched on with `INTEGRATIONS` (empty when it is unset,
+        the default), `connections` the caller's own. A connection never carries a secret or
+        its full URL: `info.url` is masked. `status` is `connected`, `paused` or `attention`
+        (the last deliveries failed for good, or its sealed settings no longer open because
+        `./data/secret` changed); `lastError` says why in plain words.
+      responses:
+        '200':
+          description: Providers and connections.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, example: webhook }
+                        kind: { type: string, enum: [webhook, apikey, oauth] }
+                        category: { type: string, example: automation }
+                        events: { type: array, items: { $ref: '#/components/schemas/IntegrationEvent' } }
+                        max: { type: integer, description: Connections of this kind a profile may have. }
+                        lan: { type: boolean, description: 'Present (true) when INTEGRATIONS_ALLOW_LAN=1: home-network receivers are allowed.' }
+                  connections:
+                    type: array
+                    items: { $ref: '#/components/schemas/IntegrationConnection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/integrations/connect:
+    post:
+      tags: [integrations]
+      operationId: connectIntegration
+      summary: Add a connection (a webhook)
+      description: |
+        For `provider: webhook`: `url` (https, or http to a home-network address when
+        `INTEGRATIONS_ALLOW_LAN=1`; never loopback, link-local or, by default, a private
+        address), an optional `label` (60 characters) and `events` (at least one; default
+        `workout.finished`). At most 10 webhooks a profile. The answer's `reveal.secret` is
+        the signing secret, **shown this once**: the server keeps it sealed and never sends
+        it again. Payloads and the signature: docs/INTEGRATIONS.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, url]
+              properties:
+                provider: { type: string, example: webhook }
+                url: { type: string, maxLength: 2048, example: 'https://ha.example.com/api/webhook/gymly-7f3a' }
+                label: { type: string, maxLength: 60 }
+                events: { type: array, items: { $ref: '#/components/schemas/IntegrationEvent' } }
+      responses:
+        '200':
+          description: Connected.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection: { $ref: '#/components/schemas/IntegrationConnection' }
+                  reveal:
+                    type: object
+                    properties:
+                      secret: { type: string, example: ogwh_EXAMPLE-not-a-real-secret-0000000 }
+        '400':
+          description: 'The URL or the events were refused (`code`: `url`, `events`).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+        '409':
+          description: 'Too many connections of this kind (`code`: `too-many`).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/IntegrationsSlowDown' }
+
+  /api/integrations/update:
+    post:
+      tags: [integrations]
+      operationId: updateIntegration
+      summary: Rename a connection, change its events, pause or resume it
+      description: >-
+        A new URL is a new webhook (and a new secret): disconnect and connect again.
+        `paused: false` also clears a "Needs attention".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string }
+                label: { type: string, maxLength: 60 }
+                events: { type: array, items: { $ref: '#/components/schemas/IntegrationEvent' } }
+                paused: { type: boolean }
+      responses:
+        '200':
+          description: The connection as it is now.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection: { $ref: '#/components/schemas/IntegrationConnection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+        '429': { $ref: '#/components/responses/IntegrationsSlowDown' }
+
+  /api/integrations/disconnect:
+    post:
+      tags: [integrations]
+      operationId: disconnectIntegration
+      summary: Remove a connection
+      description: >-
+        Forgets the connection, its sealed secrets, its log and anything still waiting to be
+        sent to it. Nothing is called on the far side.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string }
+      responses:
+        '200':
+          description: Gone.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+
+  /api/integrations/test:
+    post:
+      tags: [integrations]
+      operationId: testIntegration
+      summary: Send a test event now
+      description: >-
+        Delivers a made-up event of `type` (default: the connection's first event) straight
+        away, marked `"test": true`, and answers how it went. Six a minute per profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string }
+                type: { $ref: '#/components/schemas/IntegrationEvent' }
+      responses:
+        '200':
+          description: The receiver's answer (`ok` false with `msg` when it failed).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: ['integer', 'null'], description: The receiver's HTTP status. }
+                  ms: { type: ['integer', 'null'] }
+                  msg: { type: ['string', 'null'] }
+                  connection: { $ref: '#/components/schemas/IntegrationConnection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+        '429': { $ref: '#/components/responses/IntegrationsSlowDown' }
+
+  /api/integrations/retry:
+    post:
+      tags: [integrations]
+      operationId: retryIntegration
+      summary: Send the failed deliveries again
+      description: >-
+        Deliveries the server gave up on (after eight attempts over about an hour, or at once
+        for a refusal like a 404) go back into the queue from attempt one and are sent now.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string }
+      responses:
+        '200':
+          description: How many went back, and the connection afterwards.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requeued: { type: integer }
+                  connection: { $ref: '#/components/schemas/IntegrationConnection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+        '429': { $ref: '#/components/responses/IntegrationsSlowDown' }
+
+  /api/integrations/log:
+    get:
+      tags: [integrations]
+      operationId: integrationLog
+      summary: A connection's activity log
+      description: The last 50 deliveries and tests, newest first, plus what is queued or failed.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The log.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  log:
+                    type: array
+                    maxItems: 50
+                    items:
+                      type: object
+                      properties:
+                        at: { type: integer, description: Epoch ms. }
+                        ev: { type: string, description: 'An event type, `test` or `connected`.' }
+                        ok: { type: boolean }
+                        status: { type: integer }
+                        ms: { type: integer }
+                        msg: { type: string, maxLength: 160 }
+                  queued: { type: integer }
+                  failed: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/IntegrationsOff' }
+
   /api/activity:
     post:
       tags: [activity]
@@ -3537,6 +3800,24 @@ components:
               error: { type: string }
               code: { type: string, enum: [off, busy, cap, consent, shared, unprivileged] }
           example: { error: "the Coach is already thinking about your training", code: busy }
+    IntegrationsOff:
+      description: >-
+        `code` `off`: the server runs without `INTEGRATIONS` (the default). `code` `missing`:
+        no such connection on this profile (another profile's id is the same answer).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: "integrations are off on this server", code: "off" }
+    IntegrationsSlowDown:
+      description: Connect, change or test tapped too often (20 a minute, tests 6). Try again after `Retry-After`.
+      headers:
+        Retry-After:
+          description: Seconds to wait.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: "slow down a little", code: "rate", retryAfter: 9 }
     TooManyRequests:
       description: >-
         Paused by the sign-in throttle (see *Throttling* in the description). The request
@@ -3602,6 +3883,41 @@ components:
           example: { error: "that code is wrong, used or expired", code: "link-invalid" }
 
   schemas:
+    IntegrationEvent:
+      type: string
+      enum: [workout.finished, workout.pr, weighin.logged]
+      description: >-
+        `workout.finished`: a workout reached the server (from any device, or an assistant
+        over the hosted MCP endpoint). `workout.pr`: that workout set personal records.
+        `weighin.logged`: a new weigh-in reading, or one whose weight changed (a day can hold
+        several; each reading is its own event). Only events from the last seven days that
+        happened after the connection was made are sent.
+
+    IntegrationConnection:
+      type: object
+      properties:
+        id: { type: string, example: c_3uK8m2Qx9pLa }
+        provider: { type: string, example: webhook }
+        label: { type: string, maxLength: 60, example: Home Assistant }
+        events: { type: array, items: { $ref: '#/components/schemas/IntegrationEvent' } }
+        paused: { type: boolean }
+        status: { type: string, enum: [connected, paused, attention] }
+        info:
+          type: object
+          properties:
+            url: { type: string, example: 'https://ha.example.com/api/webhook/…7f3a', description: Masked. }
+        createdAt: { type: integer, description: Epoch ms. }
+        lastOk: { type: ['integer', 'null'], description: Epoch ms of the last delivery that landed. }
+        lastError:
+          type: ['object', 'null']
+          properties:
+            at: { type: integer }
+            msg: { type: string, maxLength: 160 }
+            code: { type: string, example: busy }
+        failures: { type: integer, description: Failed attempts since the last success. }
+        queued: { type: integer }
+        failed: { type: integer, description: Deliveries given up on; Retry sends them again. }
+
     McpToken:
       type: object
       required: [id, name, scope, created, exp, lastUsed, hint]

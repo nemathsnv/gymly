@@ -641,6 +641,10 @@ API keys for the HTTPS providers (Anthropic, OpenAI, Gemini, a compatible endpoi
 other way round: they are in `./data/coach.json`, encrypted with `./data/secret`, so they *are*
 in this archive — and unreadable without the secret next to them, like everything else in it.
 
+Webhooks (`data/integrations/`) are in the archive too, their URLs and signing secrets encrypted
+with `data/secret` like the Coach's keys: restore both together, or every webhook has to be added
+again.
+
 ## 7. Notifications
 
 openGym can push two kinds of alert to your phone/desktop, even when the app isn't open:
@@ -698,6 +702,32 @@ ALLOWED_PRIVATE_IPS=10.0.0.0/8, 192.168.1.50, 172.16.0.1-172.16.0.9, fd00::/8
 - An IPv4 entry also covers the same address written as IPv4-mapped IPv6 (`::ffff:10.1.2.3`).
 - The default is empty: every private address stays blocked. Keep the list as small as you can —
   each address you allow is an address that a signed-in user can make the server connect to.
+
+### Webhooks (`INTEGRATIONS`, `INTEGRATIONS_ALLOW_LAN`)
+
+Webhooks are sent by the server, so you switch them on (off by default):
+
+```
+INTEGRATIONS=webhook
+```
+
+Each signed-in profile then gets a **Webhooks** row in Settings → Account and can add up to 10
+webhook URLs that get a signed JSON message when a workout is finished, a record falls or a weigh-in
+is logged, from whichever device (or AI assistant over the hosted MCP endpoint) it was logged on.
+With the variable unset the row is not shown, the routes answer "off", and nothing is written. The
+URLs follow the push endpoint rules above (HTTPS, no private addresses, checked at connect time and
+again in the connection itself, no redirects); `ALLOWED_PRIVATE_IPS` counts for them too. For Home
+Assistant or Node-RED on your own network:
+
+```
+INTEGRATIONS_ALLOW_LAN=1
+```
+
+opens the home network's addresses (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7), plain
+`http://` to them included, never loopback or link-local. Every signed-in user can then make the
+server call into your network, so keep it for instances whose users you trust, and leave it off on a
+VPS. Connections live in `data/integrations/`, the URL and the signing secret encrypted with a key
+from `data/secret`. Payloads, signatures and retries are in [INTEGRATIONS.md](INTEGRATIONS.md).
 
 ## 8. Updating
 

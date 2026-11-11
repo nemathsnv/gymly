@@ -52,3 +52,15 @@ test('every directory server.js imports from is copied, with the root modules it
     }
   }
 });
+
+test('the integrations directory is copied whole, provider modules and net-guard.js included', () => {
+  const docker = read('Dockerfile');
+  assert.match(docker, /^COPY\s+integrations\s+\.\/integrations\s*$/m, 'COPY integrations ./integrations in api/Dockerfile');
+  assert.match(read('server.js'), /from '\.\/integrations\/index\.js'/);
+  // providers/ sits one level deeper and reaches the api root with ../../, which the walk above
+  // does not follow.
+  const rootLine = docker.split('\n').find(l => /^COPY\s+server\.js\b/.test(l));
+  for (const m of read('integrations/providers/webhook.js').matchAll(/from\s+['"]\.\.\/\.\.\/([^'"/]+\.js)['"]/g)) {
+    assert.ok(rootLine.split(/\s+/).includes(m[1]), `${m[1]} is not on the root COPY line`);
+  }
+});
