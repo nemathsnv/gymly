@@ -11,6 +11,13 @@
   from) and each one is yours to change under Settings → Plan & schedule → **Weekly sets per
   muscle**. Settings → Look & Home → On Home → **Weekly sets on Home** adds one line under your
   streak: the muscle with the most room left. Both sync with your profile.
+- **Strength level per lift** (from openGym). Bench, squat, deadlift, overhead press, rows, curls
+  and a few more now say where you stand: Beginner, Novice, Intermediate, Advanced or Elite, from
+  your best estimated 1RM against your latest weigh-in, graded on published strength standards
+  (bodyweight ratios, dumbbells per bell). It sits in the exercise's details with what the next
+  level takes, and a Stats card lists every lift you have one for. Add your sex and year of birth
+  under Settings → Units & language → **About you** for a fairer read (from 40 on, the masters age
+  coefficients ease the lines). Worked out on your device, and hidden until you have weighed in.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

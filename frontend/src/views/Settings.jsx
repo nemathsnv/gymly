@@ -46,6 +46,7 @@ import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchFi
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
 import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
+import { aboutYouSheet } from '../components/StrengthLevel.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { workoutLayoutOf } from '../lib/workout-layout.js'
 
@@ -710,6 +711,8 @@ export default function Settings({ page = null, find = null, via = null }) {
             { value: 'lander', label: 'Lander' },
             { value: 'weighted', label: t('Blend of all'), subtitle: t('Averages seven formulas and reads your RIR when you log it.') },
           ]} />
+        {/* Sex and year of birth, read only by the strength levels (lib/strength-level.js). */}
+        <Row icon="person" iconTint="var(--teal)" title={t('About you')} subtitle={t('For your strength levels')} accessory="chevron" onClick={aboutYouSheet} />
       </Section>
     </>,
 
