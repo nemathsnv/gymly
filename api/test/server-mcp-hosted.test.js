@@ -40,7 +40,7 @@ const STATE_ONE = {
     { id: 'r2', name: 'Legs', ex: [{ id: '0043', sets: 3, reps: 5, weight: 80 }] }
   ],
   week: { 1: ['r1'], 3: ['r2'] }, dayPlan: {},
-  workouts: [{ id: 'w1', d: '2026-10-01', start: 1, end: 3600001, name: 'Push Day', routineIds: ['r1'], entries: [{ id: '0025', sets: [{ w: 55, r: 5, done: true }] }] }],
+  workouts: [{ id: 'w1', d: '2026-10-01', start: 1, end: 3600001, name: 'Push Day', routineIds: ['r1'], entries: [{ id: '0025', sets: [{ w: 55, r: 5, done: true, note: ' paused at the bottom ' }] }] }],
   bodyweight: [{ d: '2026-10-01', w: 80.4 }],
   gymCards: [{ id: 'card1', name: 'My gym', code: 'MEMBER-998877' }],
   coach: { pending: { summary: 'COACH-PRIVATE' } },
@@ -197,6 +197,8 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   assert.deepEqual(routines.structuredContent.routines.map(r => r.name), ['Push Day', 'Legs']);
   const workout = await h.call(at, 'get_workout', { workout_id: 'w1' });
   assert.equal(workout.structuredContent.entries[0].sets[0].w, 55);
+  // A set's own note (frontend lib/set-notes.js) is read back, trimmed, like the local bridge's.
+  assert.equal(workout.structuredContent.entries[0].sets[0].note, 'paused at the bottom');
   const progress = await h.call(at, 'get_training_progress', { weeks: 52 });
   assert.equal(progress.structuredContent.lifts[0].id, '0025');
   // Withheld from every answer: gym cards and the Coach record.
