@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Every set against last time** (from openGym #907, thanks @lodepav for the idea). A finished
+  set now wears a small ↑, = or ↓ on its number: the same set last time, weight first and then
+  reps, and when those pull apart (heavier but fewer) the estimated 1RM settles it. On an assisted
+  machine less help counts as more, holds go by seconds, cardio by minutes, and a stepmill held
+  as long by its level. A step of any size counts, so an exercise that moves by 1.25 kg reads
+  "1.25 kg more". Saved workouts in History get the arrows too, held against the workout before
+  them, never a later one. Screen readers hear it in words ("2.5 kg more than last time").
+  Settings → Workout → **Compare sets with last time** switches it off.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.
