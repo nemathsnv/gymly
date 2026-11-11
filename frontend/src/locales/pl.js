@@ -2345,4 +2345,5 @@ export default {
   "No unit": "Bez jednostki",
   "{0} measurement check-in imported": "Zaimportowano {0} pomiar",
   "{0} measurement check-ins imported": {"one":"Zaimportowano {0} pomiar","few":"Zaimportowano {0} pomiary","many":"Zaimportowano {0} pomiarów","other":"Zaimportowano {0} pomiaru"},
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ta aplikacja nie może potwierdzić kluczem dostępu. Utwórz kod w przeglądarce zalogowanej na ten profil albo najpierw ustaw tam hasło.',
 }

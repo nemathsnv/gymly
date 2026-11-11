@@ -1506,6 +1506,7 @@ export const PT_BR_OVERRIDES = {
   "No unit": "Sem unidade",
   "{0} measurement check-in imported": "{0} registro de medidas importado",
   "{0} measurement check-ins imported": "{0} registros de medidas importados",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Este aplicativo não consegue confirmar com uma chave de acesso. Crie o código em um navegador conectado a este perfil, ou adicione uma senha lá primeiro.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

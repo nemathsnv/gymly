@@ -2345,4 +2345,5 @@ export default {
   "No unit": "कोई इकाई नहीं",
   "{0} measurement check-in imported": "{0} माप रिकॉर्ड आयात हुआ",
   "{0} measurement check-ins imported": "{0} माप रिकॉर्ड आयात हुए",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'यह ऐप पासकी से पुष्टि नहीं कर सकता। इस प्रोफ़ाइल में साइन इन किए ब्राउज़र में कोड बनाएँ, या पहले वहाँ एक पासवर्ड जोड़ें।',
 }

@@ -2345,4 +2345,5 @@ export default {
   "No unit": "Sin unidad",
   "{0} measurement check-in imported": "{0} registro de medidas importado",
   "{0} measurement check-ins imported": "{0} registros de medidas importados",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Esta app no puede confirmar con una passkey. Crea el código en un navegador con este perfil abierto, o añade allí una contraseña primero.',
 }

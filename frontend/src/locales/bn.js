@@ -2424,4 +2424,5 @@ export default {
   "No unit": "কোনো একক নেই",
   "{0} measurement check-in imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
   "{0} measurement check-ins imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'এই অ্যাপ পাসকি দিয়ে নিশ্চিত করতে পারে না। এই প্রোফাইলে সাইন ইন করা ব্রাউজারে কোডটি বানান, অথবা আগে সেখানে একটি পাসওয়ার্ড যোগ করুন।',
 }

@@ -2348,4 +2348,5 @@ export default {
   "No unit": "Nincs mértékegység",
   "{0} measurement check-in imported": "{0} méretfelvétel importálva",
   "{0} measurement check-ins imported": "{0} méretfelvétel importálva",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ez az app nem tud jelszókulccsal megerősíteni. Készítsd el a kódot egy böngészőben, ahol ebbe a profilba vagy bejelentkezve, vagy előbb adj meg ott egy jelszót.',
 }

@@ -14,6 +14,7 @@ import { deviceLinkUrl, deviceLabel } from '../lib/device-link.js'
 import { askAddDeviceData } from '../sheets.jsx'
 import { passwordError, notReached, useAgainOnceReached, ProveOwner } from './PasswordAuth.jsx'
 import QrCanvas from './QrCanvas.jsx'
+import { MOBILE } from '../lib/mobile.js'
 import { Row, Button } from './ui.jsx'
 
 const ui = () => useUI.getState()
@@ -241,6 +242,49 @@ export function DeviceLinkSheet({ close }) {
     </>}
     <div style={{ height: 8 }} />
     <Button variant="ghost" onClick={close}>{t('Done')}</Button>
+  </>
+}
+
+/* Settings → Account → "Pair the mobile app": the code the phone app redeems for its own token
+   (/api/pair/create, /api/pair/redeem). The token is renewed for as long as the phone uses it, so
+   the server asks the same proof a device link does before it makes one: a session alone may be a
+   cookie someone walked off with. Then the code, and when its five minutes are up, a new one on a
+   tap. A paired phone can pair another only with the password, as with a device link. */
+const PAIR_MINUTES = 5
+export function PairSheet({ close }) {
+  const { st } = usePasskeys(true)
+  const [pair, setPair] = useState(null)   // { code, expires }
+  const [expired, setExpired] = useState(false)
+  useEffect(() => {
+    if (!pair) return
+    setExpired(false)
+    const timer = setTimeout(() => setExpired(true), Math.max(0, pair.expires - Date.now()))
+    return () => clearTimeout(timer)
+  }, [pair])
+  const passkey = !MOBILE && !!st && st.passkeys.length > 0
+  const made = async proof => {
+    const r = await post('/api/pair/create', proof)
+    setPair({ code: r.code, expires: Date.now() + PAIR_MINUTES * 60000 })
+  }
+  return <>
+    <h3>{t('Pair the mobile app')}</h3>
+    {!st ? <div className="muted small">…</div> : !pair ? <>
+      <div className="muted small" style={{ marginBottom: 14 }}>{t('First confirm that it is you.')}</div>
+      {MOBILE && !st.password
+        ? <div className="dim small">{t('This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.')}</div>
+        : <ProveOwner passkey={passkey} password={st.password} explain={passkeyError} onProof={made} />}
+    </> : expired ? <>
+      <div className="muted small" style={{ marginBottom: 14 }}>{t('This code has expired.')}</div>
+      <Button variant="primary" onClick={() => setPair(null)}>{t('Make a new code')}</Button>
+    </> : <>
+      <div className="muted small" style={{ marginBottom: 14 }}>
+        {t('On the Gymly app, choose “Connect to my server”, then enter this address and the code below. It expires in 5 minutes.')}
+      </div>
+      {/* Read out or typed character by character: left to right in every language. */}
+      <div className="card" dir="ltr" style={{ textAlign: 'center', fontSize: 30, fontWeight: 700, letterSpacing: '.16em', padding: '18px 0' }}>{pair.code}</div>
+    </>}
+    <div style={{ height: 12 }} />
+    <Button onClick={close}>{t('Done')}</Button>
   </>
 }
 
