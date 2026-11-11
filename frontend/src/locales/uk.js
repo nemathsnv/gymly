@@ -2335,5 +2335,12 @@ export default {
   'Log {0}': 'Записати: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Ще нічого не записано. Записуйте щоранку, щоб бачити динаміку.',
   'That number looks too big. Check it and try again.': 'Це число виглядає завеликим. Перевірте його та спробуйте ще раз.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Одиниця вимірювання",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Тип записаних значень зберігається. Для іншого типу додайте нове вимірювання.",
+  "{0} must be between 0 and 100%.": "Значення «{0}» має бути від 0 до 100%.",
+  "No unit": "Без одиниці",
+  "{0} measurement check-in imported": "Імпортовано {0} вимір",
+  "{0} measurement check-ins imported": {"one":"Імпортовано {0} вимір","few":"Імпортовано {0} виміри","many":"Імпортовано {0} вимірів","other":"Імпортовано {0} виміру"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Цей застосунок не може підтвердити ключем доступу. Створіть код у браузері, де ви ввійшли в цей профіль, або спершу задайте там пароль.',
 }

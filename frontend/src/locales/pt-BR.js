@@ -1499,6 +1499,13 @@ export const PT_BR_OVERRIDES = {
   'Log {0}': 'Registrar {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Nada registrado ainda. Registre toda manhã para ver a tendência.',
   'That number looks too big. Check it and try again.': 'Esse número parece grande demais. Confira e tente de novo.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Unidade de medida",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Os valores salvos mantêm seu tipo. Adicione uma nova medida para usar outro tipo.",
+  "{0} must be between 0 and 100%.": "{0} deve estar entre 0 e 100%.",
+  "No unit": "Sem unidade",
+  "{0} measurement check-in imported": "{0} registro de medidas importado",
+  "{0} measurement check-ins imported": "{0} registros de medidas importados",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Este aplicativo não consegue confirmar com uma chave de acesso. Crie o código em um navegador conectado a este perfil, ou adicione uma senha lá primeiro.',
 }
 

@@ -2338,5 +2338,12 @@ export default {
   'Log {0}': 'Zapisz: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Nic jeszcze nie zapisano. Zapisuj to każdego ranka, żeby zobaczyć trend.',
   'That number looks too big. Check it and try again.': 'Ta liczba wygląda na zbyt dużą. Sprawdź ją i spróbuj ponownie.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Jednostka pomiaru",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Zapisane wartości zachowują swój typ. Dodaj nowy pomiar, aby użyć innego typu.",
+  "{0} must be between 0 and 100%.": "{0} musi mieścić się w zakresie od 0 do 100%.",
+  "No unit": "Bez jednostki",
+  "{0} measurement check-in imported": "Zaimportowano {0} pomiar",
+  "{0} measurement check-ins imported": {"one":"Zaimportowano {0} pomiar","few":"Zaimportowano {0} pomiary","many":"Zaimportowano {0} pomiarów","other":"Zaimportowano {0} pomiaru"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ta aplikacja nie może potwierdzić kluczem dostępu. Utwórz kod w przeglądarce zalogowanej na ten profil albo najpierw ustaw tam hasło.',
 }

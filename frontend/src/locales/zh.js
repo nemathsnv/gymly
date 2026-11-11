@@ -2338,5 +2338,12 @@ export default {
   'Log {0}': '记录{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '还没有任何记录。每天早上记录一次，就能看到趋势。',
   'That number looks too big. Check it and try again.': '这个数字看起来太大了。请检查后再试一次。',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "测量单位",
+  "Logged values keep their type. Add a new measurement to use a different type.": "已记录的数值会保留原有类型。如需其他类型，请添加新的测量项。",
+  "{0} must be between 0 and 100%.": "{0}必须在 0% 到 100% 之间。",
+  "No unit": "无单位",
+  "{0} measurement check-in imported": "已导入 {0} 条身体测量记录",
+  "{0} measurement check-ins imported": "已导入 {0} 条身体测量记录",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此应用无法用通行密钥确认。请在已登录此档案的浏览器中生成代码，或先在那里设置密码。',
 }

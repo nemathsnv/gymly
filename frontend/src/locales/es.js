@@ -2338,5 +2338,12 @@ export default {
   'Log {0}': 'Registrar {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Aún no hay nada registrado. Regístralo cada mañana para ver la tendencia.',
   'That number looks too big. Check it and try again.': 'Ese número parece demasiado grande. Revísalo e inténtalo de nuevo.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Unidad de medida",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Los valores registrados conservan su tipo. Añade una nueva medida para usar otro tipo.",
+  "{0} must be between 0 and 100%.": "{0} debe estar entre 0 y 100 %.",
+  "No unit": "Sin unidad",
+  "{0} measurement check-in imported": "{0} registro de medidas importado",
+  "{0} measurement check-ins imported": "{0} registros de medidas importados",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Esta app no puede confirmar con una passkey. Crea el código en un navegador con este perfil abierto, o añade allí una contraseña primero.',
 }

@@ -2393,5 +2393,12 @@ export default {
   'Log {0}': 'تسجيل {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'لا شيء مسجّل بعد. سجّله كل صباح لترى الاتجاه.',
   'That number looks too big. Check it and try again.': 'يبدو هذا الرقم كبيرًا جدًا. تحقّق منه وحاول مرة أخرى.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "وحدة القياس",
+  "Logged values keep their type. Add a new measurement to use a different type.": "تحتفظ القيم المسجلة بنوعها. أضف قياسًا جديدًا لاستخدام نوع مختلف.",
+  "{0} must be between 0 and 100%.": "يجب أن تكون قيمة {0} بين 0 و100٪.",
+  "No unit": "بدون وحدة",
+  "{0} measurement check-in imported": "تم استيراد {0} تسجيل قياسات",
+  "{0} measurement check-ins imported": "تم استيراد {0} تسجيلات قياسات",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'لا يستطيع هذا التطبيق التأكيد بمفتاح مرور. أنشئ الرمز في متصفح مسجّل الدخول إلى هذا الملف الشخصي، أو أضف كلمة مرور هناك أولًا.',
 }
