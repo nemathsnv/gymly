@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { remoteConfig, createRemoteSource } from './remote.js'
 import { dropPrivate } from './private-keys.js'
+import { withExerciseMerges } from '../../frontend/src/lib/exercise-merge.js'
 
 const DATA_DIR = process.env.OPENGYM_DATA || path.join(process.cwd(), 'data')
 
@@ -146,7 +147,7 @@ export function init() {
   const file = stateFile(_uid)
   if (fs.existsSync(file)) {
     _state = readJsonOrNull(file)
-    if (_state) _state = Object.assign({}, defaultsShape(), dropPrivate(_state))
+    if (_state) _state = shaped(_state)
     try { _loadedMtime = fs.statSync(file).mtimeMs } catch {}
   }
   if (_watcher) _watcher.close()
@@ -174,7 +175,7 @@ export function getState() {
   if (_remote) {
     if (!_remote.loaded) throw remoteNotLoaded()
     const raw = _remote.state
-    if (_remoteMerged.from !== raw) _remoteMerged = { from: raw, value: raw ? Object.assign({}, defaultsShape(), raw) : null }
+    if (_remoteMerged.from !== raw) _remoteMerged = { from: raw, value: raw ? shaped(raw, { remote: true }) : null }
     return _remoteMerged.value
   }
   const file = stateFile(_uid)
@@ -189,7 +190,7 @@ export function getState() {
     if (fresh) {
       // Same shape the frontend builds on pullState — defaults merged with stored state so any
       // field the app added since the snapshot was last saved shows up undefined-safe.
-      _state = Object.assign({}, defaultsShape(), dropPrivate(fresh))
+      _state = shaped(fresh)
       _loadedMtime = mtime
     } else if (_state === undefined) {
       _state = null  // no state file at all — never signed in on a device
@@ -221,6 +222,15 @@ export function _seedStateForTests(state) {
   _state = state
   _loadedMtime = Number.MAX_SAFE_INTEGER   // never re-read from disk in a test
   if (_watcher) { _watcher.close(); _watcher = null }
+}
+
+// A stored profile as the tools read it: the app's defaults under it, and an exercise merged into
+// another in the app (#656, frontend/src/lib/exercise-merge.js) read as the one it went into
+// wherever a copy still names it (a workout a device logged before it heard of the merge), the way
+// the app's own copies are brought in line when they meet. A remote profile comes from
+// GET /api/mcp/v1/state, which already left out what is private.
+function shaped(stored, { remote = false } = {}) {
+  return withExerciseMerges(Object.assign({}, defaultsShape(), remote ? stored : dropPrivate(stored)))
 }
 
 function defaultsShape() {

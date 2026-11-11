@@ -7,8 +7,11 @@
    habitLog — the daily habit log (frontend/src/lib/habits.js): Alcohol and the user's own habits,
    their names and definitions (`habit|def`), every day and the notes beside them. Health and
    personal data the owner logged for themselves, not training data. Opening any of it to an assistant
-   is a decision of its own, with its own consent, and has not been made. */
-export const PRIVATE_KEYS = Object.freeze(['habitLog'])
+   is a decision of its own, with its own consent, and has not been made.
+
+   sex, birthYear — About you (frontend/src/components/StrengthLevel.jsx): read only by the
+   strength levels on the device, and promised there never to reach the Coach or an assistant. */
+export const PRIVATE_KEYS = Object.freeze(['habitLog', 'sex', 'birthYear'])
 
 /** `S` without the private parts, as a copy; anything that is not a profile document is returned as it is. */
 export function dropPrivate(S) {

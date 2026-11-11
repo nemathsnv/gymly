@@ -44,6 +44,8 @@ const STATE_ONE = {
   bodyweight: [{ d: '2026-10-01', w: 80.4 }],
   gymCards: [{ id: 'card1', name: 'My gym', code: 'MEMBER-998877' }],
   coach: { pending: { summary: 'COACH-PRIVATE' } },
+  // About you: read only by the strength levels on the device, never by an assistant.
+  sex: 'female', birthYear: 1966,
   habitLog: {
     'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', tz: 'Europe/Lisbon', _ts: 5 },
     // a habit of the user's own: its name is as private as its days
@@ -205,6 +207,7 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   const week = await h.call(at, 'get_week_plan');
   const recent = await h.call(at, 'list_workouts');
   assert.doesNotMatch(JSON.stringify([week, recent, list.body.result]), /HABIT-PRIVATE|HABIT-SECRET|hsecret|habitLog|alcohol|drank/i);
+  assert.doesNotMatch(JSON.stringify([routines, workout, progress, week, recent]), /"sex"|birthYear/);
 
   // "Change bench press to 4 sets of 8 at 60 kg."
   const pv = await h.call(at, 'preview_routine_changes', { operations: [{ op: 'update_exercise', routine_id: 'r1', exercise_id: '0025', sets: 4, reps: 8, weight: 60 }] });
@@ -228,6 +231,9 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   assert.deepEqual(after.gymCards, STATE_ONE.gymCards);
   // An assistant's change to a routine leaves the habit log as it was.
   assert.deepEqual(after.habitLog, STATE_ONE.habitLog);
+  // …and About you, which the assistant never saw, is kept as it was.
+  assert.equal(after.sex, 'female');
+  assert.equal(after.birthYear, 1966);
   // A device sees it on its next pull.
   const pulled = await (await h.fetch('/api/data', { headers: cookie('u_one') })).json();
   assert.equal(pulled.rev, after._rev);

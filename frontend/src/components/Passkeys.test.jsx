@@ -2,7 +2,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { passkeyError, PasskeysRow, PasskeysSheet, DeviceLinkSheet, DeviceLinkRedeemSheet } from './Passkeys.jsx'
+import { passkeyError, PasskeysRow, PasskeysSheet, DeviceLinkSheet, DeviceLinkRedeemSheet, PairSheet } from './Passkeys.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
    code sheet with its proof, QR and expiry; and the other device's redeem sheet. The API and the passkey prompts are stand-ins; what each step
    sends, and what it says back in the UI language, is the point. */
 const mocks = vi.hoisted(() => {
-  const state = { webauthn: true, sheets: [], answers: {}, calls: [], store: {} }
+  const state = { webauthn: true, sheets: [], answers: {}, calls: [], store: {}, MOBILE: false }
   state.toast = vi.fn()
   state.setUser = vi.fn()
   state.adoptProfile = vi.fn(async () => ({}))
@@ -51,6 +51,7 @@ vi.mock('../lib/api.js', () => ({
 }))
 vi.mock('../lib/clipboard.js', () => ({ copyText: (...a) => mocks.copyText(...a) }))
 vi.mock('../sheets.jsx', () => ({ askAddDeviceData: mocks.askAddDeviceData }))
+vi.mock('../lib/mobile.js', () => ({ get MOBILE() { return mocks.MOBILE } }))
 // lean-qr loads on demand; what matters here is what the QR code carries.
 vi.mock('./QrCanvas.jsx', () => ({ default: ({ value }) => <canvas data-qr={value} /> }))
 
@@ -370,6 +371,51 @@ describe('Settings: a code for another device', () => {
     expect(host.querySelector('canvas')).toBeNull()
     await click(host, 'Make a new code')
     expect(button(host, 'Confirm with a passkey')).toBeTruthy()
+  })
+})
+
+describe('Settings: pairing the mobile app', () => {
+  afterEach(() => { mocks.MOBILE = false })
+  it('asks for the proof first, and only then shows the code', async () => {
+    mocks.answers['GET /api/account/passkeys'] = LIST
+    mocks.answers['POST /api/pair/create'] = { code: 'K7WQ2MZP' }
+    const host = mount(<PairSheet close={() => {}} />)
+    await settle()
+    expect(host.textContent).not.toContain('K7WQ2MZP')
+    expect(mocks.calls.filter(c => c.method !== 'GET')).toEqual([])
+    await click(host, 'Confirm with a passkey')
+    expect(mocks.calls.at(-1)).toEqual({ path: '/api/pair/create', method: 'POST', body: { cid: 'login-cid', credential: { id: 'k1' } } })
+    expect(host.textContent).toContain('K7WQ2MZP')
+    expect(host.textContent).toMatch(/expires in 5 minutes/)
+  })
+  it('takes the password where that is the proof, and words a refusal', async () => {
+    mocks.answers['GET /api/account/passkeys'] = { passkeys: [], password: true, lastWayIn: true }
+    mocks.answers['POST /api/pair/create'] = fail(403, { error: 'your current password is not right', code: 'current-wrong' })
+    const host = mount(<PairSheet close={() => {}} />)
+    await settle()
+    expect(button(host, 'Confirm with a passkey')).toBeUndefined()
+    type(byPlaceholder(host, 'Current password'), 'nope')
+    await submit(host)
+    expect(mocks.calls.at(-1)).toEqual({ path: '/api/pair/create', method: 'POST', body: { current: 'nope' } })
+    expect(alertText(host)).toBeTruthy()
+    expect(host.querySelector('.card')).toBeNull()
+  })
+  it('a closed passkey prompt is no error and makes no code', async () => {
+    mocks.answers['GET /api/account/passkeys'] = LIST
+    const host = mount(<PairSheet close={() => {}} />)
+    await settle()
+    mocks.passkeyAssertion.mockRejectedValueOnce(named('NotAllowedError'))
+    await click(host, 'Confirm with a passkey')
+    expect(alertText(host)).toBeNull()
+    expect(mocks.calls.filter(c => c.method !== 'GET')).toEqual([])
+  })
+  it('on the paired phone without a password says where to do it, and sends nothing', async () => {
+    mocks.MOBILE = true
+    mocks.answers['GET /api/account/passkeys'] = { ...LIST, password: false }
+    const host = mount(<PairSheet close={() => {}} />)
+    await settle()
+    expect(host.textContent).toContain('Make the code in a browser signed in to this profile')
+    expect(mocks.calls.filter(c => c.method !== 'GET')).toEqual([])
   })
 })
 

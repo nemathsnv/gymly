@@ -2236,3 +2236,71 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
   background:var(--surface-3);color:var(--label-2);font-size:18px;transition:background var(--fast),color var(--fast);
 }
 .habit-icon.on{color:#000;box-shadow:inset 0 0 0 2px var(--label)}
+
+/* ------------------------------------------- weekly sets per muscle -- */
+/* Status inks: the green and orange as words or a thin bar. The system colours in the dark
+   theme; in the light one #34c759 and #ff9500 are about 2:1 on white, so a darker shade of the
+   same hue. Fills and tints elsewhere keep --green / --orange. */
+:root{--green-ink:var(--green);--orange-ink:var(--orange)}
+:root[data-theme="light"]{--green-ink:#1a7f37;--orange-ink:#a85200}
+
+/* Stats card (components/WeeklySets.jsx): one muscle per row, the range a band on the bar and the
+   week's sets its fill. Grey for room left, green in range, orange past it, each with its words
+   under the bar, never a colour on its own. */
+.wsets-row{padding:8px 0}
+.wsets-row+.wsets-row{border-top:var(--hair) solid var(--sep)}
+.wsets-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-width:0}
+.wsets-name{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wsets-num{flex:none;font-variant-numeric:tabular-nums;color:var(--label-2);font-size:14px}
+.wsets-num b{color:var(--label);font-weight:600}
+.wsets-bar{position:relative;height:8px;margin:6px 0 4px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+/* a plain colour first for Safari before 16.2, which has no color-mix */
+.wsets-band{position:absolute;top:0;bottom:0;background:rgba(48,209,88,.22);background:color-mix(in srgb,var(--green-ink) 22%,transparent)}
+:root[data-theme="light"] .wsets-band{background:rgba(26,127,55,.18);background:color-mix(in srgb,var(--green-ink) 18%,transparent)}
+.wsets-fill{position:absolute;top:2px;bottom:2px;inset-inline-start:0;border-radius:3px;background:var(--label-2)}
+.wsets-row.in .wsets-fill{background:var(--green-ink)}
+.wsets-row.above .wsets-fill{background:var(--orange-ink)}
+.wsets-st{font-size:12px;line-height:1.33;color:var(--label-2)}
+.wsets-st::first-letter{text-transform:uppercase}
+.wsets-row.in .wsets-st{color:var(--green-ink)}
+.wsets-row.above .wsets-st{color:var(--orange-ink)}
+
+/* Home: the streak card's tap area fills the card, and the weekly-sets line sits under it as a
+   button of its own, 44px tall, divided by a hairline (views/Home.jsx). */
+.streak-card{padding:0}
+.streak-tap{padding:16px;border-radius:var(--r-card);cursor:pointer}
+.wsets-home{display:flex;align-items:center;gap:8px;width:calc(100% - 32px);min-height:44px;margin:0 16px;padding:4px 0 8px;border:0;
+  border-top:var(--hair) solid var(--sep);background:none;color:var(--label-2);font:inherit;font-size:13px;text-align:start;cursor:pointer;transition:opacity var(--fast)}
+.wsets-home:active{opacity:.6}
+.wsets-home .icn:first-child{color:var(--green-ink);flex:none}
+.wsets-home span{flex:1;min-width:0}
+
+/* The ranges sheet: the name, then low and high; the steppers go under the name when the two do
+   not fit beside it (a 320px phone, a long name, a large text size). */
+.wsets-edit{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:8px 0}
+.wsets-edit+.wsets-edit{border-top:var(--hair) solid var(--sep)}
+.wsets-edit-n{flex:1 1 5.5em;min-width:0;font-weight:500;overflow-wrap:break-word}
+.wsets-edit-r{flex:none;display:flex;align-items:center;gap:6px;margin-inline-start:auto}
+.wsets-edit-r .stp{flex:none;width:108px}
+
+/* ----------------------------------------------- strength level per lift -- */
+/* Five steps, the reached ones in the accent (components/StrengthLevel.jsx). */
+.slevel-name{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.slevel-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin:6px 0}
+.slevel-bar span{height:6px;border-radius:3px;background:var(--surface-2)}
+.slevel-bar span.on{background:var(--acc)}
+/* The Stats card: two-line rows, the lift on line one (it wraps, never cut to "barbell bench…"),
+   the level and the ratio on line two, then the steps. */
+.slevel-row{padding:8px 0}
+.slevel-row+.slevel-row{border-top:var(--hair) solid var(--sep)}
+.slevel-ex{font-weight:500;min-width:0;overflow-wrap:break-word}
+.slevel-meta{margin-top:1px;font-size:13px;color:var(--label-2)}
+.slevel-meta b{color:var(--label);font-weight:600}
+.slevel-src{margin-top:8px}
+.slevel-about{padding:0;border:0;background:none;color:var(--acc);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+/* About you: a field's label over it, the "not set" hint on one line with its icon, an unset year
+   in the placeholder grey so it does not read as a saved one. */
+.about-lbl{margin:0 0 6px;font-size:13px;color:var(--label-2)}
+.about-hint{display:flex;align-items:center;gap:5px;margin-top:6px}
+.about-hint .icn{flex:none}
+.stp.unset .num{color:var(--label-3)}
