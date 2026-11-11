@@ -78,6 +78,14 @@ server {
         # 504 here while the API was still working on it, which told the admin the wrong thing.
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
+        # The headers from the top, minus the app's Content-Security-Policy (an add_header here
+        # replaces the inherited set). The API serves one HTML page, the hosted MCP's OAuth
+        # consent form (api/mcp-remote/consent.js), and sends it its own nonce-based CSP. Two CSP
+        # headers are both enforced, so the app's script-src and form-action 'self' would block
+        # the consent form's script and its redirect back to the AI client. JSON needs no CSP.
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "same-origin" always;
     }
 
     # Photos and videos of custom exercises (PUT and GET under api/media/). Nginx picks the

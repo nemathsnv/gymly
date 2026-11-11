@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
    code sheet with its proof, QR and expiry; and the other device's redeem sheet. The API and the passkey prompts are stand-ins; what each step
    sends, and what it says back in the UI language, is the point. */
 const mocks = vi.hoisted(() => {
-  const state = { webauthn: true, sheets: [], answers: {}, calls: [], store: {} }
+  const state = { webauthn: true, sheets: [], answers: {}, calls: [], store: {}, MOBILE: false }
   state.toast = vi.fn()
   state.setUser = vi.fn()
   state.adoptProfile = vi.fn(async () => ({}))
@@ -51,6 +51,7 @@ vi.mock('../lib/api.js', () => ({
 }))
 vi.mock('../lib/clipboard.js', () => ({ copyText: (...a) => mocks.copyText(...a) }))
 vi.mock('../sheets.jsx', () => ({ askAddDeviceData: mocks.askAddDeviceData }))
+vi.mock('../lib/mobile.js', () => ({ get MOBILE() { return mocks.MOBILE } }))
 // lean-qr loads on demand; what matters here is what the QR code carries.
 vi.mock('./QrCanvas.jsx', () => ({ default: ({ value }) => <canvas data-qr={value} /> }))
 

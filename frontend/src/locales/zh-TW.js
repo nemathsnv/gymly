@@ -2331,4 +2331,5 @@ export default {
   'Log {0}': '記錄{0}',
   'Nothing logged yet. Log it every morning to see the trend.': '還沒有任何紀錄。每天早上記錄一次，就能看到趨勢。',
   'That number looks too big. Check it and try again.': '這個數字看起來太大了。請檢查後再試一次。',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此 App 無法以通行密鑰確認。請在已登入此個人檔案的瀏覽器中產生代碼，或先在那裡設定密碼。',
 }

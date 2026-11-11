@@ -2417,4 +2417,5 @@ export default {
   'Log {0}': '{0} লগ করুন',
   'Nothing logged yet. Log it every morning to see the trend.': 'এখনও কিছু লগ করা হয়নি। প্রবণতা দেখতে প্রতিদিন সকালে লগ করুন।',
   'That number looks too big. Check it and try again.': 'সংখ্যাটা খুব বড় মনে হচ্ছে। দেখে নিয়ে আবার চেষ্টা করুন।',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'এই অ্যাপ পাসকি দিয়ে নিশ্চিত করতে পারে না। এই প্রোফাইলে সাইন ইন করা ব্রাউজারে কোডটি বানান, অথবা আগে সেখানে একটি পাসওয়ার্ড যোগ করুন।',
 }

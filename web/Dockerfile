@@ -7,7 +7,7 @@
 # QEMU — and QEMU-emulated npm installs are known to corrupt esbuild/rollup's platform-
 # specific native binaries, which is what breaks `vite build` with unrelated-looking
 # module-resolution errors.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS build
 # The frontend sits at /app/frontend, not /app: the Coach's runtime-neutral core lives in
 # api/coach/core and is imported from frontend/src as ../../../api/coach/core/*, so the two
 # have to keep the same relative position they have in the repository. Copying frontend/ alone
@@ -15,7 +15,7 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 # --ignore-scripts: the web image only needs `vite build`; the one heavy postinstall in this tree
-# (@capacitor/assets -> sharp, a libvips download from GitHub) is for drawing app icons and has
+# (@capacitor/assets -> sharp, a libvips download from GitHub, now run with npx) drew app icons and
 # timed out on the shared runners — a lockfile-ignoring `npm install` fallback is no answer to that.
 RUN npm ci --ignore-scripts
 COPY api/coach/core/ /app/api/coach/core/
@@ -26,7 +26,7 @@ COPY frontend/ ./
 ARG APP_BUILD=""
 RUN APP_BUILD="$APP_BUILD" npm run build
 
-FROM nginxinc/nginx-unprivileged:alpine
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 # Same reason as in api/Dockerfile: alpine fixes land faster than the nginx image is rebuilt.
 # The base's last instruction is USER 101, and apk then exits 99 — it cannot open its log as
 # that user. Upgrade as root, then switch back. 101 has to be the last USER in this file so

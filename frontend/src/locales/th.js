@@ -2349,4 +2349,5 @@ export default {
   'Log {0}': 'บันทึก{0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'ยังไม่มีบันทึก บันทึกทุกเช้าเพื่อดูแนวโน้ม',
   'That number looks too big. Check it and try again.': 'ตัวเลขนี้ดูมากเกินไป ตรวจสอบแล้วลองอีกครั้ง',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'แอปนี้ยืนยันด้วยพาสคีย์ไม่ได้ สร้างรหัสในเบราว์เซอร์ที่ลงชื่อเข้าใช้โปรไฟล์นี้ หรือเพิ่มรหัสผ่านที่นั่นก่อน',
 }

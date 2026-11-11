@@ -1499,6 +1499,7 @@ export const PT_BR_OVERRIDES = {
   'Log {0}': 'Registrar {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Nada registrado ainda. Registre toda manhã para ver a tendência.',
   'That number looks too big. Check it and try again.': 'Esse número parece grande demais. Confira e tente de novo.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Este aplicativo não consegue confirmar com uma chave de acesso. Crie o código em um navegador conectado a este perfil, ou adicione uma senha lá primeiro.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

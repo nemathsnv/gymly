@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': '{0} 기록',
   'Nothing logged yet. Log it every morning to see the trend.': '아직 기록이 없어요. 매일 아침 기록하면 추세를 볼 수 있어요.',
   'That number looks too big. Check it and try again.': '숫자가 너무 커 보여요. 확인하고 다시 시도해 주세요.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '이 앱에서는 패스키로 확인할 수 없어요. 이 프로필로 로그인한 브라우저에서 코드를 만들거나, 먼저 그곳에서 비밀번호를 추가하세요.',
 }

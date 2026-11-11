@@ -14,6 +14,7 @@ import { deviceLinkUrl, deviceLabel } from '../lib/device-link.js'
 import { askAddDeviceData } from '../sheets.jsx'
 import { passwordError, notReached, useAgainOnceReached, ProveOwner } from './PasswordAuth.jsx'
 import QrCanvas from './QrCanvas.jsx'
+import { MOBILE } from '../lib/mobile.js'
 import { Row, Button } from './ui.jsx'
 
 const ui = () => useUI.getState()

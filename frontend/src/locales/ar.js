@@ -2393,4 +2393,5 @@ export default {
   'Log {0}': 'تسجيل {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'لا شيء مسجّل بعد. سجّله كل صباح لترى الاتجاه.',
   'That number looks too big. Check it and try again.': 'يبدو هذا الرقم كبيرًا جدًا. تحقّق منه وحاول مرة أخرى.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'لا يستطيع هذا التطبيق التأكيد بمفتاح مرور. أنشئ الرمز في متصفح مسجّل الدخول إلى هذا الملف الشخصي، أو أضف كلمة مرور هناك أولًا.',
 }

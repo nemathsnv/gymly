@@ -28,10 +28,20 @@ describe('web Content-Security-Policy', () => {
     expect(directive('frame-ancestors')).toEqual(["'none'"])
     expect(directive('object-src')).toEqual(["'none'"])
   })
-  it('is sent from every block of the template that sets headers of its own', () => {
+  it('is sent from every block of the template that sets headers of its own, except the API', () => {
     const conf = read('web/nginx.conf.template')
     const sets = conf.split('\n').filter(l => /^\s*add_header X-Frame-Options/.test(l)).length
     const csp = conf.split('\n').filter(l => /^\s*add_header Content-Security-Policy "\$\{CONTENT_SECURITY_POLICY\}" always;/.test(l)).length
-    expect(csp).toBe(sets)
+    // The one block without it is /api/: see the next test.
+    expect(csp).toBe(sets - 1)
+  })
+  it('leaves the API to set its own: the hosted MCP consent page sends a nonce-based CSP', () => {
+    // Two CSP headers are both enforced, so the app's script-src and form-action 'self' would
+    // block the consent form's script and its redirect back to the AI client.
+    const conf = read('web/nginx.conf.template')
+    const api = conf.match(/location \^~ \$\{BASE_PATH\}\/api\/ \{([\s\S]*?)\n    \}/)?.[1] || ''
+    expect(api).toMatch(/add_header X-Frame-Options "DENY" always;/)
+    expect(api).not.toMatch(/add_header Content-Security-Policy/)
+    expect(read('api/mcp-remote/consent.js')).toMatch(/'Content-Security-Policy': `default-src 'none'; script-src 'nonce-/)
   })
 })
