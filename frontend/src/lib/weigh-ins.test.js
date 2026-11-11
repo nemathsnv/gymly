@@ -7,6 +7,7 @@ import {
 import { localExtras, mergeBodyweight, mergeStates, stampChange, stampDeletions } from './sync-merge.js'
 import { weeklyWeights, weighInAt } from './bodyweight.js'
 import { insightsFor } from './coach-insights.js'
+import { strengthLevel } from './strength-level.js'
 import { convertStateUnit } from './units.js'
 
 const clone = v => JSON.parse(JSON.stringify(v))
@@ -335,6 +336,16 @@ describe('everything that reads one value per day', () => {
     expect(new Date(weighInAt(typedLater)).getHours()).toBe(12)
     const sameDay = { d: '2026-10-01', w: 80, t: new Date(2026, 9, 1, 7, 15).getTime() }
     expect(weighInAt(sameDay)).toBe(sameDay.t)
+  })
+
+  // The strength levels grade the best 1RM against the latest weigh-in: the day's value.
+  it('grades strength levels against the day\'s value', () => {
+    const bench = { id: 'b1', d: '2026-10-21', start: 1, entries: [{ id: '0025', target: { mode: 'reps' }, sets: [{ w: 100, r: 1, done: true }] }] }
+    const s = S('first')
+    s.workouts = [bench]
+    expect(strengthLevel(s, '0025').bw).toBe(83)
+    s.bwDaily = 'last'; settleAll(s)
+    expect(strengthLevel(s, '0025').bw).toBe(84)
   })
 
   it('converts every reading with the unit', () => {

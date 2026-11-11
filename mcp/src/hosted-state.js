@@ -9,6 +9,7 @@
    profile one call set. A handler that ever becomes async has to stop using this. */
 
 import { dropPrivate } from './private-keys.js'
+import { withExerciseMerges } from '../../frontend/src/lib/exercise-merge.js'
 
 let _current = null
 
@@ -27,7 +28,9 @@ function defaultsShape() {
 export function withState(S, user, fn) {
   if (_current) throw new Error('withState is not re-entrant')
   _current = {
-    state: S ? Object.assign({}, defaultsShape(), dropPrivate(S)) : null,
+    // An exercise merged into another in the app (#656) reads as the one it went into, as in
+    // state.js.
+    state: S ? withExerciseMerges(Object.assign({}, defaultsShape(), dropPrivate(S))) : null,
     user: { id: user.id, name: user.name, created: user.created || null }
   }
   try {

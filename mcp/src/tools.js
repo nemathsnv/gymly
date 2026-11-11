@@ -12,6 +12,7 @@ import {
 import { queueView, queueNext, pinState } from '../../frontend/src/lib/queue.js'
 import { exOr, registerCustom } from '../../frontend/src/lib/exercises.js'
 import { isWarmupRow, isFailureSet } from '../../frontend/src/lib/workout-model.js'
+import { setNoteOf } from '../../frontend/src/lib/set-notes.js'
 import {
   bestSetOf, best1RM, e1rmSeries, DEFAULT_FORMULA, REP_CAP
 } from '../../frontend/src/lib/onerm.js'
@@ -76,7 +77,9 @@ function entryView(e, S) {
       min: Number(s.min) || 0,
       speed: Number(s.speed) || 0,
       // A stepmill's console level (frontend/src/lib/machine-level.js), only on a set that has one.
-      ...(Number(s.level) > 0 ? { level: Number(s.level) } : {})
+      ...(Number(s.level) > 0 ? { level: Number(s.level) } : {}),
+      // The set's own note (set menu → Note in the app, frontend/src/lib/set-notes.js), when it has one.
+      ...(setNoteOf(s) ? { note: setNoteOf(s) } : {})
     }))
   }
 }

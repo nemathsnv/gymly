@@ -97,8 +97,8 @@ export const DEF = {
   // MCP client or the Coach is sent (api/mcp-access.js MCP_WITHHELD). habitsOn: the Home card and
   // the Habits screen; off hides them and keeps the log (an older profile reads as on).
   habitLog: {}, habitsOn: true,
-  // Body measurements (#82): one check-in per day, values in cm whatever the weight unit
-  // (lib/measurements.js); merged across devices like weigh-ins (lib/sync-merge.js).
+  // Body measurements (#82, #699): one check-in per day; canonical cm, kg or % according to
+  // the field's unit (lib/measurements.js); merged like weigh-ins (lib/sync-merge.js).
   measurements: [], measurementEnabled: null, customMeasurements: [],
   // The measurement key pinned to Home for a one-tap log (Settings → On Home): a built-in key
   // or 'other:<id>', null for none (lib/measurements.js homeMeasurementField).

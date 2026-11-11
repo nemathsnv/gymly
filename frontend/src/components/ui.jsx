@@ -116,10 +116,13 @@ export function Switch({ checked, onChange, disabled, ...accessibility }) {
 /* ============================ segmented ============================ */
 
 // options: [{ value, label, icon? }]  — the selected pill slides between cells.
-export function Segmented({ options, value, onChange, className = '' }) {
+// `ariaLabelledby` names the choice for a screen reader by its visible label (a group of
+// pressed buttons otherwise reads as three loose words).
+export function Segmented({ options, value, onChange, className = '', ariaLabelledby }) {
   const i = Math.max(0, options.findIndex(o => o.value === value))
   return (
-    <div className={'seg ' + className} style={{ '--n': options.length, '--i': i }}>
+    <div className={'seg ' + className} style={{ '--n': options.length, '--i': i }}
+      role={ariaLabelledby ? 'group' : undefined} aria-labelledby={ariaLabelledby}>
       <span className="seg-sel" aria-hidden="true" />
       {options.map(o => (
         <button

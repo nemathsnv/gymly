@@ -416,10 +416,17 @@ function cleanWorkout(w) {
       id: ident(en.id),
       name: libraryName(en.id),
       target: targetOf(en),
-      sets: setsOf(en).map(cleanSet)
+      // A set's own note rides along like the workout's note above (the app's set menu → Note,
+      // frontend lib/set-notes.js).
+      sets: setsOf(en).map(s => {
+        const o = cleanSet(s);
+        if (typeof s.note === 'string' && s.note.trim()) o.note = s.note.trim().slice(0, SET_NOTE_MAX);
+        return o;
+      })
     }))
   };
 }
+const SET_NOTE_MAX = 140;
 
 /** The body-weight series between two days, each weigh-in a date and a number. */
 function weighIns(S, from, to) {

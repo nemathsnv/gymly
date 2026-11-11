@@ -68,4 +68,17 @@ describe('several weigh-ins a day from a file', () => {
     expect(S.bodyweight[0]).toEqual({ d: '2026-09-01', w: 79, t: 5 })
     expect(S.bodyweight[1]).toMatchObject({ d: '2026-09-02', w: 80.5 })
   })
+
+  // openGym's body CSV: a row per weigh-in with its time, the day's measurements on its first row.
+  it('reads an openGym body CSV with several weigh-ins a day and the measurements beside them', () => {
+    const csv = 'date,weight_kg,waist_cm,Muscle ratio (%)\n2026-09-01 07:10,80.2,84.5,40.5\n2026-09-01 21:30,81.4,,\n2026-09-02,80,,\n'
+    const parsed = parseImport(csv, { unit: 'kg' })
+    expect(parsed.bodyweight.map(b => [b.d, b.at || null, b.w])).toEqual([['2026-09-01', '07:10', 80.2], ['2026-09-01', '21:30', 81.4], ['2026-09-02', null, 80]])
+    expect(parsed.measurements).toHaveLength(1)
+    const S = { unit: 'kg', workouts: [], bodyweight: [], measurements: [], customMeasurements: [] }
+    expect(mergeImport(S, parsed)).toEqual({ added: 3, skipped: 0, measurements: 1 })
+    expect(S.bodyweight.map(b => [b.d, b.w, b.ins.length])).toEqual([['2026-09-01', 80.2, 2], ['2026-09-02', 80, 1]])
+    expect(S.measurements[0]).toMatchObject({ d: '2026-09-01', waist: 84.5 })
+    expect(mergeImport(S, parseImport(csv, { unit: 'kg' }))).toEqual({ added: 0, skipped: 3, measurements: 0 })
+  })
 })

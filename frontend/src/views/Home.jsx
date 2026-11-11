@@ -22,6 +22,7 @@ import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
 import { HomeMeasurementCard } from './Measurements.jsx'
+import { WeeklySetsHomeLine } from '../components/WeeklySets.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -268,8 +269,10 @@ export default function Home() {
         morning next to the weigh-in. Nothing pinned, no card. */}
     <HomeMeasurementCard S={S} onOpen={() => nav('/measurements')} />
 
-    <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => calendarSheet())}>
-      <div className="row between">
+    {/* The streak opens the calendar. The card itself is not the button: its tap area is, so the
+        weekly-sets line under it (Settings → On Home) is a button beside it, never inside it. */}
+    <div className="card streak-card">
+      <div className="row between streak-tap tappable" {...tappable(() => calendarSheet())}>
         <div>
           <div className="row" style={{ gap: 7, fontSize: 22, fontWeight: 600, letterSpacing: '-.021em' }}>
             <Icon name="flame" style={{ color: 'var(--orange)' }} />
@@ -279,6 +282,9 @@ export default function Home() {
         </div>
         <Icon name="calendar" className="chev" style={{ fontSize: 20 }} />
       </div>
+      {/* Settings → Look & Home → Weekly sets on Home (lib/muscle-targets.js): the muscle with
+          the most room this week, one tap from its Stats card. */}
+      {S.homeMuscleSets === true && <WeeklySetsHomeLine S={S} onOpen={() => nav('/stats?focus=weekly-sets')} />}
     </div>
   </div>
 }

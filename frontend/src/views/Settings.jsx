@@ -41,11 +41,13 @@ import { showsConnection, showsLocalLine } from '../components/SyncBanner.jsx'
 import BackupFolderRow, { useBackupFolder, autoBackupSubtitle } from '../components/BackupFolderRow.jsx'
 import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkeySignIn } from '../components/ServerSync.jsx'
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
-import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem } from '../components/Passkeys.jsx'
+import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem, PairSheet } from '../components/Passkeys.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { dailyModeOf, settleAll } from '../lib/weigh-ins.js'
-import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement } from '../lib/measurements.js'
+import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement, customMeasurementLabel } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
+import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
+import { aboutYouSheet } from '../components/StrengthLevel.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { workoutLayoutOf } from '../lib/workout-layout.js'
 
@@ -472,6 +474,12 @@ export default function Settings({ page = null, find = null, via = null }) {
             { value: 'last', label: t('Last time'), subtitle: t('What you did the last time, in that routine.') },
             { value: 'best', label: t('Best set'), subtitle: t('Your heaviest set of the exercise, from any workout.') },
           ]} />
+        {/* Each finished set against the same set last time (openGym #907, lib/set-trend.js), in
+            the workout and in History. On unless switched off. */}
+        <Row icon="arrowUp" iconTint="var(--green)" title={t('Compare sets with last time')}
+          subtitle={t('A small ↑, = or ↓ on each set you finish, in the workout and in History.')}>
+          <Switch aria-label={t('Compare sets with last time')} checked={S.setTrend !== false} onChange={v => update(s => { s.setTrend = v })} />
+        </Row>
         {/* One exercise at a time (cards with Prev/Next), the whole session stacked as a
             scrollable list, or that list stripped to just names and set rows (compact). Legacy or
             unknown values, the removed Focus layout among them, read as cards
@@ -644,6 +652,8 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
       </Section>
       <Section>
+        {/* The target range of weekly sets for each main muscle (lib/muscle-targets.js). */}
+        <Row icon="slider" iconTint="var(--teal)" title={t('Weekly sets per muscle')} subtitle={t('The range each muscle aims for')} accessory="chevron" onClick={muscleTargetsSheet} />
         <Row icon="clipboard" iconTint="var(--green)" title={t('Load starter plan')} accessory="chevron" onClick={starterPlanSheet} />
       </Section>
     </>,
@@ -718,6 +728,8 @@ export default function Settings({ page = null, find = null, via = null }) {
             { value: 'avg', label: t('Average'), subtitle: t('Every weigh-in of the day counts the same.') },
             { value: 'last', label: t('Last'), subtitle: t('The most recent one of the day.') },
           ]} />
+        {/* Sex and year of birth, read only by the strength levels (lib/strength-level.js). */}
+        <Row icon="person" iconTint="var(--teal)" title={t('About you')} subtitle={t('For your strength levels')} accessory="chevron" onClick={aboutYouSheet} />
       </Section>
     </>,
 
@@ -786,13 +798,20 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
         {/* One body measurement on Home with its own Log button (views/Measurements.jsx
             HomeMeasurementCard), for a waist or belly logged each morning. Off by default; picking
-            one also switches it on in the full measurements form (pinHomeMeasurement). */}
+            one also switches it on in the full measurements form (pinHomeMeasurement). A custom one
+            is listed with its own unit, "Lean mass (kg)", so it isn't taken for a circumference. */}
         <SelectRow icon="ruler" iconTint="var(--teal)" title={t('Body measurements')} sheetTitle={t('Choose measurement')}
           value={homeMeasurementField(S)?.key || ''}
           options={[{ value: '', label: t('Off') },
             ...MEASUREMENT_FIELDS.map(f => ({ value: f.key, label: t(f.label) })),
-            ...(S.customMeasurements || []).map(c => ({ value: 'other:' + c.id, label: c.name }))]}
+            ...(S.customMeasurements || []).map(c => ({ value: 'other:' + c.id, label: customMeasurementLabel(c) }))]}
           onChange={v => update(s => { pinHomeMeasurement(s, v || null) })} />
+        {/* This week's sets for the muscle with the most room, under the streak (components/WeeklySets.jsx).
+            Off by default. */}
+        <Row icon="figureStrength" iconTint="var(--teal)" title={t('Weekly sets on Home')}
+          subtitle={t('The muscle with the most room left this week, under your streak.')}>
+          <Switch aria-label={t('Weekly sets on Home')} checked={S.homeMuscleSets === true} onChange={v => update(s => { s.homeMuscleSets = v })} />
+        </Row>
         {/* The bar at the top that says the app is offline, kept local, or not synced (#369, #330).
             Here and not under Server & sync, which a phone kept local never shows. Switching it on
             also brings back the no-server line its × hid (#454). */}
@@ -1160,13 +1179,17 @@ function PushCard({ S, update, toast }) {
   // "On" means the server holds this browser's subscription, not merely that the browser has
   // one: a row the instance dropped (dead send, rebuilt db.json) left the switch on with nothing
   // ever arriving. syncPushSubscription re-registers on the way; if the server cannot be asked
-  // (offline), the browser's side is the best answer available.
+  // (offline), the browser's side is the best answer available. A server that refused this
+  // browser's subscription, even a fresh one, has answered: the switch is off, with its reason.
   useEffect(() => {
     if (!supported) return
     let gone = false
     syncPushSubscription()
       .then(ok => { if (!gone) setOn(ok) })
-      .catch(() => navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => { if (!gone) setOn(!!sub) }).catch(() => {}))
+      .catch(e => {
+        if (e?.refused) { if (!gone) { setOn(false); toast(e.message) } return }
+        return navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => { if (!gone) setOn(!!sub) }).catch(() => {})
+      })
     return () => { gone = true }
   }, [supported])
 
@@ -1406,28 +1429,6 @@ function AccountIdRow({ id }) {
   if (!id) return null
   const copy = async () => { if (await copyText(id)) toast(t('Account ID copied')) }
   return <Row icon="personCircle" iconTint="var(--grey)" title={t('Account ID')} subtitle={<span className="acct-id">{id}</span>} onClick={copy} />
-}
-
-// Lets the mobile app's "connect to my server" mode (lib/remote.js) authenticate without a
-// WebAuthn ceremony of its own — the code is minted here, from an already signed-in session,
-// and redeemed by the app for a bearer token. See /api/pair/create in api/server.js.
-function PairSheet({ close }) {
-  const [code, setCode] = useState(null)
-  const [err, setErr] = useState(null)
-  useEffect(() => { api('/api/pair/create', { method: 'POST', body: '{}' }).then(r => setCode(r.code)).catch(e => setErr(e.message || t('Could not generate a code'))) }, [])
-  return <>
-    <h3>{t('Pair the mobile app')}</h3>
-    <div className="muted small" style={{ marginBottom: 14 }}>
-      {t('On the Gymly app, choose “Connect to my server”, then enter this address and the code below. It expires in 5 minutes.')}
-    </div>
-    {err ? <div className="dim small">{err}</div> : (
-      <div className="card" style={{ textAlign: 'center', fontSize: 30, fontWeight: 700, letterSpacing: '.16em', padding: '18px 0' }}>
-        {code || '········'}
-      </div>
-    )}
-    <div style={{ height: 12 }} />
-    <Button onClick={close}>{t('Done')}</Button>
-  </>
 }
 
 // The same registration as the sign-in screen's, reached from Settings instead. It asks for
