@@ -115,5 +115,10 @@
     <!-- Whether the Health Connect app is there, on Android 13 and lower. -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Spoken cues (SpeechCue.java): the phone's text-to-speech engine is another app, and
+             since Android 11 the app cannot bind to it without saying so here. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 </manifest>

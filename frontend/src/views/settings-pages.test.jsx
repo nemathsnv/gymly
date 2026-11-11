@@ -11,9 +11,9 @@ import { PAGES, PAGE_IDS, ROOT_GROUPS, SEARCH, pageVisible, searchSettings, page
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => {
-  const state = { S: null, user: null, sync: null, MOBILE: false, push: false, sheets: [], navs: [], toast: null }
+  const state = { S: null, user: null, sync: null, config: null, MOBILE: false, push: false, sheets: [], navs: [], toast: null }
   state.snapshot = () => ({
-    S: state.S, user: state.user, coachLocal: null, sync: state.sync, config: null,
+    S: state.S, user: state.user, coachLocal: null, sync: state.sync, config: state.config,
     update: mut => { const next = structuredClone(state.S); mut(next); state.S = next },
     replaceState: vi.fn(), setUser: vi.fn(), pullState: vi.fn(), pushState: vi.fn(), setUnit: vi.fn(),
     resetEverything: vi.fn(), resetDemo: vi.fn(), importBackup: vi.fn(), importConflict: vi.fn(),
@@ -55,6 +55,7 @@ beforeEach(() => {
   }
   mocks.user = null
   mocks.sync = null
+  mocks.config = null
   mocks.MOBILE = false
   mocks.push = false
   mocks.pushOn = false
@@ -175,11 +176,14 @@ describe('the search lands on a row', () => {
     'phone, reminder off': () => { mocks.MOBILE = true },
     'phone, reminder and nudge on': () => { mocks.MOBILE = true; mocks.S.reminder = { on: true, time: '17:30', nudge: true }; mocks.S.autoBackup = true },
     'phone paired with a server': () => { mocks.MOBILE = true; mocks.user = { id: 'u1', name: 'Dana' }; mocks.sync = { status: 'ok', server: 'https://gym.example' } },
+    'signed in, server with webhooks': () => { mocks.user = { id: 'u1', name: 'Dana' }; mocks.sync = { status: 'ok', server: 'https://gym.example' }; mocks.config = { integrations: { providers: ['webhook'] } } },
+    'phone paired with a server with webhooks': () => { mocks.MOBILE = true; mocks.user = { id: 'u1', name: 'Dana' }; mocks.sync = { status: 'ok', server: 'https://gym.example' }; mocks.config = { integrations: { providers: ['webhook'] } } },
   }
   const ctxNow = () => ({
     ...guestWeb, user: mocks.user, mobile: mocks.MOBILE, pushOK: !mocks.MOBILE && mocks.push,
     reminderOn: !!mocks.S.reminder?.on, nudge: !!mocks.S.reminder?.nudge, autoBackup: !!mocks.S.autoBackup,
     synced: !!mocks.sync, installTip: !mocks.MOBILE, hasMedia: false, wakeOK: true,
+    webhooks: !!mocks.user && !!mocks.config?.integrations?.providers?.includes('webhook'),
   })
   for (const [name, setUp] of Object.entries(scenarios)) it(name, async () => {
     setUp()
@@ -193,6 +197,15 @@ describe('the search lands on a row', () => {
       const have = [...titles(), ...[...host.querySelectorAll('.btn')].map(b => b.textContent.trim())]
       for (const title of want) expect(have, `${page}: ${title}`).toContain(title)
     }
+  })
+
+  it('finds Webhooks only where the server offers them', () => {
+    const tr = s => s
+    const web = { ...guestWeb, user: { id: 'u' }, synced: true }
+    expect(searchSettings('home assistant', web, tr).map(h => h.title)).not.toContain('Webhooks')
+    expect(searchSettings('webhook', { ...web, webhooks: true }, tr)[0]).toMatchObject({ page: 'account', title: 'Webhooks' })
+    expect(searchSettings('home assistant', { ...web, webhooks: true }, tr).map(h => h.title)).toEqual(['Webhooks'])
+    expect(searchSettings('ntfy', { ...web, webhooks: true }, tr).map(h => h.title)).toEqual(['Webhooks'])
   })
 
   it('finds the rows that used to be missing', () => {
@@ -271,10 +284,10 @@ describe('the pages', () => {
     }
   })
 
-  it('every old row has a home: the Workout page holds the rest, logging and the before/during rows', () => {
+  it('every old row has a home: the Workout page holds the warm-ups, rest, logging and the before/during rows', () => {
     mount('workout')
-    expect([...host.querySelectorAll('.sect-t')].map(e => e.textContent)).toEqual(['Rest', 'Logging', 'Before and during'])
-    expect(titles()).toEqual(['Rest timer', 'Rest-pause rest', 'Effort per set', 'Shown under each exercise', 'Compare sets with last time', 'Layout',
+    expect([...host.querySelectorAll('.sect-t')].map(e => e.textContent)).toEqual(['Warm-ups', 'Rest', 'Logging', 'Before and during'])
+    expect(titles()).toEqual(['Automatic warm-ups', 'Rest timer', 'Rest-pause rest', 'Effort per set', 'Shown under each exercise', 'Compare sets with last time', 'Layout',
       'Collapse completed exercises', 'Weigh in before workouts', 'Keep screen awake', 'Exercise animations', 'Fine-tuning'])
     // QA 10-05: the "screen stays on" line is the awake row's own subtitle, not a section footer
     // that read as if it explained the animations above it.

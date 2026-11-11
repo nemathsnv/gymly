@@ -12,6 +12,7 @@ Pick the part that matches what you're doing. If you just have a question, try t
 | [Importing data](DATA_IMPORTS.md) | You're coming from FitNotes, Strong, Hevy or Apple Health, or sharing a plan with someone |
 | [AI coach](AI_COACH.md) | Your instance has the coach switched on and you want to know what it sees and can change |
 | [AI assistants (MCP)](MCP.md) | You want ChatGPT, Claude or Claude Code to read your training data or change your plan (hosted), or a local read-only bridge |
+| [Webhooks](INTEGRATIONS.md) | You want Home Assistant, n8n or ntfy told when you finish a workout, set a record or weigh in |
 | [Oura](OURA.md) | You want to connect an Oura ring (read-only recovery overview), and to set up the Oura app credentials on the server |
 
 The [live demo](https://opengym.ch/demo/) is the real app with example data, nothing
@@ -25,6 +26,7 @@ to install.
 | [HTTPS at home](SELF_HOSTING_HTTPS.md) | You want valid certificates on your LAN without exposing the server to the internet |
 | [Kubernetes](SELF_HOSTING_KUBERNETES.md) | You run a cluster instead of Docker Compose |
 | [AI coach](AI_COACH.md) | You're deciding whether to turn the coach on, and with which provider |
+| [Webhooks](INTEGRATIONS.md) | You're turning on webhooks (`INTEGRATIONS`), or letting them reach your home network |
 | [MCP server](../mcp/README.md) | You want to run the MCP server against the `./data` folder on the server itself (local mode), or work on it |
 | [NixOS](NIX.md) | You run NixOS and want openGym native — flake packages and a NixOS module, no Docker |
 | [Security](../SECURITY.md) | You host it for other people, or want to report a vulnerability |

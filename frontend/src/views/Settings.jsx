@@ -16,6 +16,8 @@ import { unlock, chime, playOnSilentSupported, vibrateSupported, appleTouchDevic
 import { REST_SOUND_IDS, restSoundOf } from '../lib/rest-sounds.js'
 import { scheduleModeOf, chooseFixedWeek, chooseRotation } from '../lib/rotation.js'
 import { queueOf } from '../lib/queue.js'
+import { speak, speechSupported, SPEECH_RATES, speechRateOf } from '../lib/speech.js'
+import { sampleCue } from '../lib/spoken-cues.js'
 import { api, webauthnOK, passkeyRegister, passkeyError, IS_ANDROID } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush, syncPushSubscription } from '../lib/push.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
@@ -44,10 +46,13 @@ import BackupFolderRow, { useBackupFolder, autoBackupSubtitle } from '../compone
 import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkeySignIn } from '../components/ServerSync.jsx'
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem, PairSheet } from '../components/Passkeys.jsx'
+import { warmupAutoOf } from '../lib/warmup-ramp.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { dailyModeOf, settleAll } from '../lib/weigh-ins.js'
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement, customMeasurementLabel } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
+import { WebhooksRow } from '../components/Webhooks.jsx'
+import { webhooksOffered } from '../lib/webhooks.js'
 import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
 import { aboutYouSheet } from '../components/StrengthLevel.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
@@ -403,6 +408,8 @@ export default function Settings({ page = null, find = null, via = null }) {
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID,
+    webhooks: webhooksOffered(config, { user, demo: DEMO }),
+    spokenCues: S.spokenCues === true,
   }
   const mode = scheduleModeOf(S)
   const layout = workoutLayoutOf(S.workoutView)
@@ -455,6 +462,18 @@ export default function Settings({ page = null, find = null, via = null }) {
 
   const pages = {
     workout: () => <>
+      {/* Warm-ups that build themselves from the work weight (#156, lib/warmup-ramp.js). Off by
+          default, so nothing changes until someone asks; an exercise can still pick Auto, its own
+          rows or none in its settings, and one with its own number of ramp sets keeps them. */}
+      <Section title={t('Warm-ups')} footer={t('Built from your work weight and rounded down to the plates, dumbbells and machine stacks you have. An exercise can pick its own in its settings.')}>
+        <SelectRow icon="sunrise" iconTint="var(--orange)" title={t('Automatic warm-ups')}
+          value={warmupAutoOf(S)} onChange={v => update(s => { s.warmupAuto = v })}
+          options={[
+            { value: 'off', label: t('Off'), subtitle: t('Only the warm-ups you plan yourself.') },
+            { value: 'compounds', label: t('Compound lifts'), subtitle: t('Squats, presses, rows and friends get a ramp. Curls and raises start cold.') },
+            { value: 'all', label: t('Every loaded lift'), subtitle: t('Heavy lifts get more rungs, light ones one or none.') },
+          ]} />
+      </Section>
       <Section title={t('Rest')} footer={t('Each exercise can have its own rest too. Set it in the exercise settings of a routine.')}>
         {restRow}
         {restPauseRow}
@@ -543,7 +562,7 @@ export default function Settings({ page = null, find = null, via = null }) {
             value={S.startFrom === 'last' ? 'last' : 'plan'} onChange={v => update(s => { s.startFrom = v })}
             options={[
               { value: 'plan', label: t('Your plan'), subtitle: t('The routine’s sets and reps. Your history decides the weight.') },
-              { value: 'last', label: t('Your last session'), subtitle: t('The reps you logged last time in that routine, carried over.') },
+              { value: 'last', label: t('Your last session'), subtitle: t('The reps you logged last time in that routine, carried over, and any warm-ups you set up yourself.') },
             ]} />
           <Row icon="stopwatch" iconTint="var(--orange)" title={t('Keep timing after target')}
             subtitle={t('Timed sets continue up to 15 extra minutes. Tap Done to log the actual duration.')}>
@@ -625,6 +644,28 @@ export default function Settings({ page = null, find = null, via = null }) {
           <Row icon="sun" iconTint="var(--yellow)" title={t('Flash the screen')}>
             <Switch checked={!!S.timerFlash} onChange={v => update(s => { s.timerFlash = v })} />
           </Row>
+        </Section>
+        {/* Spoken cues (lib/spoken-cues.js): the next set as a rest starts, "10 seconds", "Rest is
+            over" and the count at the end of a hold, in the app's language, never while the
+            workout is paused. The phone's own voice in the Android app (music ducks and comes
+            back), the browser's elsewhere. Off by default. No group title: it only repeated the
+            switch's own "Spoken cues". */}
+        <Section footer={speechSupported() ? t('Only while the app is on screen. Music turns down for a moment, it never stops.') : t('This browser can’t speak. Try another one.')}>
+          <Row icon="chat" iconTint="var(--teal)" title={t('Spoken cues')} className={speechSupported() ? '' : 'dis'}
+            subtitle={t('Says your next set, “10 seconds” and “Rest is over”, and counts holds down.')}>
+            <Switch aria-label={t('Spoken cues')} checked={S.spokenCues === true} disabled={!speechSupported()}
+              onChange={v => { update(s => { s.spokenCues = v }); if (v) speak(sampleCue(S.unit), { rate: SPEECH_RATES[speechRateOf(S)] }) }} />
+          </Row>
+          {S.spokenCues === true && <>
+            <Row icon="speaker" iconTint="var(--teal)" title={t('Speaking rate')}>
+              <Segmented className="seg-inline"
+                options={[{ value: 'slow', label: t('Slow') }, { value: 'normal', label: t('Normal') }, { value: 'fast', label: t('Fast') }]}
+                value={speechRateOf(S)} onChange={v => { update(s => { s.speechRate = v }); speak(sampleCue(S.unit), { rate: SPEECH_RATES[v], queue: false }) }} />
+            </Row>
+            {/* An action, not a page: no chevron, which promises somewhere to go. */}
+            <Row icon="play" iconTint="var(--green)" title={t('Try it')}
+              onClick={() => speak(sampleCue(S.unit), { rate: SPEECH_RATES[speechRateOf(S)], queue: false })} />
+          </>}
         </Section>
       </>
     },
@@ -814,6 +855,11 @@ export default function Settings({ page = null, find = null, via = null }) {
           subtitle={t('The muscle with the most room left this week, under your streak.')}>
           <Switch aria-label={t('Weekly sets on Home')} checked={S.homeMuscleSets === true} onChange={v => update(s => { s.homeMuscleSets = v })} />
         </Row>
+        {/* The first weekday's Your week and the 1st's Your month (lib/recap.js). On unless switched off. */}
+        <Row icon="chart" iconTint="var(--purple)" title={t('Week and month recap')}
+          subtitle={t('A small card when a new week or month starts: what the last one added up to.')}>
+          <Switch aria-label={t('Week and month recap')} checked={S.recap !== false} onChange={v => update(s => { s.recap = v })} />
+        </Row>
         {/* The bar at the top that says the app is offline, kept local, or not synced (#369, #330).
             Here and not under Server & sync, which a phone kept local never shows. Switching it on
             also brings back the no-server line its × hid (#454). */}
@@ -901,6 +947,8 @@ export default function Settings({ page = null, find = null, via = null }) {
       {user && !DEMO && <ServerSyncSection>
         {MOBILE && <>
           {user.admin && <Row icon="crown" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
+          {/* Sent by the server this phone is paired with, so they live here too. */}
+          <WebhooksRow />
           <AccountIdRow id={user.id} />
           <Row icon="signOut" iconTint="var(--red)" title={t('Disconnect')} danger onClick={disconnect} />
         </>}
@@ -926,6 +974,8 @@ export default function Settings({ page = null, find = null, via = null }) {
           <Row icon="qr" iconTint="var(--blue)" title={t('Pair the mobile app')} subtitle={t('Connect the Gymly app on your phone to this account.')} accessory="chevron"
             onClick={() => useUI.getState().openSheet(close => <PairSheet close={close} />)} />
           <McpTokensRow />
+          {/* Only where the server offers them (INTEGRATIONS=webhook); nothing otherwise. */}
+          <WebhooksRow />
           {pwOn && <PasswordRow version={credsV} />}
           <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={signOutHere} />
           <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />

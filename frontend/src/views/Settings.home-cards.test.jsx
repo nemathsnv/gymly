@@ -120,3 +120,29 @@ describe('On Home → At the gym / Check in', () => {
     expect(searchSettings('gym check-in', ctx).some(h => h.title === 'At the gym / Check in')).toBe(true)
   })
 })
+
+// Gymly: the week and month recap (lib/recap.js, from openGym 4ba2a9757) beside the other On Home
+// switches. On unless switched off; a plain setting, so it syncs like the others.
+describe('On Home → Week and month recap', () => {
+  it('is on by default, sits with the other On Home switches and turns S.recap off and on', () => {
+    mount()
+    expect(row('Week and month recap')).toBeTruthy()
+    expect(row('Week and month recap').parentElement).toBe(row('Weekly sets on Home').parentElement)
+    expect(sw('Week and month recap').getAttribute('aria-checked')).toBe('true')
+    expect(sw('Week and month recap').getAttribute('aria-label')).toBe('Week and month recap')
+    act(() => { sw('Week and month recap').click() })
+    expect(mocks.S.recap).toBe(false)
+    expect(mocks.S.homeMuscleSets).toBeUndefined()
+    mount()
+    expect(sw('Week and month recap').getAttribute('aria-checked')).toBe('false')
+    act(() => { sw('Week and month recap').click() })
+    expect(mocks.S.recap).toBe(true)
+  })
+
+  it('is found by Settings search', async () => {
+    const { searchSettings } = await import('./settings-pages.js')
+    const ctx = { demo: false, mobile: false, android: false, signedIn: false }
+    expect(searchSettings('recap', ctx).some(h => h.title === 'Week and month recap')).toBe(true)
+    expect(searchSettings('your month', ctx).some(h => h.title === 'Week and month recap')).toBe(true)
+  })
+})

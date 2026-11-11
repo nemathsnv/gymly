@@ -22,6 +22,15 @@ export function isWarmupRow(set) {
   return phaseForSet(set) === 'warmup'
 }
 
+/** The number a set row shows: counted per phase (warm-ups and work sets each from 1), and a
+ *  timed per-side L/R pair as one set. The workout screen and the spoken cues both read it. */
+export function setNumberAt(sets, i) {
+  const s = sets[i]
+  const warm = isWarmupRow(s)
+  const phaseNum = sets.slice(0, i + 1).filter(x => isWarmupRow(x) === warm).length
+  return s?.side ? Math.ceil(phaseNum / 2) : phaseNum
+}
+
 // A row's shape beyond warm-up/work: 'straight' (default), 'dropset' (a main set followed by
 // weight drops logged with no rest) or 'restpause' (an activation set followed by short-rest
 // bursts). Both extras ride on the row itself — same card, not a new set in the array — the
@@ -194,6 +203,17 @@ export function isSideSet(set) {
 // means the row was inherited from the preceding load, including rows written before this field
 // existed. The marker is deliberately tiny and preserved on a side through aggregate resync.
 export const WEIGHT_ORIGIN_MANUAL = 'manual'
+
+// A warm-up you set up yourself (#525): its load, reps or length typed or stepped, or the row
+// added by hand. "Planned sessions start from: Your last session" carries only these rows; a
+// rung the ramp made stays automatic and is built again for the next session's work weight, and
+// a mid-workout change of the work weight (history.js liveReramp) leaves it where you put it.
+// Effort and ticks are not setup, so they leave the mark alone. Work rows never get it.
+export const WARMUP_SETUP_FIELDS = ['w', 'r', 'sec', 'min', 'speed', 'incline', 'level']
+export function markWarmupEdited(row, field) {
+  if (!isWarmupRow(row) || (field != null && !WARMUP_SETUP_FIELDS.includes(field))) return row
+  return row.edited ? row : { ...row, edited: true }
+}
 
 /** Includes a completed limb even when its partner is still unchecked. */
 export const hasCompletedWork = set => isSideSet(set)

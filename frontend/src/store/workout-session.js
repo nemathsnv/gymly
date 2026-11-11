@@ -11,6 +11,7 @@ import { useStore } from './useStore.js'
 import { useUI } from './useUI.js'
 import { todayISO } from '../lib/format.js'
 import { hasClock, isPaused, pauseClock, resumeClock, restartClock } from '../lib/workout-clock.js'
+import { cues } from '../lib/spoken-cues.js'
 
 const store = () => useStore.getState()
 const ui = () => useUI.getState()
@@ -25,6 +26,8 @@ export function pauseWorkout(now = Date.now()) {
     if (holdRest) s.active.restHeld = true
   })
   if (holdRest) ui().pauseRest()
+  // Spoken cues are silent while paused (lib/spoken-cues.js cuesOn); a line still being said stops.
+  cues.hush()
   return true
 }
 

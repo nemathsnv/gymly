@@ -89434,7 +89434,7 @@ function applyBackoff(rows, step) {
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
 const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-const tidy = (w) => Math.round(w * 1e3) / 1e3;
+const tidy$1 = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
 	const m = isMap$3(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
@@ -89471,10 +89471,10 @@ function meaningFactor(from, to, cfg) {
 const scaleRow = (row, f) => {
 	if (!isMap$3(row)) return row;
 	const out = { ...row };
-	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy(Number(row.w) * f);
+	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy$1(Number(row.w) * f);
 	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$3(d) ? {
 		...d,
-		w: tidy((Number(d.w) || 0) * f)
+		w: tidy$1((Number(d.w) || 0) * f)
 	} : d);
 	if (isMap$3(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
@@ -89490,7 +89490,7 @@ function entryAs(entry, to) {
 		},
 		sets: (entry.sets || []).map((s) => scaleRow(s, f))
 	};
-	if (Number(entry.topW) > 0) out.topW = tidy(entry.topW * f);
+	if (Number(entry.topW) > 0) out.topW = tidy$1(entry.topW * f);
 	return out;
 }
 function workoutAs(w, exId, to) {
@@ -89530,39 +89530,73 @@ function currentDbLoad(S, exId) {
 	}
 	return "as";
 }
-const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy))].sort((a, b) => a - b);
+const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy$1))].sort((a, b) => a - b);
 const dumbbellsOf = (S) => cleanWeights(S?.dumbbells?.[unitOf$1(S)]?.weights);
 function ownedWeightsFor(S, cfg) {
-	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
 	if (cfg?.bodyweight != null ? !!cfg.bodyweight : isBodyweightEq(cfg?.id)) return null;
+	const stack = isAssisted({ ...cfg || {} }) ? [] : stackOf(S, cfg?.id);
+	if (stack.length) return stack;
+	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
 	const ws = dumbbellsOf(S);
 	if (!ws.length) return null;
-	return dbLoadFor(S, cfg) === "total" && bellsIn(cfg) === 2 ? ws.map((w) => tidy(w * 2)) : ws;
+	return dbLoadFor(S, cfg) === "total" && bellsIn(cfg) === 2 ? ws.map((w) => tidy$1(w * 2)) : ws;
 }
-const EPS = 1e-6;
+function ownedKindFor(S, cfg) {
+	if (!ownedWeightsFor(S, cfg)) return null;
+	return stackOf(S, cfg?.id).length ? "stack" : "dumbbells";
+}
+function stackOf(S, exId) {
+	const e = isMap$3(S?.stackWeights) ? S.stackWeights[exId] : null;
+	if (!isMap$3(e)) return [];
+	const ws = cleanWeights(e.weights);
+	const from = e.unit === "lb" ? "lb" : "kg", to = unitOf$1(S);
+	if (from === to) return ws;
+	return cleanWeights(ws.map((w) => Math.round((to === "lb" ? w / LB_KG$1 : w * LB_KG$1) * 10) / 10));
+}
+const LB_KG$1 = .45359237;
+const EPS$1 = 1e-6;
 function ownedUp(ws, w, n = 1) {
-	const above = (ws || []).filter((x) => x > (Number(w) || 0) + EPS);
+	const above = (ws || []).filter((x) => x > (Number(w) || 0) + EPS$1);
 	if (!above.length) return null;
 	return above[Math.min(n, above.length) - 1];
 }
 function ownedFloor(ws, x) {
 	const list = ws || [];
-	const under = list.filter((v) => v <= x + EPS);
+	const under = list.filter((v) => v <= x + EPS$1);
 	return under.length ? under[under.length - 1] : list[0] ?? 0;
 }
 function ownedDeload(ws, w, factor) {
-	const below = (ws || []).filter((x) => x < w - EPS);
+	const below = (ws || []).filter((x) => x < w - EPS$1);
 	if (!below.length) return w;
 	const ideal = w * factor;
-	return below.reduce((best, x) => Math.abs(x - ideal) < Math.abs(best - ideal) - EPS || Math.abs(x - ideal) <= Math.abs(best - ideal) + EPS && x > best ? x : best, below[0]);
+	return below.reduce((best, x) => Math.abs(x - ideal) < Math.abs(best - ideal) - EPS$1 || Math.abs(x - ideal) <= Math.abs(best - ideal) + EPS$1 && x > best ? x : best, below[0]);
 }
 function ownedAround(ideal, ws, max, strict) {
 	if (!(ideal > 0) || !(max > 0)) return [];
 	const ok = (ws || []).filter((x) => x > 0 && x <= max + 1e-9 && (!strict || x < max - 1e-9));
-	const low = ok.filter((x) => x <= ideal + EPS).pop();
-	const high = ok.find((x) => x >= ideal - EPS);
+	const low = ok.filter((x) => x <= ideal + EPS$1).pop();
+	const high = ok.find((x) => x >= ideal - EPS$1);
 	return [...new Set([low, high].filter((x) => x != null))].sort((a, b) => a - b);
 }
+
+// frontend/src/lib/warmup-snap.js
+const EPS = 1e-9;
+const tidy = (x) => Math.round(x * 1e3) / 1e3;
+function snapDown(x, grid) {
+	if (!(x > 0)) return 0;
+	if (typeof grid === "function") return tidy(grid(x));
+	if (Array.isArray(grid)) return tidy(ownedFloor(grid, x));
+	const step = Number(grid) > 0 ? Number(grid) : 2.5;
+	return tidy(Math.floor(x / step + EPS) * step);
+}
+function rungWeight(rung, work, grid, floor = 0) {
+	if (!(work > 0)) return 0;
+	if (rung.wb) return Math.min(work, Math.max(0, floor));
+	const pct = Number(rung.wp);
+	if (!(pct > 0)) return 0;
+	return Math.min(work, Math.max(0, floor, snapDown(work * pct / 100, grid)));
+}
+const isRungRow = (row) => !!row && (row.wb === true || Number.isFinite(row.wp));
 
 // frontend/src/lib/pyramid.js
 const PYRAMID_MAX = "max";
@@ -89704,12 +89738,14 @@ function lastEntryIn(S, exId, rid) {
 		const done = en.sets.filter((s) => s.done && !isWarmupRow(s));
 		if (done.length) {
 			const slot = entryRoutineId(w, en);
+			const warmups = en.sets.filter(isWarmupRow);
 			return {
 				d: w.d,
 				sets: done,
 				target: en.target || null,
 				...slot ? { rid: slot } : {},
-				...en.planned ? { planned: en.planned } : {}
+				...en.planned ? { planned: en.planned } : {},
+				...warmups.length ? { warmups } : {}
 			};
 		}
 	}
@@ -89941,8 +89977,8 @@ function setsDone(w) {
 	}));
 	return n;
 }
-const rungDown = (x, step) => Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step;
-function rerampWarmups(rows, step = 2.5, floor = 0) {
+const rungDown = (x, step) => typeof step === "function" ? step(x) : Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step;
+function rerampWarmups(rows, step = 2.5, floor = 0, keep = (row) => row.done) {
 	const firstWork = rows.findIndex((x) => !isWarmupRow(x));
 	if (firstWork <= 0) return rows;
 	const target = rows[firstWork].w || 0;
@@ -89950,11 +89986,11 @@ function rerampWarmups(rows, step = 2.5, floor = 0) {
 	const out = rows.slice();
 	let from = 0;
 	for (let i = 0; i < firstWork; i++) {
-		if (out[i].done) {
+		if (keep(out[i])) {
 			from = out[i].w || 0;
 			continue;
 		}
-		const w = target > from ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step))) : target;
+		const w = isRungRow(out[i]) ? rungWeight(out[i], target, step, floor) : target > from ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step))) : target;
 		out[i] = isSideSet(out[i]) ? syncSideAggregate({
 			...out[i],
 			sides: {
@@ -90387,7 +90423,8 @@ const MOVE_MAPS = [
 	"barWeights",
 	"loadKind",
 	"dbLoad",
-	"exEquip"
+	"exEquip",
+	"stackWeights"
 ];
 const RESTORE = [
 	"routines",
@@ -90823,12 +90860,17 @@ function nextPrescription(S, cfg, routine) {
 	const harder = (weight, step) => assisted ? Math.max(0, addStep(weight, -step, inc)) : owned ? ownedUp(owned, weight, step > inc ? 2 : 1) ?? weight : addStep(weight, step, inc);
 	const easier = (weight) => assisted ? addStep(weight, inc, inc) : owned ? ownedDeload(owned, weight, DELOAD_FACTOR) : deloadTo(weight, inc);
 	const topped = (weight) => !!owned && ownedUp(owned, weight) == null;
+	const onStack = !!owned && ownedKindFor(S, cfg) === "stack";
 	const toppedOut = (weight, extra = {}) => ({
 		policy,
 		kind: "hold",
 		weight,
 		...extra,
-		why: [
+		why: onStack ? [
+			"That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.",
+			weight,
+			unit
+		] : [
 			"You’ve outgrown the rack: {0} {1} is your heaviest dumbbell, so the weight stays.",
 			weight,
 			unit
@@ -91675,8 +91717,282 @@ function dropGrid(S, cfg) {
 	return weightIncrement(cfg, S?.unit === "lb" ? "lb" : "kg");
 }
 
+// frontend/src/lib/warmup-ramp.js
+const WARMUP_MODES = [
+	"auto",
+	"own",
+	"none"
+];
+const MAX_OWN_WARMUPS = 5;
+const OWN_PCT_MIN = 5;
+const OWN_PCT_MAX = 95;
+const OWN_REPS_MAX = 30;
+const LB_KG = .45359237;
+const exerciseOf$3 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
+const warmupAutoOf = (S) => S?.warmupAuto === "compounds" || S?.warmupAuto === "all" ? S.warmupAuto : "off";
+const warmupModeOf = (cfg) => WARMUP_MODES.includes(cfg?.warmup) ? cfg.warmup : null;
+const COMPOUND = /squat|deadlift|\bpress\b|\brow\b|rowing|pull-?up|chin-?up|\bdips?\b|lunge|clean|snatch|jerk|thrust|good ?morning|step-?up|push-?up|leg press|hack|rack pull|pulldown|pull-down|swing|carry|floor press|landmine/i;
+const ISOLATION = /curl|extension|raise|\bfly\b|flye|kickback|shrug|calf|crunch|pullover|pushdown|push-down|face pull|wrist|adduct|abduct|lateral|stretch|twist|\bsit-?up/i;
+const SOFT_CATS = /* @__PURE__ */ new Set([
+	"stretching",
+	"mobility",
+	"yoga",
+	"pilates",
+	"cardio",
+	"rehab"
+]);
+function isCompoundEx(idOrCfg) {
+	const ex = exerciseOf$3(typeof idOrCfg === "string" ? idOrCfg : idOrCfg?.id);
+	if (!ex) return false;
+	if (SOFT_CATS.has(ex.cat) || ex.bp === "cardio") return false;
+	const n = String(ex.n || "");
+	return COMPOUND.test(n) && !ISOLATION.test(n);
+}
+const clampInt = (v, lo, hi) => {
+	const n = Math.round(Number(v));
+	return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : null;
+};
+function cleanOwnRow(row) {
+	if (!row || typeof row !== "object") return null;
+	const r = clampInt(row.r, 1, 30);
+	if (r == null) return null;
+	if (row.wb === true) return {
+		wb: true,
+		r
+	};
+	const wp = Number(row.wp);
+	if (!Number.isFinite(wp)) return null;
+	if (wp === 0) return {
+		wp: 0,
+		r
+	};
+	return {
+		wp: Math.min(95, Math.max(5, Math.round(wp))),
+		r
+	};
+}
+const ownRowsOf = (cfg) => (Array.isArray(cfg?.warmupRows) ? cfg.warmupRows : []).map(cleanOwnRow).filter(Boolean).slice(0, 5);
+function warmupSource(S, cfg) {
+	const mode = modeOf(cfg);
+	if (mode === "cardio" || cfg?.intensifier?.type === "restpause") return { kind: "none" };
+	const own = warmupModeOf(cfg);
+	if (own === "none") return { kind: "none" };
+	if (own === "own") {
+		const rows = ownRowsOf(cfg);
+		return rows.length ? {
+			kind: "own",
+			rows
+		} : { kind: "none" };
+	}
+	if (own === "auto") return mode === "reps" ? { kind: "auto" } : { kind: "none" };
+	if ((Math.round(cfg?.warmupSets) || 0) > 0) return { kind: "count" };
+	if (mode !== "reps") return { kind: "none" };
+	const setting = warmupAutoOf(S);
+	if (setting === "all" || setting === "compounds" && isCompoundEx(cfg)) return { kind: "auto" };
+	return { kind: "none" };
+}
+function autoRungs({ work, kg, bar = 0, compound = false, bw = false, assisted = false }) {
+	if (!(work > 0) || assisted) return [];
+	if (bw) return kg >= 10 ? [{
+		wp: 0,
+		r: 5
+	}, {
+		wp: 60,
+		r: 3
+	}] : [{
+		wp: 0,
+		r: 5
+	}];
+	const hasBar = bar > 0 && bar < work;
+	if (compound) {
+		if (kg >= 60) return hasBar ? [
+			{
+				wb: true,
+				r: 10
+			},
+			{
+				wp: 40,
+				r: 5
+			},
+			{
+				wp: 60,
+				r: 3
+			},
+			{
+				wp: 80,
+				r: 1
+			}
+		] : [
+			{
+				wp: 40,
+				r: 8
+			},
+			{
+				wp: 60,
+				r: 4
+			},
+			{
+				wp: 80,
+				r: 1
+			}
+		];
+		if (kg >= 30) return hasBar ? [{
+			wb: true,
+			r: 10
+		}, {
+			wp: 70,
+			r: 3
+		}] : [{
+			wp: 50,
+			r: 8
+		}, {
+			wp: 75,
+			r: 3
+		}];
+		return hasBar ? [{
+			wb: true,
+			r: 10
+		}] : [{
+			wp: 50,
+			r: 8
+		}];
+	}
+	if (kg >= 40) return [{
+		wp: 50,
+		r: 10
+	}, {
+		wp: 75,
+		r: 4
+	}];
+	if (kg >= 10) return [{
+		wp: 50,
+		r: 10
+	}];
+	return [];
+}
+function rungRows(rungs, { work, grid, floor = 0, perSide = false }) {
+	const out = [];
+	let last = -1;
+	for (const rung of rungs) {
+		const w = rungWeight(rung, work, grid, floor);
+		if (!(rung.wp === 0 && !rung.wb) && (!(w > 0) || w >= work)) continue;
+		if (w <= last) continue;
+		last = w;
+		const row = {
+			w,
+			r: rung.r,
+			done: false,
+			phase: "warmup",
+			warmup: true,
+			...rung.wb ? { wb: true } : { wp: rung.wp }
+		};
+		out.push(perSide ? makeSideSet({
+			...row,
+			r: rung.r * 2
+		}) : row);
+	}
+	return out;
+}
+const workLoadOf = (rows) => {
+	const row = (rows || []).find((r) => !isWarmupRow(r));
+	return row ? Number(row.w) || 0 : 0;
+};
+function warmupBlock(S, cfg, rows, { grid, floor = 0, unit = "kg" } = {}) {
+	const source = warmupSource(S, cfg);
+	if (source.kind !== "auto" && source.kind !== "own") return null;
+	const work = workLoadOf(rows);
+	if (!(work > 0)) return [];
+	const perSide = isPerSide(cfg);
+	if (source.kind === "own") return rungRows(source.rows, {
+		work,
+		grid,
+		floor,
+		perSide
+	});
+	const kg = unit === "lb" ? work * LB_KG : work;
+	const bw = isBw(cfg) || exerciseOf$3(cfg?.id)?.eq === "weighted";
+	return rungRows(autoRungs({
+		work,
+		kg,
+		bar: floor,
+		compound: isCompoundEx(cfg),
+		bw,
+		assisted: isAssisted(cfg)
+	}), {
+		work,
+		grid,
+		floor,
+		perSide
+	});
+}
+function withWarmupBlock(S, cfg, rows, opts) {
+	const block = warmupBlock(S, cfg, rows, opts);
+	if (block == null) return rows;
+	return [...block, ...rows.filter((r) => !isWarmupRow(r))];
+}
+
 // frontend/src/lib/session-start.js
 const startsFromLast = (st) => st?.startFrom === "last";
+const carriedWarmupRow = (row, mode) => {
+	if (isSideSet(row)) {
+		const side = (s) => ({
+			w: Number(s?.w) || 0,
+			r: Number(s?.r) || 0,
+			done: false
+		});
+		return syncSideAggregate({
+			phase: "warmup",
+			warmup: true,
+			edited: true,
+			sides: {
+				L: side(row.sides.L),
+				R: side(row.sides.R)
+			}
+		});
+	}
+	if (mode === "time") return {
+		sec: row.sec,
+		w: Number(row.w) || 0,
+		done: false,
+		phase: "warmup",
+		warmup: true,
+		edited: true
+	};
+	return {
+		w: Number(row.w) || 0,
+		r: Number(row.r) || 0,
+		done: false,
+		phase: "warmup",
+		warmup: true,
+		edited: true
+	};
+};
+function withCarriedWarmups(rows, carry, mode, cfg, step, floor) {
+	let out = rows;
+	for (const row of carry) {
+		if (!row.edited) {
+			out = insertWarmupRow(out, mode, cfg, step, floor);
+			continue;
+		}
+		const at = out.findIndex((x) => !isWarmupRow(x));
+		out = at === -1 ? [...out, carriedWarmupRow(row, mode)] : [
+			...out.slice(0, at),
+			carriedWarmupRow(row, mode),
+			...out.slice(at)
+		];
+	}
+	return out;
+}
+function carriedWarmups(st, cfg, routine, noProg) {
+	if (!startsFromLast(st) || noProg || cfg.intensifier?.type === "restpause") return null;
+	if (warmupModeOf(cfg)) return null;
+	const mode = modeOf(cfg);
+	if (mode !== "time" && (mode === "cardio" || policyFor(cfg, routine, mode) === "off")) return null;
+	const rows = lastEntryFor(st, cfg.id, routine?.id)?.warmups || [];
+	if (!rows.some((row) => row.edited)) return null;
+	const fits = (row) => mode === "time" ? row.sec > 0 : isSideSet(row) || row.r > 0;
+	return rows.every(fits) ? rows : null;
+}
 function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
 	const meaning = dbLoadFor(stored, cfg);
 	const st = historyAs(stored, cfg.id, meaning);
@@ -91688,14 +92004,25 @@ function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
 	const planReps = !startsFromLast(st);
 	const ramp = modeOf(cfg) === "reps" && ownedWeightsFor(st, cfg) || step;
 	const backoffStep = modeOf(cfg) === "reps" && backoffStepOf(cfg, st.unit) ? step : 0;
-	const built = applyPrescription(buildSets(st, cfg, {
+	const warmCarry = carriedWarmups(st, cfg, routine, noProg);
+	const block = !warmCarry && ["auto", "own"].includes(warmupSource(st, cfg).kind);
+	const floor = barFloor(st, cfg.id);
+	const built = applyPrescription(buildSets(st, warmCarry || block ? {
+		...cfg,
+		warmupSets: 0
+	} : cfg, {
 		step: ramp,
 		rid: routine?.id,
 		useTarget: plan.kind === "off",
 		planReps
-	}), plan, ramp, barFloor(st, cfg.id));
+	}), plan, ramp, floor);
 	const rows = backoffStep ? applyBackoff(built, backoffStep) : built;
-	const sets = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg));
+	const shaped = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg));
+	const sets = warmCarry ? withCarriedWarmups(shaped, warmCarry, modeOf(cfg), cfg, ramp, floor) : block ? withWarmupBlock(st, cfg, shaped, {
+		grid: dropGrid(st, cfg),
+		floor,
+		unit: st.unit
+	}) : shaped;
 	const target = { ...cfg };
 	if (meaning !== "as") target.dbLoad = meaning;
 	if (plan.weight != null) target.weight = plan.weight;
@@ -92456,6 +92783,7 @@ const STAMPED_MAPS = [
 	"plates",
 	"dbLoad",
 	"dumbbells",
+	"stackWeights",
 	"dayNotes",
 	"habitLog",
 	"exEquip",

@@ -64,6 +64,10 @@ const LABELS = {
   'auth.mcp.denied': 'AI assistant connection refused for this profile',
   'auth.mcp.write': 'An AI assistant changed the plan or logged a workout',
   'auth.mcp.undo': 'An AI assistant undid a change',
+  // Outbound webhooks (Settings → Account → Webhooks, api/integrations). `msg` is the provider
+  // and the webhook's name, never its URL.
+  'integration.connect': 'Added a webhook',
+  'integration.disconnect': 'Removed a webhook',
   // The owner's proof (current password or a passkey) for one of the changes below was refused.
   'auth.proof.fail': 'Confirming a change failed',
   // The password throttle paused an address; `msg` says for what (password, signup).

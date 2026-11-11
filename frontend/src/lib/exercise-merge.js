@@ -36,8 +36,13 @@ const list = v => (Array.isArray(v) ? v : [])
 const clone = v => (v === undefined ? v : JSON.parse(JSON.stringify(v)))
 
 // Per-exercise settings maps: the target keeps its own, the source's moves only where it has none.
-// barWeights holds plain numbers; the other three carry their own stamp (sync-merge.js STAMPED_MAPS).
-const MOVE_MAPS = ['barWeights', 'loadKind', 'dbLoad', 'exEquip']
+// barWeights holds plain numbers; the others carry their own stamp (sync-merge.js STAMPED_MAPS).
+// stackWeights is a machine's own weight stack (lib/dumbbells.js, #688): it moves with the
+// exercise, and a target whose list was cleared (a stamped empty entry) takes the source's.
+const MOVE_MAPS = ['barWeights', 'loadKind', 'dbLoad', 'exEquip', 'stackWeights']
+const STAMPED_MOVES = ['loadKind', 'dbLoad', 'exEquip', 'stackWeights', 'balanceOverrides']
+// Whether the target already has a setting of its own in map `f`. An emptied stack is no stack.
+const hasOwn = (f, m, id) => (f === 'stackWeights' ? Array.isArray(m[id]?.weights) && m[id].weights.length > 0 : id in m)
 // What an Undo puts back whole.
 const RESTORE = ['routines', 'customEx', 'exWeights', 'exNotes', 'favEx', 'balanceOverrides', ...MOVE_MAPS]
 
@@ -162,7 +167,7 @@ export function mergeExercise(S, fromId, toId, { now = Date.now() } = {}) {
   for (const f of MOVE_MAPS) {
     if (!isMap(S[f]) || !(fromId in S[f])) continue
     const m = { ...S[f] }
-    if (!(toId in m) && m[fromId] != null) m[toId] = isMap(m[fromId]) && m[fromId]._ts != null ? { ...m[fromId], _ts: now } : m[fromId]
+    if (!hasOwn(f, m, toId) && m[fromId] != null) m[toId] = isMap(m[fromId]) && m[fromId]._ts != null ? { ...m[fromId], _ts: now } : m[fromId]
     delete m[fromId]
     S[f] = m
   }
@@ -203,7 +208,7 @@ export function undoMerge(S, undo, { now = Date.now() } = {}) {
     else S[f] = clone(before[f])
   }
   // A stamped setting put back is a change of its own: it has to win a sync like the merge did.
-  for (const f of ['loadKind', 'dbLoad', 'exEquip', 'balanceOverrides']) {
+  for (const f of STAMPED_MOVES) {
     if (!isMap(S[f])) continue
     for (const [k, v] of Object.entries(S[f])) if (isMap(v) && v._ts != null && (k === fromId || k === undo.toId || v.id === fromId)) S[f][k] = { ...v, _ts: now }
   }

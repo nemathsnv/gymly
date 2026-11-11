@@ -22,7 +22,7 @@ import { isWarmupRow, isSideSet, syncSideAggregate, makeSideSet } from './workou
 import { normalizeRepRange } from './rep-range.js'
 import { isPyramid } from './pyramid.js'
 import { backoffAt } from './backoff.js'
-import { ownedWeightsFor, ownedUp, ownedDeload, ownedAround } from './dumbbells.js'
+import { ownedWeightsFor, ownedKindFor, ownedUp, ownedDeload, ownedAround } from './dumbbells.js'
 
 export const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time']
 
@@ -449,7 +449,8 @@ export function nextPrescription(S, cfg, routine) {
   // The dumbbells you own (issue #376, lib/dumbbells.js), when the profile has listed them and
   // this is a dumbbell lift: a raise goes to the next bell up (a double jump two up), a deload
   // to the owned bell nearest the deload target, and at the heaviest bell the weight holds.
-  // Without a list, null, and the increment's grid decides as it always did.
+  // Without a list, null, and the increment's grid decides as it always did. A machine with its
+  // own stack listed (#688) walks that list the same way.
   const owned = mode === 'reps' && !assisted ? ownedWeightsFor(S, cfg) : null
   const harder = (weight, step) => (assisted ? Math.max(0, addStep(weight, -step, inc))
     : owned ? ownedUp(owned, weight, step > inc ? 2 : 1) ?? weight
@@ -457,7 +458,11 @@ export function nextPrescription(S, cfg, routine) {
   const easier = weight => (assisted ? addStep(weight, inc, inc) : owned ? ownedDeload(owned, weight, DELOAD_FACTOR) : deloadTo(weight, inc))
   // At the heaviest bell there is nothing to raise to: the weight holds and the line says why.
   const topped = weight => !!owned && ownedUp(owned, weight) == null
-  const toppedOut = (weight, extra = {}) => ({ policy, kind: 'hold', weight, ...extra, why: ['You’ve outgrown the rack: {0} {1} is your heaviest dumbbell, so the weight stays.', weight, unit] })
+  // A machine's own stack (#688) walks the same way; only the line at the top says which it is.
+  const onStack = !!owned && ownedKindFor(S, cfg) === 'stack'
+  const toppedOut = (weight, extra = {}) => ({ policy, kind: 'hold', weight, ...extra, why: onStack
+    ? ['That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.', weight, unit]
+    : ['You’ve outgrown the rack: {0} {1} is your heaviest dumbbell, so the weight stays.', weight, unit] })
 
 
   // The routine's own sessions of this exercise, or the exercise's whole history when the

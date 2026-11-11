@@ -53,8 +53,10 @@ RUN npm ci --omit=dev --omit=optional && npm cache clean --force
 
 # Every module server.js imports from the api root has to be named here: the image carries nothing
 # else, and one that is missing only shows at boot, as ERR_MODULE_NOT_FOUND.
-COPY server.js push-messages.js nudge.js nudge-copy.js verify-error.js password.js rate-limit.js passkeys-store.js device-link.js mcp-access.js media.js queue.js sync-stamps.js durable.js ./
+COPY server.js push-messages.js nudge.js nudge-copy.js verify-error.js password.js rate-limit.js passkeys-store.js device-link.js mcp-access.js media.js queue.js sync-stamps.js durable.js net-guard.js ./
 COPY coach ./coach
+# Outbound webhooks (INTEGRATIONS=webhook, docs/INTEGRATIONS.md); inert unless switched on.
+COPY integrations ./integrations
 # The hosted MCP endpoint (OAuth + /api/mcp). Its read-tools.gen.js is generated from mcp/ and
 # frontend/src/lib by scripts/build-mcp-hosted.mjs and committed, so the image needs nothing else.
 COPY mcp-remote ./mcp-remote
