@@ -2424,4 +2424,8 @@ export default {
   "{0} measurement check-in imported": "{0} relevé de mensurations importé",
   "{0} measurement check-ins imported": "{0} relevés de mensurations importés",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Cette app ne peut pas confirmer avec une passkey. Crée le code dans un navigateur connecté à ce profil, ou ajoute d’abord un mot de passe là-bas.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Informations légales',
+  'Privacy Policy': 'Politique de confidentialité',
+  'Terms of Service': 'Conditions d’utilisation',
 }

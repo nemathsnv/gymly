@@ -2424,4 +2424,8 @@ export default {
   "{0} measurement check-in imported": "{0} ölçüm kaydı içe aktarıldı",
   "{0} measurement check-ins imported": "{0} ölçüm kaydı içe aktarıldı",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Bu uygulama geçiş anahtarıyla onaylayamaz. Kodu bu profille oturum açmış bir tarayıcıda oluştur ya da önce orada bir parola ekle.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Yasal bilgiler',
+  'Privacy Policy': 'Gizlilik Politikası',
+  'Terms of Service': 'Hizmet Koşulları',
 }

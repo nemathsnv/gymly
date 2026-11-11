@@ -2417,4 +2417,8 @@ export default {
   "{0} measurement check-in imported": "已匯入 {0} 筆身體測量紀錄",
   "{0} measurement check-ins imported": "已匯入 {0} 筆身體測量紀錄",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此 App 無法以通行密鑰確認。請在已登入此個人檔案的瀏覽器中產生代碼，或先在那裡設定密碼。',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': '法律資訊',
+  'Privacy Policy': '隱私權政策',
+  'Terms of Service': '服務條款',
 }
