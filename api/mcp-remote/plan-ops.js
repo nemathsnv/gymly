@@ -211,7 +211,7 @@ function checkWeight(c, s) {
 export function previewPlan(S, ops, { newId = helpers.uid } = {}) {
   const errors = [];
   if (!Array.isArray(ops) || !ops.length) return { ok: false, errors: ['operations must list at least one operation'] };
-  if (ops.length > MAX_OPS) return { ok: false, errors: [`at most ${MAX_OPS} operations in one preview — split the request`] };
+  if (ops.length > MAX_OPS) return { ok: false, errors: [`at most ${MAX_OPS} operations in one preview; split the request`] };
   const s = scratchOf(S);
   const unit = S?.unit === 'lb' ? 'lb' : 'kg';
   s.unit = unit;
@@ -250,7 +250,7 @@ export function previewPlan(S, ops, { newId = helpers.uid } = {}) {
     try { applyChanges(s, ok); } catch (e) { errors.push(`operations[${i}] (${op.op}) cannot be applied: ${e.message}`); continue; }
     applied.push(...ok);
   }
-  if (applied.length > MAX_CHANGES) errors.push(`this comes to ${applied.length} changes, more than the ${MAX_CHANGES} one preview may hold — split the request`);
+  if (applied.length > MAX_CHANGES) errors.push(`this comes to ${applied.length} changes, more than the ${MAX_CHANGES} one preview may hold; split the request`);
   if (s.routines.length > Math.max(MAX_ROUTINES, (S?.routines || []).length)) errors.push(`the plan would hold ${s.routines.length} routines, more than ${MAX_ROUTINES}`);
   for (const r of s.routines) {
     const before = (S?.routines || []).find(x => x && x.id === r.id);
@@ -311,10 +311,10 @@ export function diffPlans(S, s, unit) {
       if (!prev && replaced.has(e.id)) {
         const was = replaced.get(e.id);
         touched.add(r.id);
-        lines.push(`“${r.name}”: replace ${exNameOf(was.id, s)} (${pres(was)}) with ${exNameOf(e.id, s)} — ${pres(e)}`);
+        lines.push(`“${r.name}”: replace ${exNameOf(was.id, s)} (${pres(was)}) with ${exNameOf(e.id, s)}: ${pres(e)}`);
         continue;
       }
-      if (!prev) { touched.add(r.id); lines.push(`“${r.name}”: add ${exNameOf(e.id, s)} — ${pres(e)}`); continue; }
+      if (!prev) { touched.add(r.id); lines.push(`“${r.name}”: add ${exNameOf(e.id, s)}: ${pres(e)}`); continue; }
       const a = pres(prev), b = pres(e);
       const same = JSON.stringify(prev) === JSON.stringify(e);
       if (!same) {
@@ -324,7 +324,7 @@ export function diffPlans(S, s, unit) {
       }
     }
     const kept = nIds.filter(id => oIds.includes(id));
-    if (kept.join() !== oIds.filter(id => nIds.includes(id)).join()) { touched.add(r.id); lines.push(`“${r.name}”: new exercise order — ${r.ex.map(e => exNameOf(e.id, s)).join(', ')}`); }
+    if (kept.join() !== oIds.filter(id => nIds.includes(id)).join()) { touched.add(r.id); lines.push(`“${r.name}”: new exercise order: ${r.ex.map(e => exNameOf(e.id, s)).join(', ')}`); }
   }
   for (const o of oldPlan.routines) {
     if (!routineOf(s, o.id)) {
@@ -387,7 +387,7 @@ export class StaleError extends Error {
 export function applyPlan(S, preview) {
   const scope = preview.scope;
   if (scopeKey(S, scope) !== preview.baseKey) {
-    throw new StaleError('what this preview changes was edited since (in the app, on another device or by another assistant) — preview the change again');
+    throw new StaleError('what this preview changes was edited since (in the app, on another device or by another assistant); preview the change again');
   }
   const next = clone(S || {});
   const dayBefore = clone(isObj(next.dayPlan) ? next.dayPlan : {});
@@ -411,7 +411,7 @@ export function applyPlan(S, preview) {
 export function undoPlan(S, record) {
   const { scope, before } = record.undo;
   if (scopeKey(S, scope) !== record.afterKey) {
-    throw new StaleError('what this change touched has been edited since, so undoing it would also throw away those later edits — undo the later changes first, or make the edit again by hand');
+    throw new StaleError('what this change touched has been edited since, so undoing it would also throw away those later edits; undo the later changes first, or make the edit again by hand');
   }
   const next = clone(S || {});
   if (!Array.isArray(next.routines)) next.routines = [];
@@ -454,76 +454,104 @@ export function zonedEpoch(iso, hhmm, tz) {
   return t;
 }
 
-/** → { ok, workout, lines, warnings } | { ok:false, errors }. */
-export function previewWorkout(S, input, { newId = helpers.uid, now = Date.now() } = {}) {
-  const errors = [], warnings = [];
+// The tool's snake_case input as the description frontend/src/lib/log-workout.js reads.
+// `exercise_id` is the name this tool's input had before names were accepted; it is an exercise
+// reference like any other.
+const describedAs = input => ({
+  date: input.date,
+  start: input.start_time,
+  durationMin: input.duration_min,
+  name: input.name,
+  note: input.note,
+  unit: input.unit,
+  routineId: input.routine_id,
+  bodyweight: input.bodyweight,
+  exercises: (input.exercises || []).map(e => ({
+    exercise: e.exercise ?? e.exercise_id,
+    note: e.note,
+    sets: (e.sets || []).map(s => ({
+      reps: s.reps, seconds: s.seconds, minutes: s.minutes, speed: s.speed, level: s.level,
+      weight: s.weight, warmup: s.warmup, failure: s.failure, rir: s.rir, rpe: s.rpe
+    }))
+  }))
+});
+
+// One problem the way the assistant has to put it to the user: where, what, and the choices.
+const problemLine = p => {
+  const what = p.exercise != null ? `${p.field} "${p.exercise}"` : p.field;
+  const choices = (p.candidates || []).map(c => `${c.id} ${cap(c.name)}${c.equipment ? ` (${c.equipment})` : ''}`);
+  return `${what}: ${p.problem}${choices.length ? `. Candidates: ${choices.join('; ')}` : ''}`;
+};
+
+const setLine = (x, unit) => {
+  const tail = [x.phase === 'warmup' ? 'warm-up' : '', x.failure ? 'to failure' : '', x.rir != null ? `RIR ${x.rir}` : '', x.rpe != null ? `RPE ${x.rpe}` : ''].filter(Boolean).join(', ');
+  const main = x.min != null
+    ? `${x.min} min${x.level ? ` at level ${x.level}` : x.speed ? ` at ${x.speed} km/h` : ''}`
+    : x.sec != null ? `${x.sec}s${x.w ? ` @ ${x.w} ${unit}` : ''}`
+      : `${x.r}${x.w ? ` × ${x.w} ${unit}` : ' reps'}`;
+  return tail ? `${main} (${tail})` : main;
+};
+
+/**
+ * What the workout an assistant describes would be, against the profile as it stands: the
+ * workout, a line per exercise, and what each name was taken to mean. Nothing is saved.
+ *
+ * → { ok: true, workout, past, lines, resolved, warnings, prs, unit, volume, sets_done, duplicate }
+ * | { ok: false, problems, errors }. `duplicate` is the workout already in the history this one
+ * repeats (`same_request`: the same description; else the same sets on the same day).
+ */
+export function previewWorkout(S, input, { now = Date.now() } = {}) {
   const S0 = S || {};
-  const unit = S0.unit === 'lb' ? 'lb' : 'kg';
-  const today = helpers.todayFor(S0, new Date(now));
-  if (input.date > today) errors.push(`date ${input.date} is in the future (today is ${today} for this profile)`);
-  if (input.date < '2000-01-01') errors.push('date is before 2000');
-  const routines = Array.isArray(S0.routines) ? S0.routines.filter(isObj) : [];
-  const routine = input.routine_id ? routines.find(r => r.id === input.routine_id) : null;
-  if (input.routine_id && !routine) errors.push(`routine "${input.routine_id}" is not one of the profile's routines`);
   const tz = S0.reminder?.tz || null;
-  const start = zonedEpoch(input.date, input.start_time || '18:00', tz);
-  const end = start + input.duration_min * 60000;
-  if (end > now) errors.push('the workout would end in the future — use an earlier start time');
-  const entries = [];
-  input.exercises.forEach((e, i) => {
-    const where = `exercises[${i}]`;
-    if (!helpers.isKnownExercise(e.exercise_id, S0)) { errors.push(`${where}: "${e.exercise_id}" is not an exercise in the library or the profile's own — resolve it with search_exercises`); return; }
-    const planned = routine ? (routine.ex || []).find(x => x.id === e.exercise_id) : null;
-    const mode = e.sets.some(x => x.minutes != null || x.speed != null) ? 'cardio' : e.sets.some(x => x.seconds != null) ? 'time' : 'reps';
-    const sets = [];
-    e.sets.forEach((x, j) => {
-      const at = `${where}.sets[${j}]`;
-      if (x.weight != null) { const bad = weightError(unit, x.weight === 0 ? 0.01 : x.weight, at); if (bad) { errors.push(bad); return; } }
-      if (mode === 'cardio') {
-        if (!(x.minutes > 0)) { errors.push(`${at}: cardio sets need minutes`); return; }
-        sets.push({ min: x.minutes, speed: x.speed || 0, done: true });
-      } else if (mode === 'time') {
-        if (!(x.seconds > 0)) { errors.push(`${at}: timed sets need seconds`); return; }
-        sets.push({ sec: x.seconds, w: x.weight || 0, done: true });
-      } else {
-        if (!(x.reps >= 0)) { errors.push(`${at}: sets need reps`); return; }
-        sets.push({ w: x.weight || 0, r: x.reps, done: true, ...(x.rir != null ? { rir: x.rir } : {}) });
-      }
-    });
-    if (entries.some(en => en.id === e.exercise_id)) { errors.push(`${where}: "${e.exercise_id}" is listed twice — put all its sets in one entry`); return; }
-    const target = planned ? { ...planned } : { id: e.exercise_id, sets: sets.length, mode, ...(mode === 'reps' ? { reps: sets[0]?.r || 0 } : mode === 'time' ? { sec: sets[0]?.sec || 0 } : { min: sets[0]?.min || 0 }) };
-    delete target.sg;
-    entries.push({ id: e.exercise_id, sets, target, ...(routine ? { rid: routine.id } : {}), ...(e.note ? { note: String(e.note).slice(0, 500) } : {}) });
-  });
-  if (errors.length) return { ok: false, errors };
-  const same = (S0.workouts || []).filter(w => w && w.d === input.date);
-  if (same.length) warnings.push(`${same.length} workout(s) already logged on ${input.date} (${same.map(w => w.name || 'workout').join(', ')}); this adds another, it does not replace them`);
-  const workout = helpers.buildCompletedWorkout({
-    id: newId(), d: input.date, start,
-    routineIds: routine ? [routine.id] : [],
-    name: cleanName(input.name) || routine?.name || 'Freestyle',
-    bw: input.bodyweight || null,
-    entries,
-    note: input.note ? String(input.note).slice(0, 500) : ''
-  }, { end, prs: [] });
-  const lines = workout.entries.map(en => `${exNameOf(en.id, S0)}: ${en.sets.map(x => (x.min != null ? `${x.min} min` : x.sec != null ? `${x.sec}s${x.w ? ` @ ${x.w} ${unit}` : ''}` : `${x.r}${x.w ? ` × ${x.w} ${unit}` : ' reps'}`)).join(', ')}`);
-  return { ok: true, workout, lines, warnings, volume: helpers.workoutVolume(workout), sets_done: helpers.setsDone(workout), unit };
+  const today = helpers.todayFor(S0, new Date(now));
+  const described = describedAs({ ...input, date: input.date || today });
+  const built = helpers.buildLoggedWorkout(S0, described, { now, today, at: (iso, hhmm) => zonedEpoch(iso, hhmm, tz) });
+  if (built.problems) return { ok: false, problems: built.problems, errors: built.problems.map(problemLine) };
+  const { workout } = built;
+  const unit = built.unit;
+  const warnings = [];
+  const notes = [];
+  for (const r of built.resolved) {
+    const was = String(r.input ?? '').trim();
+    if (r.merged_from) notes.push(`"${was}" was merged into ${cap(r.name)} in the app, so it is logged there`);
+    else if (was && was !== r.id && was.toLowerCase() !== String(r.name).toLowerCase()) notes.push(`"${was}" was taken as ${cap(r.name)} (${r.id}); if the user meant another variant, ask and pass its id`);
+    if (r.weightMeans) notes.push(`${cap(r.name)}: the weight is ${r.weightMeans === 'each' ? 'per dumbbell' : 'both dumbbells together'}, as this profile logs it`);
+  }
+  const dup = helpers.findDuplicate(S0, workout);
+  const same = (Array.isArray(S0.workouts) ? S0.workouts : []).filter(w => w && w.d === workout.d && (!dup || w.id !== dup.workout.id));
+  if (same.length) warnings.push(`${same.length} other workout(s) already logged on ${workout.d} (${same.map(w => w.name || 'workout').join(', ')}); this adds another, it does not replace them`);
+  // The badges it would get if nothing else is logged before it is saved (they are worked out
+  // again when it is saved).
+  const trial = clone(S0);
+  const filed = dup ? null : helpers.appendLoggedWorkout(trial, built, { now });
+  const prs = filed?.added ? (filed.workout.prs || []).map(id => cap(exNameOf(id, S0))) : [];
+  const lines = workout.entries.map(en => `${cap(exNameOf(en.id, S0))}: ${en.sets.map(x => setLine(x, unit)).join(', ')}`);
+  return {
+    ok: true, workout, past: built.past, lines, resolved: built.resolved, warnings, notes, prs, unit,
+    volume: helpers.workoutVolume(workout), sets_done: helpers.setsDone(workout),
+    duplicate: dup ? { workout_id: dup.workout.id, date: dup.workout.d, name: dup.workout.name || null, same_request: dup.sameRequest } : null
+  };
 }
 
-export function applyWorkout(S, preview) {
-  const next = clone(S || {});
-  const list = Array.isArray(next.workouts) ? next.workouts : [];
-  if (list.some(w => w && w.id === preview.workout.id)) return { next: null, already: true };
-  next.workouts = helpers.insertChronological(list, clone(preview.workout));
-  return { next };
+/**
+ * File a previewed workout into the profile as it is now. → { next, filed } to commit, or
+ * { duplicate } when the history already has it (nothing to write). Throws StaleError when the
+ * profile switched kg and lb since the preview: its weights were read in the other unit.
+ */
+export function applyWorkout(S, preview, { now = Date.now() } = {}) {
+  const cur = S || {};
+  if ((cur.unit === 'lb' ? 'lb' : 'kg') !== preview.unit) throw new StaleError('the profile switched between kg and lb since this preview, so its weights would be read wrongly; preview the workout again');
+  const next = clone(cur);
+  const filed = helpers.appendLoggedWorkout(next, { workout: preview.workout, past: preview.past }, { now, allowDuplicate: preview.allowDuplicate === true });
+  if (!filed.added) return { duplicate: { workout_id: filed.workout.id, date: filed.workout.d, same_request: filed.sameRequest } };
+  return { next, filed, prs: (filed.workout.prs || []).map(id => exNameOf(id, next)) };
 }
 
+/** Take a logged workout back out: { next } to commit, or { gone: true }. */
 export function undoWorkout(S, record) {
-  const list = Array.isArray(S?.workouts) ? S.workouts : [];
-  if (!list.some(w => w && w.id === record.workoutId)) return { next: null, gone: true };
-  const next = clone(S);
-  next.workouts = list.filter(w => !(w && w.id === record.workoutId));
-  return { next };
+  // A journal entry from before undo carried what logging changed has only the workout's id.
+  const r = helpers.removeLoggedWorkout(S || {}, record.undo || { workoutId: record.workoutId });
+  return r.gone ? { next: null, gone: true } : { next: r.next };
 }
 
 export { COACH_TYPES };

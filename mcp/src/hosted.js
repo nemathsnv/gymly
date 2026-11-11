@@ -15,7 +15,8 @@ import { deleteRoutine } from '../../frontend/src/lib/routines.js'
 import { uid } from '../../frontend/src/lib/format.js'
 import { insertChronological } from '../../frontend/src/lib/backfill.js'
 import { buildCompletedWorkout } from '../../frontend/src/lib/finish-workout.js'
-import { allExercises, searchExercises, exOr, canonicalExId, isAssisted, isCardio, EXIDX } from '../../frontend/src/lib/exercises.js'
+import { allExercises, searchExercises, exOr, canonicalExId, isAssisted, isCardio, EXIDX, registerCustom } from '../../frontend/src/lib/exercises.js'
+import { buildLoggedWorkout, appendLoggedWorkout, removeLoggedWorkout, findDuplicate } from '../../frontend/src/lib/log-workout.js'
 import { e1rmSeries, best1RM, formulaOf } from '../../frontend/src/lib/onerm.js'
 
 // The calendar date where the profile's owner is. The reminder's time zone is the one the app
@@ -44,7 +45,16 @@ const customOf = (id, S) => (S.customEx || []).find(ex => ex && ex.id === id)
 const inCatalogue = id => typeof id === 'string' && Object.hasOwn(EXIDX, id)
 const exerciseOf = (id, S) => customOf(id, S) || (inCatalogue(id) ? EXIDX[id] : { id, n: 'Unknown exercise', missing: true })
 
-const noState = () => ({ error: 'no synced state yet — sign in at least once from a device so Gymly can save this profile', unit: 'kg' })
+const noState = () => ({ error: 'no synced state yet: sign in at least once from a device so Gymly can save this profile', unit: 'kg' })
+
+// The profile's own exercises indexed for the duration of one call, as the app has them: a
+// custom one-arm dumbbell press counts one bell, a custom assisted machine folds towards less
+// help, a custom cardio exercise reads as cardio. One process serves every profile, so the index
+// is put back before the call returns (everything inside is synchronous).
+function withCustomsIndexed(S, run) {
+  registerCustom(Array.isArray(S?.customEx) ? S.customEx.filter(x => x && x.id) : [])
+  try { return run() } finally { registerCustom([]) }
+}
 
 /** search_exercises — names to ids, which every write needs. */
 export const searchExercisesTool = {
@@ -177,5 +187,11 @@ export const helpers = {
   prescription: (cfg, unit) => exLine(cfg, unit),
   routineIdsOn: (S, iso) => withState(S, { id: '', name: '' }, () => effectiveRoutineIds(getState(), iso, todayFor(S))),
   workoutVolume: w => workoutVolume(w),
-  setsDone: w => setsDone(w)
+  setsDone: w => setsDone(w),
+  // log_workout (frontend/src/lib/log-workout.js, ported from openGym #739): the workout a
+  // description stands for, filing it the way Finish does, and taking it back out.
+  buildLoggedWorkout: (S, input, opts) => withCustomsIndexed(S, () => buildLoggedWorkout(S || {}, input, opts)),
+  appendLoggedWorkout: (S, built, opts) => withCustomsIndexed(S, () => appendLoggedWorkout(S, built, opts)),
+  removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
+  findDuplicate: (S, w) => findDuplicate(S || {}, w)
 }
