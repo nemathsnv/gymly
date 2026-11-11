@@ -2516,4 +2516,8 @@ export default {
   'Keep these warm-ups': 'احتفظ بهذا الإحماء',
   'Saved in the routine, scaled to your work weight': 'تُحفظ في الروتين بحسب وزن العمل',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'تم الحفظ. الإحماء نفسه في المرة القادمة، بحسب وزن العمل.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'قانوني',
+  'Privacy Policy': 'سياسة الخصوصية',
+  'Terms of Service': 'شروط الخدمة',
 }

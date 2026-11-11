@@ -2461,4 +2461,8 @@ export default {
   'Keep these warm-ups': 'Bu ısınmaları sakla',
   'Saved in the routine, scaled to your work weight': 'Rutine kaydedilir, çalışma ağırlığına göre ölçeklenir',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Kaydedildi. Bir dahakine aynı ısınma, çalışma ağırlığına göre ölçeklenir.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Yasal bilgiler',
+  'Privacy Policy': 'Gizlilik Politikası',
+  'Terms of Service': 'Hizmet Koşulları',
 }

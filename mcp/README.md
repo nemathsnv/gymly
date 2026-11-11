@@ -20,8 +20,12 @@ The numbers it answers with are computed by the **same pure functions the React 
 (`frontend/src/lib/*.js`) — `estimate1RM`, `loadOfWorkouts`, `effectiveRoutine`, etc. — so a
 "what's my bench 1RM?" answer matches the Stats screen exactly.
 
-> Phase 1 of a multi-phase plan. Read-only today; long-lived token auth + write tools are
-> planned but not shipped yet. See **Roadmap** below.
+> This bridge stays read-only. Writing (editing routines, and logging a workout you describe,
+> "curls, 12 kg, 12/12/10") is done by the **hosted** MCP endpoint in the API
+> (`api/mcp-remote/`, [docs/MCP.md](../docs/MCP.md)), behind OAuth consent, a preview, undo
+> and a rate limit. openGym's bridge has a `log_workout` that saves through a paired device
+> session; this one does not, because its token is read-only by design and is not widened. See
+> **Roadmap** below.
 
 ## Quick start (local mode)
 
@@ -157,11 +161,14 @@ their own 92 tests in `frontend/src/lib/*.test.js`.
   rows it produces, and which of plan / confirmed weight / history each number came from.
 - **Done (Phase 1.6):** remote mode. Per-profile read-only tokens made in Settings,
   `GET /api/mcp/v1/state`, HTTPS-only client.
-- **Phase 2:** proposals, not writes: the assistant files a change list, and the owner accepts
-  it in Gymly through the AI Coach's review and apply pipeline. Design and remaining steps:
-  [docs/dev/MCP_WRITES.md](../docs/dev/MCP_WRITES.md).
-- **Phase 3:** Streamable HTTP transport, opt-in 4th container in `docker-compose.yml`. Same
-  tool implementations, second transport — the MCP SDK supports both behind one tool registration.
+- **Done (Phase 2, hosted):** writes, on the hosted endpoint rather than here: routine and
+  schedule edits, and `preview_workout_log` / `log_workout` (ported from openGym #739: exercises
+  by name with a question when a name is ambiguous, never logged twice, 20 an hour). The
+  read tools are this package's, bundled into the API (`src/hosted.js`,
+  `scripts/build-mcp-hosted.mjs`). Design: [docs/dev/MCP_WRITES.md](../docs/dev/MCP_WRITES.md).
+- **Not planned for the bridge:** a write token. Writing from here would need a token kind of its
+  own (the V1 token is read-only by design); the hosted endpoint covers the same ground with
+  consent, a preview and undo.
 
 ## License
 

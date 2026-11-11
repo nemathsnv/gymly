@@ -27,6 +27,15 @@
   stack the weight holds and says so. A stack wins over the exercise's own Weight step, whose
   editor says so; clear the stack and the step you picked is back. Without a stack nothing changes.
   Merging an exercise into another takes its stack along.
+- **Log a workout by telling your AI about it** (ported from openGym #739, thanks
+  @matthewjablack). Connected to Gymly's hosted MCP endpoint, an assistant turns "curls, 12 kg,
+  12/12/10" into a workout: it shows you how it will be saved, and once you agree it lands in
+  History on every device, with its PR badges and, for today's session, the next suggested weight,
+  as Finish would. Exercises go by name: when one could mean two exercises (or none), it asks you
+  which; an exercise you merged into another is logged as the one it went into; cardio and a
+  stepmill's level work too. It never logs the same thing twice, takes 20 workouts an hour at
+  most, and `undo_change` takes one back. The local MCP bridge stays read-only: its token is
+  read-only by design.
 - **Weigh in as often as you like, with the time** (ported from openGym #859). A day can now hold
   several weigh-ins, each with its time. The weigh-in sheet has a date and a time field (now for
   today; for an earlier day, that day's first time or 08:00), so a weigh-in can also be logged for

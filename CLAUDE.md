@@ -129,7 +129,11 @@ resource-bound hashed tokens in `db.mcpGrants`, consent page `consent.js`). Off 
 `MCP_OAUTH_USERS` lists profile ids. Writes: `plan-ops.js` turns operations into the Coach's
 change contract and validates them with `coach/core/validate.js`; preview → apply-by-id
 (`tools.js`), staleness scoped to the touched routines (`scopeKey`), journal for undo (`journal.js`), committed through
-`commitState` in server.js (the same path as `PUT /api/data`). `plan-apply.js` is a hand copy of
+`commitState` in server.js (the same path as `PUT /api/data`). Workout logging
+(`preview_workout_log` → `log_workout`) builds the session with `frontend/src/lib/log-workout.js`
+(names resolved through `S.exMerged` or asked about, id from the description so it never logs
+twice, filed the way Finish files it), 20 saves an hour per profile (`log-budget.js`); the stdio
+bridge stays read-only. `plan-apply.js` is a hand copy of
 the Coach's `CHANGE_APPLY` pinned by `frontend/src/lib/mcp-apply-parity.test.js`.
 `read-tools.gen.js` is GENERATED (`node scripts/build-mcp-hosted.mjs`) from `mcp/src/hosted.js`
 + V1 tools + `frontend/src/lib`; regenerate after changing any of those (CI runs `--check`).

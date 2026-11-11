@@ -2472,4 +2472,8 @@ export default {
   'Keep these warm-ups': 'เก็บวอร์มอัพชุดนี้ไว้',
   'Saved in the routine, scaled to your work weight': 'บันทึกในรูทีน ปรับตามน้ำหนักทำงาน',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'เก็บแล้ว ครั้งหน้าวอร์มอัพแบบเดิม ปรับตามน้ำหนักทำงาน',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'ข้อมูลทางกฎหมาย',
+  'Privacy Policy': 'นโยบายความเป็นส่วนตัว',
+  'Terms of Service': 'ข้อกำหนดในการให้บริการ',
 }

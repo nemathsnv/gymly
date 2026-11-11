@@ -2540,4 +2540,8 @@ export default {
   'Keep these warm-ups': 'এই ওয়ার্ম-আপগুলো রাখুন',
   'Saved in the routine, scaled to your work weight': 'রুটিনে সংরক্ষিত, কাজের ওজন অনুযায়ী',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'রাখা হলো। পরের বার একই ওয়ার্ম-আপ, আপনার কাজের ওজন অনুযায়ী।',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'আইনি তথ্য',
+  'Privacy Policy': 'গোপনীয়তা নীতি',
+  'Terms of Service': 'পরিষেবার শর্তাবলী',
 }

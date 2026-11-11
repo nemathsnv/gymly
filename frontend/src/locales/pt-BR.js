@@ -1622,6 +1622,8 @@ export const PT_BR_OVERRIDES = {
   'Keep these warm-ups': 'Salvar estes aquecimentos',
   'Saved in the routine, scaled to your work weight': 'Salvo na rotina, na escala do peso de trabalho',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Salvo. Os mesmos aquecimentos na próxima vez, na escala do peso de trabalho.',
+  // Privacy Policy and Terms of Service links: pt-BR says the plural. The other two labels match pt-PT.
+  'Legal': 'Informações legais',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

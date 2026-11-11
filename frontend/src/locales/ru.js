@@ -2465,4 +2465,8 @@ export default {
   'Keep these warm-ups': 'Сохранить эту разминку',
   'Saved in the routine, scaled to your work weight': 'Сохраняется в программе, под рабочий вес',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Сохранено. В следующий раз та же разминка, под ваш рабочий вес.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Правовая информация',
+  'Privacy Policy': 'Политика конфиденциальности',
+  'Terms of Service': 'Условия использования',
 }

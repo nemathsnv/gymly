@@ -2461,4 +2461,8 @@ export default {
   'Keep these warm-ups': '이 워밍업 저장',
   'Saved in the routine, scaled to your work weight': '루틴에 저장, 작업 중량에 맞춰 조정',
   'Kept. Same warm-ups next time, scaled to your work weight.': '저장했어요. 다음에도 같은 워밍업을 작업 중량에 맞춰 드립니다.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': '법적 고지',
+  'Privacy Policy': '개인정보 처리방침',
+  'Terms of Service': '서비스 약관',
 }

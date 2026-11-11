@@ -2461,4 +2461,8 @@ export default {
   'Keep these warm-ups': 'ये वार्म-अप रखें',
   'Saved in the routine, scaled to your work weight': 'रूटीन में सेव, वर्क वेट के हिसाब से',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'रख लिया। अगली बार यही वार्म-अप, आपके वर्क वेट के हिसाब से।',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'कानूनी जानकारी',
+  'Privacy Policy': 'गोपनीयता नीति',
+  'Terms of Service': 'सेवा की शर्तें',
 }

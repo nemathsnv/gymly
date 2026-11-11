@@ -2454,4 +2454,8 @@ export default {
   'Keep these warm-ups': '保留這些熱身',
   'Saved in the routine, scaled to your work weight': '存進課表，依工作重量縮放',
   'Kept. Same warm-ups next time, scaled to your work weight.': '已儲存。下次還是這些熱身，依工作重量縮放。',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': '法律資訊',
+  'Privacy Policy': '隱私權政策',
+  'Terms of Service': '服務條款',
 }

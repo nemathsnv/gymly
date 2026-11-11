@@ -2481,4 +2481,8 @@ export default {
   'Keep these warm-ups': 'Diese Aufwärmsätze behalten',
   'Saved in the routine, scaled to your work weight': 'In der Routine gespeichert, passend zum Arbeitsgewicht',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Gemerkt. Nächstes Mal dieselben Aufwärmsätze, passend zu deinem Arbeitsgewicht.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Rechtliches',
+  'Privacy Policy': 'Datenschutzerklärung',
+  'Terms of Service': 'Nutzungsbedingungen',
 }

@@ -2461,4 +2461,8 @@ export default {
   'Keep these warm-ups': 'Tieni questi riscaldamenti',
   'Saved in the routine, scaled to your work weight': 'Salvati nella routine, in scala con il carico di lavoro',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Salvato. Gli stessi riscaldamenti la prossima volta, in scala con il tuo carico di lavoro.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Note legali',
+  'Privacy Policy': 'Informativa sulla privacy',
+  'Terms of Service': 'Termini di servizio',
 }

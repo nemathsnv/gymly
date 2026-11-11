@@ -88700,6 +88700,7 @@ function isAssisted(idOrEx) {
 	return !!assistedShape(known || idOrEx);
 }
 const betterWeight = (idOrEx, a, b) => isAssisted(idOrEx) ? Math.min(a, b) : Math.max(a, b);
+const beatsWeight = (idOrEx, w, prev) => w > 0 && (prev <= 0 || (isAssisted(idOrEx) ? w < prev : w > prev));
 const exOr = (id) => EXIDX[id] || {
 	id,
 	n: t("Unknown exercise"),
@@ -89329,12 +89330,20 @@ const hasIncline = (s) => Number(s?.incline) > 0;
 const inclineFrom = (s) => hasIncline(s) ? { incline: Number(s.incline) } : {};
 
 // frontend/src/lib/machine-level.js
+const LEVEL_MAX = 50;
 const LEVELLED = /stepmill|step ?mill|stair ?master|stair ?climb|stair ?mill|\bstepper\b|stair machine/i;
 const LEVELLED_EQ = /* @__PURE__ */ new Set(["stepmill machine"]);
 function levelFits(ex) {
 	if (!ex || typeof ex !== "object") return false;
 	if (LEVELLED_EQ.has(String(ex.eq || "").toLowerCase())) return true;
 	return LEVELLED.test(String(ex.n || ""));
+}
+function clampLevel(v) {
+	if (v == null || v === "") return null;
+	const n = Number(v);
+	if (!Number.isFinite(n)) return null;
+	const level = Math.min(50, Math.round(n));
+	return level >= 1 ? level : null;
 }
 const hasLevel = (s) => Number(s?.level) > 0;
 const levelFrom = (s) => hasLevel(s) ? { level: Number(s.level) } : {};
@@ -89424,10 +89433,10 @@ function applyBackoff(rows, step) {
 // frontend/src/lib/dumbbells.js
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
-const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-const tidy$1 = (w) => Math.round(w * 1e3) / 1e3;
+const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const tidy = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
-	const m = isMap$2(value) ? value.mode : value;
+	const m = isMap$3(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
 }
 function dbLoadFor(S, cfgOrId) {
@@ -89437,6 +89446,16 @@ function dbLoadFor(S, cfgOrId) {
 const ONE_ARM = /\b(one|single)[- ]?(arm|hand|handed)\b/i;
 const isOneArm = (cfg) => !!cfg?.side || ONE_ARM.test(exOf$2(cfg?.id)?.n || "");
 const bellsIn = (cfg) => isOneArm(cfg) ? 1 : 2;
+function withMeaning(S, cfg, id = cfg?.id) {
+	const m = dbLoadFor(S, {
+		...cfg || {},
+		id
+	});
+	return m === "as" ? { ...cfg } : {
+		...cfg,
+		dbLoad: m
+	};
+}
 const entryDbLoad = (entry) => dbLoadOf(entry?.target?.dbLoad) || "as";
 const cfgOfEntry = (entry) => ({
 	...entry?.target || {},
@@ -89450,14 +89469,14 @@ function meaningFactor(from, to, cfg) {
 	return from === "each" ? n : 1 / n;
 }
 const scaleRow = (row, f) => {
-	if (!isMap$2(row)) return row;
+	if (!isMap$3(row)) return row;
 	const out = { ...row };
-	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy$1(Number(row.w) * f);
-	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$2(d) ? {
+	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy(Number(row.w) * f);
+	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$3(d) ? {
 		...d,
-		w: tidy$1((Number(d.w) || 0) * f)
+		w: tidy((Number(d.w) || 0) * f)
 	} : d);
-	if (isMap$2(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
+	if (isMap$3(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
 };
 function entryAs(entry, to) {
@@ -89471,7 +89490,7 @@ function entryAs(entry, to) {
 		},
 		sets: (entry.sets || []).map((s) => scaleRow(s, f))
 	};
-	if (Number(entry.topW) > 0) out.topW = tidy$1(entry.topW * f);
+	if (Number(entry.topW) > 0) out.topW = tidy(entry.topW * f);
 	return out;
 }
 function workoutAs(w, exId, to) {
@@ -89511,73 +89530,39 @@ function currentDbLoad(S, exId) {
 	}
 	return "as";
 }
-const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy$1))].sort((a, b) => a - b);
+const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy))].sort((a, b) => a - b);
 const dumbbellsOf = (S) => cleanWeights(S?.dumbbells?.[unitOf$1(S)]?.weights);
 function ownedWeightsFor(S, cfg) {
-	if (cfg?.bodyweight != null ? !!cfg.bodyweight : isBodyweightEq(cfg?.id)) return null;
-	const stack = isAssisted({ ...cfg || {} }) ? [] : stackOf(S, cfg?.id);
-	if (stack.length) return stack;
 	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
+	if (cfg?.bodyweight != null ? !!cfg.bodyweight : isBodyweightEq(cfg?.id)) return null;
 	const ws = dumbbellsOf(S);
 	if (!ws.length) return null;
-	return dbLoadFor(S, cfg) === "total" && bellsIn(cfg) === 2 ? ws.map((w) => tidy$1(w * 2)) : ws;
+	return dbLoadFor(S, cfg) === "total" && bellsIn(cfg) === 2 ? ws.map((w) => tidy(w * 2)) : ws;
 }
-function ownedKindFor(S, cfg) {
-	if (!ownedWeightsFor(S, cfg)) return null;
-	return stackOf(S, cfg?.id).length ? "stack" : "dumbbells";
-}
-function stackOf(S, exId) {
-	const e = isMap$2(S?.stackWeights) ? S.stackWeights[exId] : null;
-	if (!isMap$2(e)) return [];
-	const ws = cleanWeights(e.weights);
-	const from = e.unit === "lb" ? "lb" : "kg", to = unitOf$1(S);
-	if (from === to) return ws;
-	return cleanWeights(ws.map((w) => Math.round((to === "lb" ? w / LB_KG$1 : w * LB_KG$1) * 10) / 10));
-}
-const LB_KG$1 = .45359237;
-const EPS$1 = 1e-6;
+const EPS = 1e-6;
 function ownedUp(ws, w, n = 1) {
-	const above = (ws || []).filter((x) => x > (Number(w) || 0) + EPS$1);
+	const above = (ws || []).filter((x) => x > (Number(w) || 0) + EPS);
 	if (!above.length) return null;
 	return above[Math.min(n, above.length) - 1];
 }
 function ownedFloor(ws, x) {
 	const list = ws || [];
-	const under = list.filter((v) => v <= x + EPS$1);
+	const under = list.filter((v) => v <= x + EPS);
 	return under.length ? under[under.length - 1] : list[0] ?? 0;
 }
 function ownedDeload(ws, w, factor) {
-	const below = (ws || []).filter((x) => x < w - EPS$1);
+	const below = (ws || []).filter((x) => x < w - EPS);
 	if (!below.length) return w;
 	const ideal = w * factor;
-	return below.reduce((best, x) => Math.abs(x - ideal) < Math.abs(best - ideal) - EPS$1 || Math.abs(x - ideal) <= Math.abs(best - ideal) + EPS$1 && x > best ? x : best, below[0]);
+	return below.reduce((best, x) => Math.abs(x - ideal) < Math.abs(best - ideal) - EPS || Math.abs(x - ideal) <= Math.abs(best - ideal) + EPS && x > best ? x : best, below[0]);
 }
 function ownedAround(ideal, ws, max, strict) {
 	if (!(ideal > 0) || !(max > 0)) return [];
 	const ok = (ws || []).filter((x) => x > 0 && x <= max + 1e-9 && (!strict || x < max - 1e-9));
-	const low = ok.filter((x) => x <= ideal + EPS$1).pop();
-	const high = ok.find((x) => x >= ideal - EPS$1);
+	const low = ok.filter((x) => x <= ideal + EPS).pop();
+	const high = ok.find((x) => x >= ideal - EPS);
 	return [...new Set([low, high].filter((x) => x != null))].sort((a, b) => a - b);
 }
-
-// frontend/src/lib/warmup-snap.js
-const EPS = 1e-9;
-const tidy = (x) => Math.round(x * 1e3) / 1e3;
-function snapDown(x, grid) {
-	if (!(x > 0)) return 0;
-	if (typeof grid === "function") return tidy(grid(x));
-	if (Array.isArray(grid)) return tidy(ownedFloor(grid, x));
-	const step = Number(grid) > 0 ? Number(grid) : 2.5;
-	return tidy(Math.floor(x / step + EPS) * step);
-}
-function rungWeight(rung, work, grid, floor = 0) {
-	if (!(work > 0)) return 0;
-	if (rung.wb) return Math.min(work, Math.max(0, floor));
-	const pct = Number(rung.wp);
-	if (!(pct > 0)) return 0;
-	return Math.min(work, Math.max(0, floor, snapDown(work * pct / 100, grid)));
-}
-const isRungRow = (row) => !!row && (row.wb === true || Number.isFinite(row.wp));
 
 // frontend/src/lib/pyramid.js
 const PYRAMID_MAX = "max";
@@ -89719,18 +89704,26 @@ function lastEntryIn(S, exId, rid) {
 		const done = en.sets.filter((s) => s.done && !isWarmupRow(s));
 		if (done.length) {
 			const slot = entryRoutineId(w, en);
-			const warmups = en.sets.filter(isWarmupRow);
 			return {
 				d: w.d,
 				sets: done,
 				target: en.target || null,
 				...slot ? { rid: slot } : {},
-				...en.planned ? { planned: en.planned } : {},
-				...warmups.length ? { warmups } : {}
+				...en.planned ? { planned: en.planned } : {}
 			};
 		}
 	}
 	return null;
+}
+function bestWeightFor(S, exId, as) {
+	const H = as ? historyAs(S, exId, as) : S;
+	let best = 0;
+	H.workouts.forEach((w) => w.entries.forEach((e) => {
+		if (e.id !== exId) return;
+		const entryBest = bestWeightForEntry(e);
+		if (entryBest > 0) best = best > 0 ? betterWeight(exId, best, entryBest) : entryBest;
+	}));
+	return best;
 }
 function effectiveRoutineIds(S, iso, today = todayISO()) {
 	const ov = S.dayPlan[iso];
@@ -89948,8 +89941,8 @@ function setsDone(w) {
 	}));
 	return n;
 }
-const rungDown = (x, step) => typeof step === "function" ? step(x) : Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step;
-function rerampWarmups(rows, step = 2.5, floor = 0, keep = (row) => row.done) {
+const rungDown = (x, step) => Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step;
+function rerampWarmups(rows, step = 2.5, floor = 0) {
 	const firstWork = rows.findIndex((x) => !isWarmupRow(x));
 	if (firstWork <= 0) return rows;
 	const target = rows[firstWork].w || 0;
@@ -89957,11 +89950,11 @@ function rerampWarmups(rows, step = 2.5, floor = 0, keep = (row) => row.done) {
 	const out = rows.slice();
 	let from = 0;
 	for (let i = 0; i < firstWork; i++) {
-		if (keep(out[i])) {
+		if (out[i].done) {
 			from = out[i].w || 0;
 			continue;
 		}
-		const w = isRungRow(out[i]) ? rungWeight(out[i], target, step, floor) : target > from ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step))) : target;
+		const w = target > from ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step))) : target;
 		out[i] = isSideSet(out[i]) ? syncSideAggregate({
 			...out[i],
 			sides: {
@@ -90387,15 +90380,14 @@ function rankOf(load) {
 }
 
 // frontend/src/lib/exercise-merge.js
-const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-const list = (v) => Array.isArray(v) ? v : [];
+const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const list$1 = (v) => Array.isArray(v) ? v : [];
 const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
 const MOVE_MAPS = [
 	"barWeights",
 	"loadKind",
 	"dbLoad",
-	"exEquip",
-	"stackWeights"
+	"exEquip"
 ];
 const RESTORE = [
 	"routines",
@@ -90408,15 +90400,15 @@ const RESTORE = [
 ];
 const mergedInto = (S, id) => mergedTarget(S?.exMerged, id);
 function mergedAway(S) {
-	const m = isMap$1(S?.exMerged) ? S.exMerged : null;
+	const m = isMap$2(S?.exMerged) ? S.exMerged : null;
 	if (!m) return null;
 	const out = /* @__PURE__ */ new Set();
 	for (const [k, v] of Object.entries(m)) if (v && v.into) out.add(k);
 	return out.size ? out : null;
 }
-const exOf$1 = (S, id) => list(S?.customEx).find((c) => c?.id === id) || EXIDX[id] || null;
-const entryHas = (w, id) => list(w?.entries).some((e) => e?.id === id);
-const routineHas = (r, id) => list(r?.ex).some((c) => c?.id === id);
+const exOf$1 = (S, id) => list$1(S?.customEx).find((c) => c?.id === id) || EXIDX[id] || null;
+const entryHas = (w, id) => list$1(w?.entries).some((e) => e?.id === id);
+const routineHas = (r, id) => list$1(r?.ex).some((c) => c?.id === id);
 const workoutKey = (w) => w?.id != null ? w.id : `${w?.d}|${w?.start}`;
 function retarget(e, toId, toEx) {
 	e.id = toId;
@@ -90433,16 +90425,16 @@ function retarget(e, toId, toEx) {
 function redirect(S, fromId, toId, { stamp = false, now = Date.now() } = {}) {
 	const toEx = exOf$1(S, toId);
 	const changed = [];
-	for (const w of list(S.workouts)) {
+	for (const w of list$1(S.workouts)) {
 		if (!entryHas(w, fromId)) continue;
-		for (const e of list(w.entries)) if (e?.id === fromId) retarget(e, toId, toEx);
+		for (const e of list$1(w.entries)) if (e?.id === fromId) retarget(e, toId, toEx);
 		if (Array.isArray(w.prs) && w.prs.includes(fromId)) w.prs = [...new Set(w.prs.map((id) => id === fromId ? toId : id))];
 		if (stamp) w._ts = now;
 		changed.push(workoutKey(w));
 	}
-	for (const r of list(S.routines)) {
+	for (const r of list$1(S.routines)) {
 		if (!routineHas(r, fromId)) continue;
-		r.ex = list(r.ex).map((c) => c && c.id === fromId ? {
+		r.ex = list$1(r.ex).map((c) => c && c.id === fromId ? {
 			...c,
 			id: toId
 		} : c);
@@ -90457,7 +90449,7 @@ function applyExerciseMerges(S) {
 		const toId = mergedInto(S, fromId);
 		if (!toId || toId === fromId) continue;
 		n += redirect(S, fromId, toId).length;
-		if (list(S.customEx).some((c) => c?.id === fromId)) S.customEx = S.customEx.filter((c) => c?.id !== fromId);
+		if (list$1(S.customEx).some((c) => c?.id === fromId)) S.customEx = S.customEx.filter((c) => c?.id !== fromId);
 	}
 	return n;
 }
@@ -90831,17 +90823,12 @@ function nextPrescription(S, cfg, routine) {
 	const harder = (weight, step) => assisted ? Math.max(0, addStep(weight, -step, inc)) : owned ? ownedUp(owned, weight, step > inc ? 2 : 1) ?? weight : addStep(weight, step, inc);
 	const easier = (weight) => assisted ? addStep(weight, inc, inc) : owned ? ownedDeload(owned, weight, DELOAD_FACTOR) : deloadTo(weight, inc);
 	const topped = (weight) => !!owned && ownedUp(owned, weight) == null;
-	const onStack = !!owned && ownedKindFor(S, cfg) === "stack";
 	const toppedOut = (weight, extra = {}) => ({
 		policy,
 		kind: "hold",
 		weight,
 		...extra,
-		why: onStack ? [
-			"That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.",
-			weight,
-			unit
-		] : [
+		why: [
 			"You’ve outgrown the rack: {0} {1} is your heaviest dumbbell, so the weight stays.",
 			weight,
 			unit
@@ -91547,16 +91534,16 @@ const UNCOMMON = {
 const DEFAULT_PAIRS = 6;
 const SINGLE_EQ = /* @__PURE__ */ new Set(["weighted", "sled machine"]);
 const exOf = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
-const num$1 = (v) => typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0;
+const num$2 = (v) => typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0;
 const unitOf = (S) => S?.unit === "lb" ? "lb" : "kg";
-const sizesOf = (entry) => entry && typeof entry === "object" && !Array.isArray(entry) ? Object.entries(entry).filter(([k]) => num$1(k) > 0) : [];
+const sizesOf = (entry) => entry && typeof entry === "object" && !Array.isArray(entry) ? Object.entries(entry).filter(([k]) => num$2(k) > 0) : [];
 const ownsPlates = (S) => sizesOf(S?.plates?.[unitOf(S)]).length > 0;
 function inventoryFor(S) {
 	const unit = unitOf(S);
 	const own = sizesOf(S?.plates?.[unit]);
 	const out = [];
 	if (own.length) for (const [k, v] of own) {
-		const w = num$1(k), n = Math.floor(num$1(v));
+		const w = num$2(k), n = Math.floor(num$2(v));
 		if (w > 0 && n > 0) out.push({
 			w,
 			n
@@ -91575,7 +91562,7 @@ function loadKindOf(value) {
 const Q = 4;
 const q = (w) => Math.round(w * Q);
 function plateStack(weight, inv) {
-	const requested = Math.max(0, num$1(weight));
+	const requested = Math.max(0, num$2(weight));
 	const target = Math.floor(requested * Q);
 	if (target === 0) return {
 		plates: [],
@@ -91648,9 +91635,9 @@ function baseWeightFor(S, exOrId) {
 }
 function rowLoad(kind, weight, base, inv) {
 	if (kind !== "pairs" && kind !== "single") return null;
-	const w = num$1(weight);
+	const w = num$2(weight);
 	if (!(w > 0)) return null;
-	const b = Math.max(0, num$1(base));
+	const b = Math.max(0, num$2(base));
 	if (w <= b) return {
 		kind,
 		barOnly: true,
@@ -91688,282 +91675,8 @@ function dropGrid(S, cfg) {
 	return weightIncrement(cfg, S?.unit === "lb" ? "lb" : "kg");
 }
 
-// frontend/src/lib/warmup-ramp.js
-const WARMUP_MODES = [
-	"auto",
-	"own",
-	"none"
-];
-const MAX_OWN_WARMUPS = 5;
-const OWN_PCT_MIN = 5;
-const OWN_PCT_MAX = 95;
-const OWN_REPS_MAX = 30;
-const LB_KG = .45359237;
-const exerciseOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
-const warmupAutoOf = (S) => S?.warmupAuto === "compounds" || S?.warmupAuto === "all" ? S.warmupAuto : "off";
-const warmupModeOf = (cfg) => WARMUP_MODES.includes(cfg?.warmup) ? cfg.warmup : null;
-const COMPOUND = /squat|deadlift|\bpress\b|\brow\b|rowing|pull-?up|chin-?up|\bdips?\b|lunge|clean|snatch|jerk|thrust|good ?morning|step-?up|push-?up|leg press|hack|rack pull|pulldown|pull-down|swing|carry|floor press|landmine/i;
-const ISOLATION = /curl|extension|raise|\bfly\b|flye|kickback|shrug|calf|crunch|pullover|pushdown|push-down|face pull|wrist|adduct|abduct|lateral|stretch|twist|\bsit-?up/i;
-const SOFT_CATS = /* @__PURE__ */ new Set([
-	"stretching",
-	"mobility",
-	"yoga",
-	"pilates",
-	"cardio",
-	"rehab"
-]);
-function isCompoundEx(idOrCfg) {
-	const ex = exerciseOf$2(typeof idOrCfg === "string" ? idOrCfg : idOrCfg?.id);
-	if (!ex) return false;
-	if (SOFT_CATS.has(ex.cat) || ex.bp === "cardio") return false;
-	const n = String(ex.n || "");
-	return COMPOUND.test(n) && !ISOLATION.test(n);
-}
-const clampInt = (v, lo, hi) => {
-	const n = Math.round(Number(v));
-	return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : null;
-};
-function cleanOwnRow(row) {
-	if (!row || typeof row !== "object") return null;
-	const r = clampInt(row.r, 1, 30);
-	if (r == null) return null;
-	if (row.wb === true) return {
-		wb: true,
-		r
-	};
-	const wp = Number(row.wp);
-	if (!Number.isFinite(wp)) return null;
-	if (wp === 0) return {
-		wp: 0,
-		r
-	};
-	return {
-		wp: Math.min(95, Math.max(5, Math.round(wp))),
-		r
-	};
-}
-const ownRowsOf = (cfg) => (Array.isArray(cfg?.warmupRows) ? cfg.warmupRows : []).map(cleanOwnRow).filter(Boolean).slice(0, 5);
-function warmupSource(S, cfg) {
-	const mode = modeOf(cfg);
-	if (mode === "cardio" || cfg?.intensifier?.type === "restpause") return { kind: "none" };
-	const own = warmupModeOf(cfg);
-	if (own === "none") return { kind: "none" };
-	if (own === "own") {
-		const rows = ownRowsOf(cfg);
-		return rows.length ? {
-			kind: "own",
-			rows
-		} : { kind: "none" };
-	}
-	if (own === "auto") return mode === "reps" ? { kind: "auto" } : { kind: "none" };
-	if ((Math.round(cfg?.warmupSets) || 0) > 0) return { kind: "count" };
-	if (mode !== "reps") return { kind: "none" };
-	const setting = warmupAutoOf(S);
-	if (setting === "all" || setting === "compounds" && isCompoundEx(cfg)) return { kind: "auto" };
-	return { kind: "none" };
-}
-function autoRungs({ work, kg, bar = 0, compound = false, bw = false, assisted = false }) {
-	if (!(work > 0) || assisted) return [];
-	if (bw) return kg >= 10 ? [{
-		wp: 0,
-		r: 5
-	}, {
-		wp: 60,
-		r: 3
-	}] : [{
-		wp: 0,
-		r: 5
-	}];
-	const hasBar = bar > 0 && bar < work;
-	if (compound) {
-		if (kg >= 60) return hasBar ? [
-			{
-				wb: true,
-				r: 10
-			},
-			{
-				wp: 40,
-				r: 5
-			},
-			{
-				wp: 60,
-				r: 3
-			},
-			{
-				wp: 80,
-				r: 1
-			}
-		] : [
-			{
-				wp: 40,
-				r: 8
-			},
-			{
-				wp: 60,
-				r: 4
-			},
-			{
-				wp: 80,
-				r: 1
-			}
-		];
-		if (kg >= 30) return hasBar ? [{
-			wb: true,
-			r: 10
-		}, {
-			wp: 70,
-			r: 3
-		}] : [{
-			wp: 50,
-			r: 8
-		}, {
-			wp: 75,
-			r: 3
-		}];
-		return hasBar ? [{
-			wb: true,
-			r: 10
-		}] : [{
-			wp: 50,
-			r: 8
-		}];
-	}
-	if (kg >= 40) return [{
-		wp: 50,
-		r: 10
-	}, {
-		wp: 75,
-		r: 4
-	}];
-	if (kg >= 10) return [{
-		wp: 50,
-		r: 10
-	}];
-	return [];
-}
-function rungRows(rungs, { work, grid, floor = 0, perSide = false }) {
-	const out = [];
-	let last = -1;
-	for (const rung of rungs) {
-		const w = rungWeight(rung, work, grid, floor);
-		if (!(rung.wp === 0 && !rung.wb) && (!(w > 0) || w >= work)) continue;
-		if (w <= last) continue;
-		last = w;
-		const row = {
-			w,
-			r: rung.r,
-			done: false,
-			phase: "warmup",
-			warmup: true,
-			...rung.wb ? { wb: true } : { wp: rung.wp }
-		};
-		out.push(perSide ? makeSideSet({
-			...row,
-			r: rung.r * 2
-		}) : row);
-	}
-	return out;
-}
-const workLoadOf = (rows) => {
-	const row = (rows || []).find((r) => !isWarmupRow(r));
-	return row ? Number(row.w) || 0 : 0;
-};
-function warmupBlock(S, cfg, rows, { grid, floor = 0, unit = "kg" } = {}) {
-	const source = warmupSource(S, cfg);
-	if (source.kind !== "auto" && source.kind !== "own") return null;
-	const work = workLoadOf(rows);
-	if (!(work > 0)) return [];
-	const perSide = isPerSide(cfg);
-	if (source.kind === "own") return rungRows(source.rows, {
-		work,
-		grid,
-		floor,
-		perSide
-	});
-	const kg = unit === "lb" ? work * LB_KG : work;
-	const bw = isBw(cfg) || exerciseOf$2(cfg?.id)?.eq === "weighted";
-	return rungRows(autoRungs({
-		work,
-		kg,
-		bar: floor,
-		compound: isCompoundEx(cfg),
-		bw,
-		assisted: isAssisted(cfg)
-	}), {
-		work,
-		grid,
-		floor,
-		perSide
-	});
-}
-function withWarmupBlock(S, cfg, rows, opts) {
-	const block = warmupBlock(S, cfg, rows, opts);
-	if (block == null) return rows;
-	return [...block, ...rows.filter((r) => !isWarmupRow(r))];
-}
-
 // frontend/src/lib/session-start.js
 const startsFromLast = (st) => st?.startFrom === "last";
-const carriedWarmupRow = (row, mode) => {
-	if (isSideSet(row)) {
-		const side = (s) => ({
-			w: Number(s?.w) || 0,
-			r: Number(s?.r) || 0,
-			done: false
-		});
-		return syncSideAggregate({
-			phase: "warmup",
-			warmup: true,
-			edited: true,
-			sides: {
-				L: side(row.sides.L),
-				R: side(row.sides.R)
-			}
-		});
-	}
-	if (mode === "time") return {
-		sec: row.sec,
-		w: Number(row.w) || 0,
-		done: false,
-		phase: "warmup",
-		warmup: true,
-		edited: true
-	};
-	return {
-		w: Number(row.w) || 0,
-		r: Number(row.r) || 0,
-		done: false,
-		phase: "warmup",
-		warmup: true,
-		edited: true
-	};
-};
-function withCarriedWarmups(rows, carry, mode, cfg, step, floor) {
-	let out = rows;
-	for (const row of carry) {
-		if (!row.edited) {
-			out = insertWarmupRow(out, mode, cfg, step, floor);
-			continue;
-		}
-		const at = out.findIndex((x) => !isWarmupRow(x));
-		out = at === -1 ? [...out, carriedWarmupRow(row, mode)] : [
-			...out.slice(0, at),
-			carriedWarmupRow(row, mode),
-			...out.slice(at)
-		];
-	}
-	return out;
-}
-function carriedWarmups(st, cfg, routine, noProg) {
-	if (!startsFromLast(st) || noProg || cfg.intensifier?.type === "restpause") return null;
-	if (warmupModeOf(cfg)) return null;
-	const mode = modeOf(cfg);
-	if (mode !== "time" && (mode === "cardio" || policyFor(cfg, routine, mode) === "off")) return null;
-	const rows = lastEntryFor(st, cfg.id, routine?.id)?.warmups || [];
-	if (!rows.some((row) => row.edited)) return null;
-	const fits = (row) => mode === "time" ? row.sec > 0 : isSideSet(row) || row.r > 0;
-	return rows.every(fits) ? rows : null;
-}
 function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
 	const meaning = dbLoadFor(stored, cfg);
 	const st = historyAs(stored, cfg.id, meaning);
@@ -91975,25 +91688,14 @@ function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
 	const planReps = !startsFromLast(st);
 	const ramp = modeOf(cfg) === "reps" && ownedWeightsFor(st, cfg) || step;
 	const backoffStep = modeOf(cfg) === "reps" && backoffStepOf(cfg, st.unit) ? step : 0;
-	const warmCarry = carriedWarmups(st, cfg, routine, noProg);
-	const block = !warmCarry && ["auto", "own"].includes(warmupSource(st, cfg).kind);
-	const floor = barFloor(st, cfg.id);
-	const built = applyPrescription(buildSets(st, warmCarry || block ? {
-		...cfg,
-		warmupSets: 0
-	} : cfg, {
+	const built = applyPrescription(buildSets(st, cfg, {
 		step: ramp,
 		rid: routine?.id,
 		useTarget: plan.kind === "off",
 		planReps
-	}), plan, ramp, floor);
+	}), plan, ramp, barFloor(st, cfg.id));
 	const rows = backoffStep ? applyBackoff(built, backoffStep) : built;
-	const shaped = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg));
-	const sets = warmCarry ? withCarriedWarmups(shaped, warmCarry, modeOf(cfg), cfg, ramp, floor) : block ? withWarmupBlock(st, cfg, shaped, {
-		grid: dropGrid(st, cfg),
-		floor,
-		unit: st.unit
-	}) : shaped;
+	const sets = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg));
 	const target = { ...cfg };
 	if (meaning !== "as") target.dbLoad = meaning;
 	if (plan.weight != null) target.weight = plan.weight;
@@ -92033,8 +91735,8 @@ const DAILY_MODES = [
 	"last"
 ];
 const LEGACY_ID = "0";
-const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-const num = (v) => Number(v) || 0;
+const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const num$1 = (v) => Number(v) || 0;
 const p2 = (n) => String(n).padStart(2, "0");
 const dailyModeOf = (S) => DAILY_MODES.includes(S?.bwDaily) ? S.bwDaily : "first";
 const dayOf = (ms) => {
@@ -92052,24 +91754,24 @@ function cleanTime(v) {
 }
 const byTime = (a, b) => {
 	const x = a.at || "", y = b.at || "";
-	return x < y ? -1 : x > y ? 1 : num(a.t) - num(b.t);
+	return x < y ? -1 : x > y ? 1 : num$1(a.t) - num$1(b.t);
 };
 function cleanReading(r) {
-	if (!isMap(r) || r.id == null || !(Number(r.w) > 0)) return null;
+	if (!isMap$1(r) || r.id == null || !(Number(r.w) > 0)) return null;
 	const out = {
 		...r,
 		id: String(r.id),
 		at: cleanTime(r.at),
 		w: Number(r.w)
 	};
-	if (out.t != null) out.t = num(out.t);
+	if (out.t != null) out.t = num$1(out.t);
 	return out;
 }
 function readingsOf(e) {
-	if (!isMap(e)) return [];
+	if (!isMap$1(e)) return [];
 	if (Array.isArray(e.ins)) return e.ins.map(cleanReading).filter(Boolean).sort(byTime);
 	if (!(Number(e.w) > 0)) return [];
-	const t = num(e.t);
+	const t = num$1(e.t);
 	const r = {
 		id: LEGACY_ID,
 		at: t > 0 && dayOf(t) === e.d ? timeOf(t) : null,
@@ -92081,15 +91783,15 @@ function readingsOf(e) {
 }
 
 // mcp/src/tools.js
-const localIso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-const todayIso = () => localIso(/* @__PURE__ */ new Date());
+const localIso$1 = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const todayIso = () => localIso$1(/* @__PURE__ */ new Date());
 const isoDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD").refine((v) => {
 	const d = /* @__PURE__ */ new Date(v + "T12:00:00");
-	return !Number.isNaN(d.getTime()) && localIso(d) === v;
+	return !Number.isNaN(d.getTime()) && localIso$1(d) === v;
 }, { message: "not a date the calendar has (YYYY-MM-DD)" });
 const customOf$1 = (id, S) => (S.customEx || []).find((ex) => ex.id === id);
-const exerciseOf$1 = (id, S) => customOf$1(id, S) || exOr(id);
-function withCustomsIndexed(S, build) {
+const exerciseOf$2 = (id, S) => customOf$1(id, S) || exOr(id);
+function withCustomsIndexed$1(S, build) {
 	registerCustom(Array.isArray(S.customEx) ? S.customEx : []);
 	try {
 		return build();
@@ -92098,7 +91800,7 @@ function withCustomsIndexed(S, build) {
 	}
 }
 function entryView(e, S) {
-	const ex = exerciseOf$1(e.id, S);
+	const ex = exerciseOf$2(e.id, S);
 	const cfg = {
 		...e.target || {},
 		id: e.id
@@ -92134,7 +91836,7 @@ function prTable(S, formula) {
 		if (!best) continue;
 		const prev = byId.get(e.id);
 		if (!prev || best.est > prev.est) {
-			const ex = exerciseOf$1(e.id, S);
+			const ex = exerciseOf$2(e.id, S);
 			byId.set(e.id, {
 				exId: e.id,
 				exName: ex.n,
@@ -92191,7 +91893,7 @@ const getRoutine = {
 			exclude_from_progression: r.excludeFromProgression === true,
 			unit: S.unit || "kg",
 			exercises: (r.ex || []).map((cfg, i) => {
-				const ex = exerciseOf$1(cfg.id, S);
+				const ex = exerciseOf$2(cfg.id, S);
 				const mode = modeOf(cfg);
 				return {
 					position: i + 1,
@@ -92419,7 +92121,7 @@ const getWorkout = {
 			sets_planned: plannedSets(w),
 			duration: w.end && w.start ? friendlyDuration(w.end - w.start) : null,
 			prs: (w.prs || []).map((id) => {
-				const ex = exerciseOf$1(id, S);
+				const ex = exerciseOf$2(id, S);
 				return ex.missing ? id : ex.n;
 			}),
 			entries: (w.entries || []).map((e) => entryView(e, S))
@@ -92483,7 +92185,7 @@ const estimate1rm = {
 		if (!S) return noState$1();
 		const f = formula || "epley";
 		if (exercise_id) {
-			const ex = exerciseOf$1(exercise_id, S);
+			const ex = exerciseOf$2(exercise_id, S);
 			const best = best1RM(S, exercise_id, f);
 			const series = e1rmSeries(S, exercise_id, f);
 			const trainedAtAll = (S.workouts || []).some((w) => (w.entries || []).some((e) => e.id === exercise_id && (e.sets || []).some((s) => s.done)));
@@ -92548,7 +92250,7 @@ const muscleBalance = {
 		const levels = levelsOf(load);
 		return {
 			period,
-			cutoff_iso: period === "all" ? null : localIso(new Date(cutoff)),
+			cutoff_iso: period === "all" ? null : localIso$1(new Date(cutoff)),
 			workouts_in_period: workouts.length,
 			worked: worked.map((slug) => ({
 				slug,
@@ -92611,9 +92313,9 @@ const previewSession = {
 			};
 		}
 		const unit = S.unit || "kg";
-		const built = withCustomsIndexed(S, () => buildSessionEntries(S, r));
+		const built = withCustomsIndexed$1(S, () => buildSessionEntries(S, r));
 		const exercises = (r.ex || []).map((cfg, i) => {
-			const ex = exerciseOf$1(cfg.id, S);
+			const ex = exerciseOf$2(cfg.id, S);
 			const mode = modeOf({
 				...cfg,
 				id: cfg.id
@@ -92754,12 +92456,15 @@ const STAMPED_MAPS = [
 	"plates",
 	"dbLoad",
 	"dumbbells",
-	"stackWeights",
 	"dayNotes",
 	"habitLog",
 	"exEquip",
 	"exMerged"
 ];
+function stampWorkout(w, now = Date.now()) {
+	if (w && typeof w === "object") w._ts = now;
+	return w;
+}
 const RESET_MAPS = [
 	"exNotes",
 	"barWeights",
@@ -92843,6 +92548,916 @@ function buildCompletedWorkout(active, { end = Date.now(), prs = [], snapshotFor
 	};
 }
 
+// frontend/src/lib/measurements.js
+const MEASUREMENT_FIELDS = [
+	{
+		key: "neck",
+		label: "Neck",
+		group: "Torso"
+	},
+	{
+		key: "shoulders",
+		label: "Shoulders",
+		group: "Torso"
+	},
+	{
+		key: "chest",
+		label: "Chest",
+		group: "Torso"
+	},
+	{
+		key: "waist",
+		label: "Waist",
+		group: "Torso"
+	},
+	{
+		key: "hips",
+		label: "Hips",
+		group: "Torso"
+	},
+	{
+		key: "abdomen",
+		label: "Abdomen",
+		group: "Torso",
+		optional: true
+	},
+	{
+		key: "upperArmLeft",
+		label: "Left upper arm",
+		group: "Arms"
+	},
+	{
+		key: "upperArmRight",
+		label: "Right upper arm",
+		group: "Arms"
+	},
+	{
+		key: "forearmLeft",
+		label: "Left forearm",
+		group: "Arms"
+	},
+	{
+		key: "forearmRight",
+		label: "Right forearm",
+		group: "Arms"
+	},
+	{
+		key: "wristLeft",
+		label: "Left wrist",
+		group: "Arms",
+		optional: true
+	},
+	{
+		key: "wristRight",
+		label: "Right wrist",
+		group: "Arms",
+		optional: true
+	},
+	{
+		key: "thighLeft",
+		label: "Left thigh",
+		group: "Legs"
+	},
+	{
+		key: "thighRight",
+		label: "Right thigh",
+		group: "Legs"
+	},
+	{
+		key: "calfLeft",
+		label: "Left calf",
+		group: "Legs"
+	},
+	{
+		key: "calfRight",
+		label: "Right calf",
+		group: "Legs"
+	},
+	{
+		key: "ankleLeft",
+		label: "Left ankle",
+		group: "Legs",
+		optional: true
+	},
+	{
+		key: "ankleRight",
+		label: "Right ankle",
+		group: "Legs",
+		optional: true
+	},
+	{
+		key: "bodyFat",
+		label: "Body fat",
+		group: "Other",
+		kind: "percent",
+		optional: true
+	}
+];
+const MEASUREMENT_KEYS = MEASUREMENT_FIELDS.map((f) => f.key);
+const DEFAULT_MEASUREMENT_KEYS = MEASUREMENT_FIELDS.filter((f) => !f.optional).map((f) => f.key);
+
+// frontend/src/lib/import-csv.js
+const SYN = [
+	[/\bbb\b/g, "barbell"],
+	[/\bdb\b/g, "dumbbell"],
+	[/\bkb\b/g, "kettlebell"],
+	[/\bohp\b/g, "overhead press"],
+	[/\bbw\b/g, "body weight"],
+	[/\bbodyweight\b/g, "body weight"],
+	[/\bsmith machine\b/g, "smith"],
+	[/\bmachine\b/g, "lever"],
+	[/\bez bar\b/g, "ez barbell"],
+	[/\bpull ups?\b/g, "pull up"],
+	[/\bchin ups?\b/g, "chin up"],
+	[/\bpush ups?\b/g, "push up"],
+	[/\bsit ups?\b/g, "sit up"],
+	[/\bdips?\b/g, "dip"],
+	[/\braises?\b/g, "raise"],
+	[/\bcurls?\b/g, "curl"],
+	[/\bpresses\b/g, "press"],
+	[/\bextensions?\b/g, "extension"],
+	[/\bcables?\b/g, "cable"],
+	[/\bseated\b/g, "seated"],
+	[/\bassisted\b/g, "assisted"]
+];
+const FILLER = /* @__PURE__ */ new Set([
+	"the",
+	"a",
+	"with",
+	"and",
+	"v",
+	"variation",
+	"version",
+	"pulley",
+	"weighted"
+]);
+function wordsOf(name) {
+	let k = String(name || "").toLowerCase().replace(/[()[\]]/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+	SYN.forEach(([re, to]) => {
+		k = k.replace(re, to);
+	});
+	return k.split(" ").filter((w) => w && !FILLER.has(w));
+}
+let INDEX = null;
+function buildIndex() {
+	if (INDEX) return INDEX;
+	INDEX = {
+		exact: /* @__PURE__ */ new Map(),
+		all: []
+	};
+	EXDB.forEach((e) => {
+		const w = wordsOf(e.n);
+		const k = w.slice().sort().join(" ");
+		if (!INDEX.exact.has(k)) INDEX.exact.set(k, e.id);
+		INDEX.all.push({
+			id: e.id,
+			set: new Set(w),
+			n: w.length,
+			k
+		});
+	});
+	return INDEX;
+}
+const ALIAS_EX = {
+	"bench press": "0025",
+	"barbell bench press": "0025",
+	"flat bench press": "0025",
+	"flat barbell bench press": "0025",
+	"incline bench press": "0047",
+	"decline bench press": "0033",
+	"close grip bench press": "0030",
+	"close-grip bench press": "0030",
+	squat: "0043",
+	"back squat": "0043",
+	"barbell squat": "0043",
+	"front squat": "0042",
+	deadlift: "0032",
+	"romanian deadlift": "0085",
+	rdl: "0085",
+	"sumo deadlift": "0117",
+	"lat pulldown": "2330",
+	"lat pull down": "2330",
+	pulldown: "2330",
+	shrug: "0095",
+	shrugs: "0095",
+	"overhead press": "0091",
+	"military press": "0091",
+	"shoulder press": "0091",
+	ohp: "0091",
+	"barbell row": "0027",
+	"bent over row": "0027",
+	"bent-over row": "0027",
+	"dumbbell row": "0292",
+	"one arm dumbbell row": "0292",
+	"leg curl": "0586",
+	"lying leg curl": "0586",
+	"seated leg curl": "0586",
+	"leg press": "0739",
+	"leg extension": "0585",
+	"calf raise": "1372",
+	"standing calf raise": "1372",
+	"seated calf raise": "0088",
+	"lateral raise": "0334",
+	"side raise": "0334",
+	"reverse fly": "0348",
+	"rear delt fly": "0348",
+	"bicep curl": "0294",
+	"biceps curl": "0294",
+	"dumbbell curl": "0294",
+	"preacher curl": "0070",
+	"barbell curl": "0031",
+	"tricep pushdown": "0241",
+	"triceps pushdown": "0241",
+	pushdown: "0241",
+	skullcrusher: "0060",
+	"skull crusher": "0060",
+	"lying triceps extension": "0061",
+	lunge: "0054",
+	lunges: "0054",
+	"cable crossover": "1269",
+	"cable cross over": "1269",
+	"goblet squat": "1760",
+	"dumbbell goblet squat": "1760",
+	"kettlebell goblet squat": "0534",
+	treadmill: "3666",
+	"treadmill walk": "3666",
+	"treadmill run": "3666",
+	cycling: "2331",
+	"cross trainer": "2331",
+	elliptical: "2141",
+	"stationary bike": "2138",
+	"exercise bike": "2138",
+	"stepmill": "2311",
+	"pallof press": "0979",
+	"cable pallof press": "0979",
+	"vertical pallof press": "1015",
+	"cable core pallof press": "0979",
+	"core pallof press": "0979",
+	"bicep curl (dumbbell)": "0294",
+	"bicep curl (cable)": "0868",
+	"bicep curl (barbell)": "0031",
+	"chest fly (dumbbell)": "0308",
+	"chest fly (machine)": "0596",
+	"butterfly (pec deck)": "0596",
+	"incline chest fly (dumbbell)": "0319",
+	"cable fly crossovers": "1269",
+	"rear delt reverse fly (dumbbell)": "0383",
+	"rear delt reverse fly (machine)": "0602",
+	"chest supported reverse fly (dumbbell)": "0383",
+	"bench press (smith machine)": "0748",
+	"overhead press (smith machine)": "0766",
+	"hack squat (machine)": "0743",
+	"iso-lateral row (machine)": "0571",
+	"seated cable row - bar grip": "0218",
+	"reverse grip lat pulldown (cable)": "0673",
+	"single arm lateral raise (cable)": "0192",
+	"plate front raise": "0310",
+	"back extension (weighted hyperextension)": "0573",
+	"behind the back bicep wrist curl (barbell)": "0104",
+	"face pull": "0203",
+	"jumping jack": "3220",
+	"jumping jacks": "3220",
+	"battle ropes": "0128",
+	"stair machine (steps)": "2311",
+	"stair machine": "2311"
+};
+let ALIAS_IDX = null;
+const aliasIndex = () => {
+	if (!ALIAS_IDX) {
+		ALIAS_IDX = /* @__PURE__ */ new Map();
+		for (const k in ALIAS_EX) ALIAS_IDX.set(wordsOf(k).sort().join(" "), ALIAS_EX[k]);
+	}
+	return ALIAS_IDX;
+};
+function exerciseCandidates(name, limit = 5) {
+	const idx = buildIndex();
+	const w = wordsOf(name);
+	if (!w.length) return {
+		id: null,
+		candidates: []
+	};
+	const sorted = w.slice().sort().join(" ");
+	const aliased = aliasIndex().get(sorted);
+	if (aliased && EXIDX[aliased]) return {
+		id: canonicalExId(aliased),
+		candidates: [],
+		kind: "alias"
+	};
+	const uniq = (ids) => [...new Set(ids.map(canonicalExId))];
+	const exact = uniq(idx.all.filter((c) => c.k === sorted).map((c) => c.id));
+	if (exact.length === 1) return {
+		id: exact[0],
+		candidates: [],
+		kind: "exact"
+	};
+	if (exact.length > 1) return {
+		id: null,
+		candidates: exact.slice(0, limit),
+		kind: "exact"
+	};
+	const q = new Set(w);
+	const near = [];
+	for (const c of idx.all) {
+		let ok = true;
+		for (const word of q) if (!c.set.has(word)) {
+			ok = false;
+			break;
+		}
+		if (ok && c.n - q.size <= 2) near.push(c);
+	}
+	near.sort((a, b) => a.n - b.n);
+	const closest = uniq(near.filter((c) => c.n === near[0]?.n).map((c) => c.id));
+	if (closest.length === 1) return {
+		id: closest[0],
+		candidates: [],
+		kind: "near"
+	};
+	if (near.length) return {
+		id: null,
+		candidates: uniq(near.map((c) => c.id)).slice(0, limit),
+		kind: "near"
+	};
+	return {
+		id: null,
+		candidates: uniq(idx.all.map((c) => ({
+			id: c.id,
+			hits: w.filter((word) => c.set.has(word)).length,
+			n: c.n
+		})).filter((c) => c.hits > 0).sort((a, b) => b.hits - a.hits || a.n - b.n).map((c) => c.id)).slice(0, limit),
+		kind: "none"
+	};
+}
+const CATEGORY_BP = Object.assign(Object.create(null), {
+	chest: "chest",
+	back: "back",
+	lats: "back",
+	shoulders: "shoulders",
+	delts: "shoulders",
+	legs: "upper legs",
+	quads: "upper legs",
+	hamstrings: "upper legs",
+	glutes: "upper legs",
+	calves: "lower legs",
+	abs: "waist",
+	core: "waist",
+	obliques: "waist",
+	arms: "upper arms",
+	biceps: "upper arms",
+	triceps: "upper arms",
+	forearms: "lower arms",
+	cardio: "cardio",
+	"full body": "upper legs",
+	olympic: "upper legs",
+	neck: "neck"
+});
+const KM = Object.assign(Object.create(null), {
+	m: .001,
+	km: 1,
+	cm: 1e-5,
+	in: 254e-7,
+	ft: 3048e-7,
+	yd: 9144e-7,
+	mi: 1.609344
+});
+function importId(prefix, text) {
+	let h1 = 3735928559, h2 = 1103547991;
+	for (let i = 0; i < text.length; i++) {
+		const ch = text.charCodeAt(i);
+		h1 = Math.imul(h1 ^ ch, 2654435761);
+		h2 = Math.imul(h2 ^ ch, 1597334677);
+	}
+	h1 = Math.imul(h1 ^ h1 >>> 16, 2246822507) ^ Math.imul(h2 ^ h2 >>> 13, 3266489909);
+	h2 = Math.imul(h2 ^ h2 >>> 16, 2246822507) ^ Math.imul(h1 ^ h1 >>> 13, 3266489909);
+	return prefix + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// frontend/src/lib/workout-date.js
+function rebuildPrHistory(workouts, exerciseIds, moved = null) {
+	const ids = new Set(exerciseIds || []);
+	if (!ids.size) return workouts;
+	const best = /* @__PURE__ */ new Map();
+	return workouts.map((w) => {
+		const had = w.prs || [];
+		const kept = [];
+		let trains = false;
+		for (const e of w.entries || []) {
+			if (!ids.has(e.id)) continue;
+			trains = true;
+			const top = bestWeightForEntry(e);
+			const leads = beatsWeight(e.id, top, best.get(e.id) || 0);
+			if (leads) best.set(e.id, top);
+			if (leads && (w === moved || had.includes(e.id))) kept.push(e.id);
+		}
+		if (!trains) return w;
+		const prs = [.../* @__PURE__ */ new Set([...had.filter((id) => !ids.has(id)), ...kept])];
+		if (prs.length === had.length && prs.every((id, i) => id === had[i])) return w;
+		return {
+			...w,
+			prs
+		};
+	});
+}
+
+// frontend/src/lib/log-workout.js
+const LB_TO_KG = .45359237;
+const LOG_LIMITS = {
+	maxKg: 1e3,
+	maxReps: 200,
+	maxSec: 3600,
+	maxMin: 600,
+	maxSpeed: 60,
+	maxSets: 20,
+	maxExercises: 20,
+	maxDurationMin: 1440,
+	maxBodyweightKg: 700
+};
+const MIN_ROOM_MS = 3e5;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const localIso = (t) => {
+	const d = new Date(t);
+	return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+};
+const localAt = (iso, hhmm) => (/* @__PURE__ */ new Date(`${iso}T${hhmm}:00`)).getTime();
+const realDate = (iso) => {
+	const d = /* @__PURE__ */ new Date(iso + "T12:00:00Z");
+	return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+};
+const nameKey = (n) => String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
+const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
+const list = (v) => Array.isArray(v) ? v : [];
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const inCatalogue$1 = (id) => typeof id === "string" && Object.hasOwn(EXIDX, id);
+const customsOf = (S) => list(S?.customEx).filter((c) => c && typeof c.id === "string" && c.id);
+const exerciseOf$1 = (S, id) => customsOf(S).find((c) => c.id === id) || (inCatalogue$1(id) ? EXIDX[id] : null);
+const candidateOf = (S, id) => {
+	const ex = exerciseOf$1(S, id);
+	return {
+		id,
+		name: ex?.n || id,
+		equipment: ex?.eq || null,
+		body_part: ex?.bp || null,
+		...customsOf(S).some((c) => c.id === id) ? { custom: true } : {}
+	};
+};
+const followMerge = (S, id) => mergedTarget(S?.exMerged, id);
+function resolveExercise(S, ref) {
+	const text = String(ref ?? "").trim();
+	if (!text) return { problem: "no exercise named" };
+	const customs = customsOf(S);
+	const merges = isMap(S?.exMerged) ? S.exMerged : {};
+	const land = (id, from) => {
+		const to = followMerge(S, id);
+		const ex = exerciseOf$1(S, to);
+		if (!ex) return {
+			problem: `"${text}" was merged into an exercise this profile no longer has; pick another`,
+			candidates: []
+		};
+		return {
+			id: to,
+			name: ex.n,
+			...customs.some((c) => c.id === to) ? { custom: true } : {},
+			...to !== from ? { merged_from: from } : {}
+		};
+	};
+	if (customs.some((c) => c.id === text)) return land(text, text);
+	if (inCatalogue$1(text)) {
+		const canon = canonicalExId(text);
+		if (inCatalogue$1(canon)) return land(canon, canon);
+	}
+	if (Object.hasOwn(merges, text) && merges[text]?.into) return land(text, text);
+	const named = customs.filter((c) => nameKey(c.n) === nameKey(text));
+	if (named.length === 1) return land(named[0].id, named[0].id);
+	if (named.length > 1) return {
+		problem: "several of your own exercises have this name; pass one id",
+		candidates: named.map((c) => candidateOf(S, c.id))
+	};
+	const gone = Object.keys(merges).filter((k) => merges[k]?.into && typeof merges[k].n === "string" && nameKey(merges[k].n) === nameKey(text));
+	if (gone.length) {
+		if ([...new Set(gone.map((k) => followMerge(S, k)))].length === 1) return land(gone[0], gone[0]);
+	}
+	const { id, candidates, kind } = exerciseCandidates(text);
+	if (id && inCatalogue$1(id)) return land(id, id);
+	const seen = /* @__PURE__ */ new Set();
+	const offered = [];
+	for (const c of candidates || []) {
+		const to = followMerge(S, c);
+		if (seen.has(to) || !exerciseOf$1(S, to)) continue;
+		seen.add(to);
+		offered.push(candidateOf(S, to));
+	}
+	if (offered.length === 1 && kind !== "none") return land(offered[0].id, candidates[0]);
+	return {
+		problem: kind === "none" || !offered.length ? "no exercise in the library matches" + (offered.length ? "; these only share a word with it" : "; make it in the app first, or pass an id from search_exercises") : "more than one exercise matches; ask the user which and pass its id",
+		candidates: offered
+	};
+}
+function rowOf(set, mode, { toProfile, levelled }) {
+	const weight = set.weight == null ? 0 : num(set.weight);
+	if (weight == null || weight < 0) return { problem: "weight must be a number of 0 or more" };
+	if (toProfile.toKg(weight) > LOG_LIMITS.maxKg) return { problem: `weight over ${LOG_LIMITS.maxKg} kg` };
+	if (mode === "cardio") {
+		if (set.weight != null || set.reps != null || set.seconds != null) return { problem: "a cardio set takes minutes (and speed or level), not weight, reps or seconds" };
+		if (set.warmup === true || set.failure === true || set.rir != null || set.rpe != null) return { problem: "warm-up, failure and effort are logged on lifting sets only" };
+		const min = num(set.minutes);
+		if (!(min > 0 && min <= LOG_LIMITS.maxMin)) return { problem: `minutes must be more than 0 and at most ${LOG_LIMITS.maxMin}` };
+		const row = {
+			min,
+			speed: 0,
+			done: true
+		};
+		if (set.speed != null) {
+			const speed = num(set.speed);
+			if (speed == null || speed < 0 || speed > LOG_LIMITS.maxSpeed) return { problem: `speed must be 0 to ${LOG_LIMITS.maxSpeed} km/h` };
+			if (levelled && speed > 0) return { problem: "this machine is set by a level, not a speed: give level" };
+			row.speed = speed;
+		}
+		if (set.level != null) {
+			if (!levelled) return { problem: "a machine level is for a stepmill or stair climber only" };
+			const level = clampLevel(set.level);
+			if (level == null || num(set.level) !== level) return { problem: `level must be a whole number 1 to ${50}` };
+			row.level = level;
+		}
+		return { row };
+	}
+	if (set.minutes != null || set.speed != null || set.level != null) return { problem: "minutes, speed and level are for cardio exercises; a hold takes seconds" };
+	const row = mode === "time" ? {
+		sec: Math.round(num(set.seconds)),
+		w: toProfile.convert(weight),
+		done: true
+	} : {
+		w: toProfile.convert(weight),
+		r: num(set.reps),
+		done: true
+	};
+	if (set.warmup === true) row.phase = "warmup";
+	if (set.failure === true) {
+		if (set.warmup === true) return { problem: "a warm-up set is not taken to failure" };
+		row.failure = true;
+	}
+	if (set.rir != null || set.rpe != null) {
+		if (mode === "time") return { problem: "effort (RIR/RPE) is logged on rep sets only" };
+		if (set.rir != null && set.rpe != null) return { problem: "give RIR or RPE, not both" };
+		const kind = set.rir != null ? "rir" : "rpe";
+		const v = num(set[kind]), e = EFFORT[kind];
+		if (v == null || v < e.min || v > e.max) return { problem: `${e.hd} must be between ${e.min} and ${e.max}` };
+		row[kind] = v;
+	}
+	return { row };
+}
+function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt } = {}) {
+	const S = S0 || {};
+	const problems = [];
+	const day = today || localIso(now);
+	const date = input?.date;
+	if (typeof date !== "string" || !ISO.test(date) || !realDate(date)) problems.push({
+		field: "date",
+		problem: "must be a real YYYY-MM-DD date"
+	});
+	else if (date > day) problems.push({
+		field: "date",
+		problem: `is in the future (today is ${day} for this profile)`
+	});
+	else if (date < "2000-01-01") problems.push({
+		field: "date",
+		problem: "is before 2000"
+	});
+	if (input?.start != null && !HHMM.test(String(input.start))) problems.push({
+		field: "start",
+		problem: "must be HH:MM (24 h)"
+	});
+	const dur = input?.durationMin;
+	if (dur != null && !(num(dur) > 0 && dur <= LOG_LIMITS.maxDurationMin)) problems.push({
+		field: "durationMin",
+		problem: `must be 1 to ${LOG_LIMITS.maxDurationMin} minutes`
+	});
+	const profileUnit = S.unit === "lb" ? "lb" : "kg";
+	const unit = input?.unit == null ? profileUnit : input.unit;
+	if (unit !== "kg" && unit !== "lb") problems.push({
+		field: "unit",
+		problem: "must be 'kg' or 'lb'"
+	});
+	const toProfile = {
+		toKg: (w) => unit === "lb" ? w * LB_TO_KG : w,
+		convert: (w) => unit === profileUnit ? w : Math.round((unit === "lb" ? w * LB_TO_KG : w / LB_TO_KG) * 100) / 100
+	};
+	const routines = list(S.routines).filter(isMap);
+	const routine = input?.routineId != null ? routines.find((r) => r.id === input.routineId) || null : null;
+	if (input?.routineId != null && !routine) problems.push({
+		field: "routineId",
+		problem: "is not one of the profile's routines"
+	});
+	let bw = null;
+	if (input?.bodyweight != null) {
+		const b = num(input.bodyweight);
+		if (!(b > 0) || toProfile.toKg(b) > LOG_LIMITS.maxBodyweightKg) problems.push({
+			field: "bodyweight",
+			problem: "must be a body weight above 0"
+		});
+		else bw = toProfile.convert(b);
+	}
+	const exercises = list(input?.exercises);
+	if (!exercises.length) problems.push({
+		field: "exercises",
+		problem: "at least one exercise"
+	});
+	if (exercises.length > LOG_LIMITS.maxExercises) problems.push({
+		field: "exercises",
+		problem: `at most ${LOG_LIMITS.maxExercises}`
+	});
+	const resolved = [];
+	const entries = [];
+	exercises.slice(0, LOG_LIMITS.maxExercises).forEach((ex, i) => {
+		const at_ = `exercises[${i}]`;
+		const hit = resolveExercise(S, ex?.exercise);
+		if (hit.problem) {
+			problems.push({
+				field: at_ + ".exercise",
+				exercise: ex?.exercise ?? null,
+				problem: hit.problem,
+				...hit.candidates ? { candidates: hit.candidates } : {}
+			});
+			return;
+		}
+		const twice = resolved.find((r) => r.id === hit.id);
+		if (twice) {
+			problems.push({
+				field: at_ + ".exercise",
+				exercise: ex.exercise,
+				problem: `is the same exercise as "${twice.input}" (${hit.name}); put all its sets in one entry`
+			});
+			return;
+		}
+		const sets = list(ex.sets);
+		if (!sets.length || sets.length > LOG_LIMITS.maxSets) {
+			problems.push({
+				field: at_ + ".sets",
+				problem: `1 to ${LOG_LIMITS.maxSets} sets`
+			});
+			return;
+		}
+		const record = exerciseOf$1(S, hit.id);
+		const cardioEx = modeOf({ id: hit.id }) === "cardio" || record?.bp === "cardio";
+		const timed = sets.some((s) => s?.seconds != null), counted = sets.some((s) => s?.reps != null);
+		const metered = sets.some((s) => s?.minutes != null || s?.speed != null || s?.level != null);
+		if ([
+			timed,
+			counted,
+			metered
+		].filter(Boolean).length > 1) {
+			problems.push({
+				field: at_ + ".sets",
+				problem: "every set is reps, or every set is seconds, or every set is minutes, not a mix"
+			});
+			return;
+		}
+		const mode = metered || cardioEx && !timed && !counted ? "cardio" : timed ? "time" : "reps";
+		if (cardioEx && mode !== "cardio") {
+			problems.push({
+				field: at_ + ".sets",
+				problem: `${hit.name} is cardio: give minutes (and speed, or level on a stepmill) for each set`
+			});
+			return;
+		}
+		const levelled = mode === "cardio" && levelFits(record);
+		const rows = [];
+		sets.forEach((s, j) => {
+			const where = `${at_}.sets[${j}]`;
+			if (mode !== "cardio") {
+				const v = mode === "time" ? num(s?.seconds) : num(s?.reps);
+				if (!(mode === "time" ? v != null && v >= 1 && v <= LOG_LIMITS.maxSec : Number.isInteger(v) && v >= 1 && v <= LOG_LIMITS.maxReps)) {
+					problems.push({
+						field: where,
+						problem: mode === "time" ? `seconds must be 1 to ${LOG_LIMITS.maxSec}` : `reps must be a whole number 1 to ${LOG_LIMITS.maxReps}`
+					});
+					return;
+				}
+			}
+			const { row, problem } = rowOf(s || {}, mode, {
+				toProfile,
+				levelled
+			});
+			if (problem) problems.push({
+				field: where,
+				problem
+			});
+			else rows.push(row);
+		});
+		const planned = routine ? list(routine.ex).find((x) => x && x.id === hit.id) : null;
+		let cfg;
+		if (planned) {
+			const { sg, ...slot } = planned;
+			cfg = modeOf(slot) === mode ? slot : {
+				...slot,
+				mode
+			};
+		} else cfg = mode === modeOf({ id: hit.id }) ? { id: hit.id } : {
+			id: hit.id,
+			mode
+		};
+		const target = mode === "cardio" || cfg.dbLoad ? cfg : withMeaning(S, cfg, hit.id);
+		const note = String(ex.note ?? "").trim().slice(0, 500);
+		entries.push({
+			id: hit.id,
+			sets: rows,
+			target,
+			...routine ? { rid: routine.id } : {},
+			...note ? { note } : {}
+		});
+		resolved.push({
+			input: ex.exercise,
+			id: hit.id,
+			name: hit.name,
+			mode,
+			...hit.custom ? { custom: true } : {},
+			...hit.merged_from ? { merged_from: hit.merged_from } : {},
+			...target.dbLoad ? { weightMeans: target.dbLoad } : {},
+			...levelled ? { levelled: true } : {}
+		});
+	});
+	if (problems.length) return { problems };
+	const past = date < day;
+	const midnight = at(date, "00:00");
+	let start, end;
+	if (input.start != null) {
+		start = at(date, input.start);
+		end = start + (dur ?? 60) * 6e4;
+		if (dur == null && !past) end = Math.max(start, Math.min(end, now));
+	} else if (past) {
+		start = at(date, "18:00");
+		end = start + (dur ?? 60) * 6e4;
+	} else {
+		end = now;
+		if (dur != null) {
+			start = end - dur * 6e4;
+			if (start < midnight) return { problems: [{
+				field: "durationMin",
+				problem: "a session that long ending now began yesterday: give the date and start it began on"
+			}] };
+		} else {
+			const lastEnd = Math.max(0, ...list(S.workouts).filter((w) => w?.d === date).map((w) => Number(w.end) || Number(w.start) || 0));
+			start = Math.max(end - 36e5, lastEnd, midnight);
+			if (end - start < MIN_ROOM_MS) start = Math.max(end - MIN_ROOM_MS, midnight);
+		}
+	}
+	if (start > now) return { problems: [{
+		field: "start",
+		problem: "is later than now"
+	}] };
+	if (end > now) return { problems: [{
+		field: "durationMin",
+		problem: "the session would end later than now: give an earlier start or a shorter length"
+	}] };
+	const name = String(input.name ?? "").trim().slice(0, 40) || routine?.name || "Freestyle";
+	const note = String(input.note ?? "").trim().slice(0, 500);
+	const id = importId("mw", JSON.stringify([
+		date,
+		input.start ?? null,
+		dur ?? null,
+		input.name ?? null,
+		input.note ?? null,
+		input.unit ?? null,
+		input.routineId ?? null,
+		input.bodyweight ?? null,
+		exercises.map((ex, i) => [
+			resolved[i].id,
+			ex.note ?? null,
+			list(ex.sets).map((s) => [
+				s.reps ?? null,
+				s.seconds ?? null,
+				s.minutes ?? null,
+				s.speed ?? null,
+				s.level ?? null,
+				s.weight ?? null,
+				s.warmup === true,
+				s.failure === true,
+				s.rir ?? null,
+				s.rpe ?? null
+			])
+		])
+	]));
+	const customs = customsOf(S);
+	const workout = buildCompletedWorkout({
+		id,
+		d: date,
+		start,
+		name,
+		bw,
+		routineIds: routine ? [routine.id] : [],
+		note,
+		entries
+	}, {
+		end,
+		prs: [],
+		snapshotFor: (e) => {
+			const c = customs.find((x) => x.id === e.id);
+			return c ? exerciseMuscleSnapshot(c) : null;
+		}
+	});
+	workout.vol = workoutVolume(workout);
+	return {
+		workout,
+		past,
+		resolved,
+		unit: profileUnit
+	};
+}
+const sameEntries = (a, b) => JSON.stringify(list(a).map((e) => [e?.id, e?.sets])) === JSON.stringify(list(b).map((e) => [e?.id, e?.sets]));
+function findDuplicate(S, workout) {
+	const all = list(S?.workouts).filter(Boolean);
+	const own = all.find((w) => w.id === workout.id);
+	if (own) return {
+		workout: own,
+		sameRequest: true
+	};
+	const same = all.find((w) => w.d === workout.d && sameEntries(w.entries, workout.entries));
+	return same ? {
+		workout: same,
+		sameRequest: false
+	} : null;
+}
+function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = false } = {}) {
+	const dup = findDuplicate(S, built.workout);
+	if (dup && (dup.sameRequest || !allowDuplicate)) return {
+		added: false,
+		reason: "duplicate",
+		workout: dup.workout,
+		sameRequest: dup.sameRequest
+	};
+	const w = JSON.parse(JSON.stringify(built.workout));
+	S.workouts = list(S.workouts).filter(Boolean);
+	const prsBefore = new Map(S.workouts.filter((x) => x.id != null).map((x) => [x.id, list(x.prs).slice()]));
+	const weightsBefore = isMap(S.exWeights) ? JSON.parse(JSON.stringify(S.exWeights)) : {};
+	const later = S.workouts.some((x) => x.d > w.d || x.d === w.d && (Number(x.start) || 0) > w.start);
+	if (built.past || later) {
+		stampWorkout(w, now);
+		const touched = [...new Set(w.entries.map((e) => e.id))];
+		S.workouts = rebuildPrHistory(insertChronological(S.workouts, w), touched, w);
+	} else {
+		const H = {
+			...S,
+			workouts: S.workouts.filter((x) => Array.isArray(x.entries))
+		};
+		w.prs = [];
+		w.entries.forEach((e) => {
+			const loads = e.sets.filter((s) => s.done && !isWarmupRow(s)).map((s) => s.w).filter((x) => x > 0);
+			const mx = loads.length ? loads.reduce((a, b) => betterWeight(e.id, a, b)) : 0;
+			if (beatsWeight(e.id, mx, bestWeightFor(H, e.id, entryDbLoad(e)))) w.prs.push(e.id);
+		});
+		S.exWeights = isMap(S.exWeights) ? S.exWeights : {};
+		w.entries.forEach((e) => {
+			const mx = bestWeightForEntry(e);
+			if (mx > 0 && beatsWeight(e.id, mx, (S.exWeights[e.id] || {}).w || 0)) S.exWeights[e.id] = {
+				w: mx,
+				d: w.d
+			};
+		});
+		S.workouts = insertChronological(S.workouts, w);
+	}
+	const exWeights = {};
+	for (const k of /* @__PURE__ */ new Set([...Object.keys(weightsBefore), ...Object.keys(isMap(S.exWeights) ? S.exWeights : {})])) {
+		const a = weightsBefore[k] ?? null, b = S.exWeights?.[k] ?? null;
+		if (JSON.stringify(a) !== JSON.stringify(b)) exWeights[k] = {
+			before: a,
+			after: b
+		};
+	}
+	const prs = {};
+	for (const x of S.workouts) {
+		if (x.id == null || x.id === w.id || !prsBefore.has(x.id)) continue;
+		const a = prsBefore.get(x.id), b = list(x.prs);
+		if (JSON.stringify(a) !== JSON.stringify(b)) prs[x.id] = {
+			before: a,
+			after: b.slice()
+		};
+	}
+	return {
+		added: true,
+		workout: S.workouts.find((x) => x.id === w.id) || w,
+		undo: {
+			workoutId: w.id,
+			exWeights,
+			prs
+		}
+	};
+}
+function removeLoggedWorkout(S, undo) {
+	if (!list(S?.workouts).some((w) => w && w.id === undo.workoutId)) return { gone: true };
+	const next = JSON.parse(JSON.stringify(S));
+	next.workouts = next.workouts.filter((w) => !(w && w.id === undo.workoutId));
+	const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+	for (const [k, { before, after }] of Object.entries(undo.exWeights || {})) {
+		if (!isMap(next.exWeights) || !same(next.exWeights[k], after)) continue;
+		if (before == null) delete next.exWeights[k];
+		else next.exWeights[k] = before;
+	}
+	for (const [id, { before, after }] of Object.entries(undo.prs || {})) {
+		const w = next.workouts.find((x) => x && x.id === id);
+		if (w && same(list(w.prs), after)) w.prs = before;
+	}
+	return { next };
+}
+
 // mcp/src/hosted.js
 function todayFor(S, now = /* @__PURE__ */ new Date()) {
 	const tz = S?.reminder?.tz;
@@ -92874,9 +93489,17 @@ const exerciseOf = (id, S) => customOf(id, S) || (inCatalogue(id) ? EXIDX[id] : 
 	missing: true
 });
 const noState = () => ({
-	error: "no synced state yet — sign in at least once from a device so Gymly can save this profile",
+	error: "no synced state yet: sign in at least once from a device so Gymly can save this profile",
 	unit: "kg"
 });
+function withCustomsIndexed(S, run) {
+	registerCustom(Array.isArray(S?.customEx) ? S.customEx.filter((x) => x && x.id) : []);
+	try {
+		return run();
+	} finally {
+		registerCustom([]);
+	}
+}
 const searchExercisesTool = {
 	name: "search_exercises",
 	description: "Find exercises by name in the Gymly library (5,000+ built-ins) and the user's own custom exercises. Returns ids to use in routine changes. Always resolve an exercise name to an id with this tool before proposing a change that adds or swaps an exercise; never guess an id. `in_routines` names the routines that already contain it.",
@@ -93046,7 +93669,11 @@ const helpers = {
 		name: ""
 	}, () => effectiveRoutineIds(getState(), iso, todayFor(S))),
 	workoutVolume: (w) => workoutVolume(w),
-	setsDone: (w) => setsDone(w)
+	setsDone: (w) => setsDone(w),
+	buildLoggedWorkout: (S, input, opts) => withCustomsIndexed(S, () => buildLoggedWorkout(S || {}, input, opts)),
+	appendLoggedWorkout: (S, built, opts) => withCustomsIndexed(S, () => appendLoggedWorkout(S, built, opts)),
+	removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
+	findDuplicate: (S, w) => findDuplicate(S || {}, w)
 };
 
 export { READ_TOOLS, helpers, runReadTool, searchExercisesTool, todayFor, trainingProgress };

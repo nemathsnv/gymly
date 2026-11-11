@@ -2461,4 +2461,8 @@ export default {
   'Keep these warm-ups': 'Zachowaj tę rozgrzewkę',
   'Saved in the routine, scaled to your work weight': 'Zapisane w rutynie, dopasowane do ciężaru roboczego',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Zapisane. Następnym razem ta sama rozgrzewka, dopasowana do ciężaru roboczego.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Informacje prawne',
+  'Privacy Policy': 'Polityka prywatności',
+  'Terms of Service': 'Warunki korzystania z usługi',
 }

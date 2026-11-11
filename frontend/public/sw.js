@@ -249,6 +249,9 @@ self.addEventListener('pushsubscriptionchange', e => {
 // the API's own `Cache-Control: no-store`, so the worker has to know to stay out of the way.
 const API = (() => { try { return new URL('api/', location.href).pathname } catch { return '/api/' } })()
 
+// /privacy, /terms (with or without a trailing slash or index.html), under any subpath.
+const LEGAL_PAGE = /\/(?:privacy|terms)(?:\/(?:index\.html)?)?$/
+
 // How long a request for the app itself waits on the network before a cached copy answers it.
 const NET_WAIT_MS = 3000
 
@@ -256,6 +259,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url)
   if (e.request.method !== 'GET' || url.origin !== location.origin) return
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith(API)) return    // never cache auth/data
+  // The Privacy Policy and Terms (public/privacy/, public/terms/) are pages of their own, not
+  // screens of the app. Left to the branch below, a slow network got them answered with the
+  // cached app shell — index.html at /privacy, whose relative assets then miss. Straight to
+  // the network, always the current text.
+  if (LEGAL_PAGE.test(url.pathname)) return
 
   if (isMediaPath(url.pathname)) {
     e.respondWith(media(e))

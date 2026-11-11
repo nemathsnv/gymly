@@ -2464,4 +2464,8 @@ export default {
   'Keep these warm-ups': 'Ezeket a bemelegítéseket megtartom',
   'Saved in the routine, scaled to your work weight': 'A rutinba mentve, a munkasúlyhoz igazítva',
   'Kept. Same warm-ups next time, scaled to your work weight.': 'Elmentve. Legközelebb ugyanez a bemelegítés, a munkasúlyodhoz igazítva.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Jogi információk',
+  'Privacy Policy': 'Adatvédelmi irányelvek',
+  'Terms of Service': 'Felhasználási feltételek',
 }

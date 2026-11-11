@@ -45,6 +45,7 @@ import {
 } from './mcp-remote/oauth.js';
 import { consentPage, signInPage, errorPage, pageHeaders, newNonce } from './mcp-remote/consent.js';
 import { createJournal } from './mcp-remote/journal.js';
+import { createLogBudget } from './mcp-remote/log-budget.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -2198,7 +2199,9 @@ const OAUTH_BURST = createWindow({ max: 120, windowMs: 60000 });
 const OAUTH_REGISTER = createWindow({ max: 20, windowMs: 3600000 });
 const OAUTH_REGISTER_ALL = createWindow({ max: 200, windowMs: 3600000 });
 const MCP_WRITES = createWindow({ max: 30, windowMs: 600000 });
-setInterval(() => { for (const w of [MCP_GRANT_BURST, OAUTH_BURST, OAUTH_REGISTER, OAUTH_REGISTER_ALL, MCP_WRITES]) w.sweep(); }, 60000).unref();
+// Workouts logged through the endpoint: 20 an hour per profile, on top of MCP_WRITES (log-budget.js).
+const MCP_LOGS = createLogBudget();
+setInterval(() => { for (const w of [MCP_GRANT_BURST, OAUTH_BURST, OAUTH_REGISTER, OAUTH_REGISTER_ALL, MCP_WRITES, MCP_LOGS]) w.sweep(); }, 60000).unref();
 
 // The MCP tools and the HTTP transport are loaded on first use: they carry the bundled app code
 // (read-tools.gen.js, ~1.6 MB), which an instance that never enables the feature need not hold.
@@ -2748,6 +2751,7 @@ const routes = {
         journal: MCP_JOURNAL,
         previews,
         writeBudget: uid => MCP_WRITES.take(uid),
+        logBudget: MCP_LOGS,
         audit: (ev, f) => audit(req, ev === 'mcp.write.undo' ? 'auth.mcp.undo' : 'auth.mcp.write', f)
       }
     });

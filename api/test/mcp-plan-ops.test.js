@@ -154,7 +154,7 @@ test('logging a workout: validated, filed in date order, added once, undone by i
   const S = { ...S0(), reminder: { tz: 'Europe/Berlin' } };
   const input = { date: '2026-10-20', start_time: '07:30', duration_min: 45, routine_id: 'r1',
     exercises: [{ exercise_id: '0025', sets: [{ reps: 5, weight: 60 }, { reps: 5, weight: 62.5, rir: 1 }] }, { exercise_id: '0685', sets: [{ minutes: 10, speed: 9 }] }] };
-  const p = previewWorkout(S, input, { now, newId: () => 'wnew' });
+  const p = previewWorkout(S, input, { now });
   assert.equal(p.ok, true, JSON.stringify(p.errors));
   assert.equal(p.workout.start, Date.parse('2026-10-20T05:30:00Z'), '07:30 in Berlin (CEST)');
   assert.equal(p.workout.end - p.workout.start, 45 * 60000);
@@ -162,20 +162,48 @@ test('logging a workout: validated, filed in date order, added once, undone by i
   assert.deepEqual(p.workout.entries[1].sets, [{ min: 10, speed: 9, done: true }]);
   assert.equal(p.workout.entries[0].rid, 'r1');
   assert.equal(p.workout.name, 'Push');
-  const { next } = applyWorkout(S, p);
-  assert.deepEqual(next.workouts.map(w => w.id), ['w1', 'wnew']);
-  assert.equal(applyWorkout(next, p).already, true);
-  assert.deepEqual(undoWorkout(next, { workoutId: 'wnew' }).next.workouts.map(w => w.id), ['w1']);
-  assert.equal(undoWorkout(S, { workoutId: 'wnew' }).gone, true);
+  assert.equal(p.past, true);
+  assert.equal(p.duplicate, null);
+  assert.match(p.lines[0], /Bench Press: 5 × 60 kg, 5 × 62\.5 kg \(RIR 1\)/);
+  const { next, filed } = applyWorkout(S, { ...p, allowDuplicate: false }, { now });
+  assert.deepEqual(next.workouts.map(w => w.id), ['w1', p.workout.id]);
+  assert.equal(filed.workout._ts, now, 'a backfill is stamped as the app stamps one');
+  // The same preview again, or the same description previewed again, is already in the history.
+  assert.equal(applyWorkout(next, p, { now }).duplicate.same_request, true);
+  assert.equal(previewWorkout(next, input, { now }).duplicate.same_request, true);
+  assert.deepEqual(undoWorkout(next, { workoutId: p.workout.id, undo: filed.undo }).next.workouts.map(w => w.id), ['w1']);
+  assert.equal(undoWorkout(S, { workoutId: p.workout.id }).gone, true, 'an entry journalled before undo carried more still undoes');
+  // The profile switched kg and lb since the preview: its weights would be read wrongly.
+  assert.throws(() => applyWorkout({ ...S, unit: 'lb' }, p, { now }), StaleError);
 
   const bad = previewWorkout(S, { ...input, date: '2026-10-23', exercises: [{ exercise_id: 'zzz', sets: [{ reps: 5 }] }, { exercise_id: '0025', sets: [{ weight: 50 }] }] }, { now });
   assert.equal(bad.ok, false);
-  // In the future (twice: the date, and so the end), an unknown exercise, a set with no reps.
-  assert.equal(bad.errors.length, 4, bad.errors.join('\n'));
-  const dup = previewWorkout(S, { ...input, exercises: [{ exercise_id: '0025', sets: [{ reps: 5 }] }, { exercise_id: '0025', sets: [{ reps: 5 }] }] }, { now });
-  assert.match(dup.errors[0], /listed twice/);
-  const sameDay = previewWorkout(S, { ...input, date: '2026-10-01' }, { now });
-  assert.match(sameDay.warnings[0], /already logged on 2026-10-01/);
+  // In the future, an unknown exercise, a set with no reps (all at once).
+  assert.equal(bad.errors.length, 3, bad.errors.join('\n'));
+  assert.match(bad.errors.join('\n'), /is in the future/);
+  const dup = previewWorkout(S, { ...input, exercises: [{ exercise_id: '0025', sets: [{ reps: 5 }] }, { exercise: 'bench press', sets: [{ reps: 5 }] }] }, { now });
+  assert.match(dup.errors[0], /same exercise as "0025"/);
+  const sameDay = previewWorkout({ ...S, workouts: [{ id: 'w1', d: '2026-10-20', start: 10, name: 'Push', entries: [] }] }, input, { now });
+  assert.match(sameDay.warnings[0], /already logged on 2026-10-20/);
+});
+
+test('logging by name: what a name was taken as, the question when it could be two, and the profile\'s today', () => {
+  const now = Date.parse('2026-10-20T23:30:00Z');
+  const S = { ...S0(), reminder: { tz: 'Asia/Tokyo' }, customEx: [{ id: 'c1', n: 'Grip Trainer', custom: true, bp: 'lower arms' }], dbLoad: { '0294': { mode: 'each', _ts: 1 } } };
+  // No date: today where the user is (already the 21st in Tokyo), and today's session ends now.
+  const p = previewWorkout(S, { exercises: [{ exercise: 'curls dumbbell', sets: [{ reps: 12, weight: 12 }, { reps: 12, weight: 12 }, { reps: 10, weight: 12 }] }, { exercise: 'grip trainer', sets: [{ reps: 20 }] }] }, { now });
+  assert.equal(p.ok, true, JSON.stringify(p.errors));
+  assert.equal(p.workout.d, '2026-10-21');
+  assert.equal(p.workout.end, now);
+  assert.deepEqual(p.workout.entries.map(e => e.id), ['0294', 'c1']);
+  assert.match(p.notes.join('\n'), /"curls dumbbell" was taken as Dumbbell Biceps Curl \(0294\)/);
+  assert.match(p.notes.join('\n'), /per dumbbell/);
+  assert.deepEqual(p.prs, ['Dumbbell Biceps Curl'], 'a first curl leads the history');
+
+  const two = previewWorkout(S, { exercises: [{ exercise: 'lever chest press', sets: [{ reps: 10, weight: 40 }] }] }, { now });
+  assert.equal(two.ok, false);
+  assert.deepEqual(two.problems[0].candidates.map(c => c.id), ['0576', '0577']);
+  assert.match(two.errors[0], /Candidates: 0576 Lever Chest Press \(leverage machine\); 0577/);
 });
 
 test('zonedEpoch lands on the wall-clock time on both sides of a DST change', () => {
