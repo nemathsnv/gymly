@@ -2389,4 +2389,8 @@ export default {
   "{0} measurement check-in imported": "측정 기록 {0}개를 가져왔습니다",
   "{0} measurement check-ins imported": "측정 기록 {0}개를 가져왔습니다",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '이 앱에서는 패스키로 확인할 수 없어요. 이 프로필로 로그인한 브라우저에서 코드를 만들거나, 먼저 그곳에서 비밀번호를 추가하세요.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': '법적 고지',
+  'Privacy Policy': '개인정보 처리방침',
+  'Terms of Service': '서비스 약관',
 }

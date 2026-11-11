@@ -2386,4 +2386,8 @@ export default {
   "{0} measurement check-in imported": "Імпортовано {0} вимір",
   "{0} measurement check-ins imported": {"one":"Імпортовано {0} вимір","few":"Імпортовано {0} виміри","many":"Імпортовано {0} вимірів","other":"Імпортовано {0} виміру"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Цей застосунок не може підтвердити ключем доступу. Створіть код у браузері, де ви ввійшли в цей профіль, або спершу задайте там пароль.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Правова інформація',
+  'Privacy Policy': 'Політика конфіденційності',
+  'Terms of Service': 'Умови використання',
 }

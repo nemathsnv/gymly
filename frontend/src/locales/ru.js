@@ -2393,4 +2393,8 @@ export default {
   "{0} measurement check-in imported": "Импортирован {0} замер",
   "{0} measurement check-ins imported": {"one":"Импортирован {0} замер","few":"Импортировано {0} замера","many":"Импортировано {0} замеров","other":"Импортировано {0} замера"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Это приложение не может подтвердить ключом доступа. Создайте код в браузере, где вы вошли в этот профиль, или сначала задайте там пароль.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'Правовая информация',
+  'Privacy Policy': 'Политика конфиденциальности',
+  'Terms of Service': 'Условия использования',
 }

@@ -169,6 +169,23 @@ server {
         return 302 ${BASE_PATH}/$is_args$args;
     }
 
+    # The two paths that ARE pages: the Privacy Policy and the Terms of Service, static HTML of
+    # their own (frontend/public/privacy/, frontend/public/terms/), readable without signing in.
+    # /privacy and /terms are the addresses registered with OAuth providers (Oura), so they answer
+    # 200 themselves. The block above would find the directory and send a 301 to /privacy/
+    # first. The trailing-slash form gets the same page. A regex location wins over the prefix
+    # block above. The files sit at the root of the html tree whatever BASE_PATH is, which is what
+    # the try_files path names. Same no-cache as the app shell, so a policy update is seen at once,
+    # and the full header set, since an add_header here replaces the inherited one.
+    location ~ ^\Q${BASE_PATH}\E/(privacy|terms)/?$ {
+        try_files /$1/index.html =404;
+        add_header Cache-Control "no-cache, must-revalidate";
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "same-origin" always;
+        add_header Content-Security-Policy "${CONTENT_SECURITY_POLICY}" always;
+    }
+
     # App shell: always revalidate so updates show up immediately
     location ~* \.(js|css|json|html)$ {
         # A regex location wins over the prefix block above, so it never saw its rewrite and

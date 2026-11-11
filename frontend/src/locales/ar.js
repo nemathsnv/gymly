@@ -2444,4 +2444,8 @@ export default {
   "{0} measurement check-in imported": "تم استيراد {0} تسجيل قياسات",
   "{0} measurement check-ins imported": "تم استيراد {0} تسجيلات قياسات",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'لا يستطيع هذا التطبيق التأكيد بمفتاح مرور. أنشئ الرمز في متصفح مسجّل الدخول إلى هذا الملف الشخصي، أو أضف كلمة مرور هناك أولًا.',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'قانوني',
+  'Privacy Policy': 'سياسة الخصوصية',
+  'Terms of Service': 'شروط الخدمة',
 }

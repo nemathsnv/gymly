@@ -2389,4 +2389,8 @@ export default {
   "{0} measurement check-in imported": "已导入 {0} 条身体测量记录",
   "{0} measurement check-ins imported": "已导入 {0} 条身体测量记录",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此应用无法用通行密钥确认。请在已登录此档案的浏览器中生成代码，或先在那里设置密码。',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': '法律信息',
+  'Privacy Policy': '隐私政策',
+  'Terms of Service': '服务条款',
 }
