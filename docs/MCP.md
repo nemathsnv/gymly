@@ -29,7 +29,8 @@ connect):
   increment, progression;
 - add, replace, reorder, superset or remove exercises; create, rename or remove routines; set
   what each weekday trains — "create a four-day routine", "replace leg press with hack squat";
-- log a workout you did without the app;
+- log a workout you did without the app, by telling it: "dumbbell curls, 12 kg, 12/12/10" (see
+  [Log a workout by telling your assistant](#log-a-workout-by-telling-your-assistant));
 - undo any of those.
 
 Every change works the same way: the assistant **previews** it (nothing is saved), shows you the
@@ -43,6 +44,36 @@ changes that routine from tomorrow on, and the assistant says so.
 
 It cannot see or change your passkeys, password, gym cards, habit log, AI Coach settings or account, and
 cannot delete logged workouts (other than one it logged itself, by undo).
+
+### Log a workout by telling your assistant
+
+Say what you did, the way you would write it down: "bench 3 × 5 at 80 this morning, then curls,
+12 kg, 12/12/10, last set to failure", "20 minutes on the stepmill at level 8 yesterday", "plank
+3 × 60 s". The assistant turns it into exercises and sets and asks Gymly for a preview; you see
+how it will be saved, and it is saved when you agree. It lands in History on every device, with
+its PR badges, and a session logged for today moves the weight the app suggests next, exactly as
+**Finish** would. A session logged into an earlier day is a backfill: its badges are held against
+the history around it and the suggested weights stay as they are, as when you log a past workout
+in the app.
+
+- **Names, not ids.** Gymly matches what you said against the library and your own exercises.
+  A common name means the library's usual variant ("shoulder press" is the barbell one), and the
+  preview says what it was taken as, so the assistant can check with you when the variant
+  matters. A name that could mean several exercises ("lever chest press" is two), or none, is
+  never guessed: Gymly answers with the candidates and the assistant asks you which one. An
+  exercise you merged into another in the app is logged as the one it went into.
+- **Never twice.** The same description sent again (a retry, a second preview) is recognised and
+  reported as already logged, and so is a session with the same sets on the same day. If it
+  really was a second session, say so: the assistant can log it with a different start time or name.
+- **At most 20 workouts an hour** per profile, so a client stuck in a loop cannot flood your
+  history. Logging a forgotten week is well within it.
+- Weights are in your unit unless you say otherwise ("45 lb" in a kg profile is converted).
+  Dumbbell weights are read as your profile logs that exercise (per dumbbell or both together),
+  and the preview says which.
+- `undo_change` removes a workout it logged, and puts the suggested weight back.
+- It cannot make a new exercise: create it in the app first, then log it by name.
+
+This is available on the hosted endpoint only. The local bridge stays read-only (below).
 
 ### Connect ChatGPT
 
@@ -116,6 +147,8 @@ Discovery for clients: `/.well-known/oauth-protected-resource/api/mcp` and
 |---|---|
 | "Not available for this profile" | Your profile id is not in the server's `MCP_OAUTH_USERS`. |
 | The assistant says a change is "stale" | The plan changed since its preview (you edited it on a device). Ask it to preview again. |
+| "rate_limited" when logging workouts | 20 workouts were logged through assistants in the last hour. Wait, or log the rest in the app. |
+| The assistant asks which exercise you meant | The name matches several exercises (or none). Pick one; it previews again with that exercise. |
 | "insufficient_scope" | You connected read-only. Disconnect it in Settings and connect again with changes allowed. |
 | The connection stopped working | It was disconnected, or you signed out everywhere. Connect again. |
 | ChatGPT has no "Add custom MCP server" | Your ChatGPT plan or workspace does not allow custom MCP servers. |
@@ -146,6 +179,13 @@ The token:
 - stops working the moment you use **Sign out everywhere**, set a new password, or an admin
   disables or deletes the account;
 - is never sent your gym membership cards, your habit log (alcohol-free days, drink counts and notes), your AI Coach record, or your reminder settings.
+
+The bridge has no `log_workout`, on purpose. openGym's bridge logs a workout with a paired
+device session, a token that can do everything the app can; here the token is read-only by
+design and is never widened, and a write token kind for the bridge would be a second way in to
+secure for something the hosted endpoint already does with consent, a preview, undo and a rate
+limit. To log a workout by telling an assistant, connect it to the hosted endpoint above (Claude
+Code can use both at once).
 
 ### Set it up (Claude Code)
 

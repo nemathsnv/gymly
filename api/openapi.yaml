@@ -1640,7 +1640,11 @@ paths:
 
         Refused: an `Origin` other than ORIGIN (or `MCP_ALLOWED_ORIGINS`) with 403, a body over
         256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a
-        minute per connection with 429. Writes: 30 per 10 minutes per profile.
+        minute per connection with 429. Writes: 30 per 10 minutes per profile, and of those at
+        most 20 logged workouts (`log_workout`) in any hour; over either, the tool answers
+        `rate_limited` with `retry_after` seconds. `preview_workout_log` takes exercises by name
+        or id and answers `needs_choice` with candidates for a name that is ambiguous or unknown,
+        and `already_logged` for a session the history already has.
       security:
         - mcpOAuth: [gymly:read]
       requestBody:
