@@ -42,6 +42,63 @@ reasoning behind it.
   (client name and counts, never content). Profile: `data/mcp-journal-<uid>.json`, the last 25
   changes with their full before/after, readable through `list_recent_changes`.
 
+### Logging a workout (ported from openGym #739)
+
+openGym's `log_workout` (47d81fe78, beed2965e) takes a session as the user described it,
+exercise names and one entry per set, resolves the names and saves at once (with an optional
+`dry_run`), through the stdio bridge holding a paired device session. Here it is the hosted
+endpoint's `preview_workout_log` + `log_workout`, built on the same pure helpers, now in
+`frontend/src/lib/log-workout.js` beside their test:
+
+- **Names, resolved or asked about.** `resolveExercise` takes an id, one of the profile's own
+  exercises by id or name, or a catalogue name (`exerciseCandidates` in `import-csv.js`: an
+  alias, an exact name, or the one nearest entry). A name the catalogue spells twice, or one
+  nothing matches, is not guessed: the preview fails with `needs_choice` and the candidates, and
+  the assistant asks the user. Fork-specific: everything is followed through `S.exMerged`, so a
+  merged-away exercise (by its id, its catalogue name, or the name a removed custom one had) is
+  logged where its history went, and candidates merged into one another are one candidate.
+- **Filed the way Finish files it** (`appendLoggedWorkout`): today's session gets its PR badges
+  and moves `exWeights`; one filed before a session already logged is a backfill (stamped, badges
+  rebuilt with `rebuildPrHistory`, `exWeights` left alone). Cardio and a stepmill's machine level
+  are logged too (upstream refuses cardio). The time of day is the profile's (`reminder.tz`,
+  `zonedEpoch`), not the server's.
+- **Never twice.** The workout id is a hash of the description (date, times, names as resolved,
+  sets), not of the clock: the same description previewed again is answered "already logged",
+  and so is a session with the same sets on the same day unless the user confirms a second
+  session (`allow_duplicate`, which then needs a different start or name to get its own id).
+  `log_workout` checks once more against the profile as it is at apply time (a device may have
+  synced the same session meanwhile); a duplicate writes nothing and counts against nothing.
+- **20 saves an hour per profile** (`api/mcp-remote/log-budget.js`, a sliding hour; previews,
+  refusals and duplicates do not count), on top of the endpoint's general write budget.
+- **A line per save on stderr** (`[gymly-mcp] log_workout saved <id> for <day> (n exercises,
+  m sets), rev r`), besides the `auth.mcp.write` audit line; never a token or content.
+- **Undo is exact.** The journal entry keeps what logging changed (`exWeights` before/after, the
+  badges of later sessions a backfill took away); `undo_change` removes the workout and puts back
+  each of those that is still as logging left it.
+- **No em dashes in model-facing text** (upstream's note in beed2965e): tool descriptions,
+  instructions and results of the write tools use colons and semicolons.
+
+**Why preview → apply, not upstream's direct save.** Logging a past session is additive, can be
+undone and is deduplicated, so a direct save would have been defensible. It stays two steps
+because (1) every other write on this endpoint is two steps, and one rule is what the model and
+the client's confirmation prompt are built around; (2) the step the user most needs to see is
+the interpretation (which variant "shoulder press" became, how "12/12/10" was split, per dumbbell
+or both), which is what upstream's own description asks a `dry_run` for; (3) logging is not
+purely additive: a session for today moves the next suggested weight and can take a badge from a
+later session; and (4) the preview id makes the apply idempotent and bound to the connection.
+The dedupe by description covers what the direct save relied on it for: a retried or repeated
+preview is answered as already logged instead of being prepared again.
+
+**Why the bridge stays read-only.** Upstream's bridge writes with a paired *session* token
+(`PUT /api/data`, everything the app can do). The V1 token here is read-only by design and is
+refused by `sessionOf`; widening it, or adding a write-capable token kind for the bridge, would be
+a second write path to secure (scopes, step-up, expiry, audit, rate limit, undo) for something
+the hosted endpoint already does with consent and undo. So the bridge does not get
+`log_workout`; a Claude Code user adds the hosted endpoint next to it.
+
+Not ported: creating a custom exercise from the description (`createCustom`): the library is
+written by the app only, and the assistant is told to have the user create it in the app first.
+
 Not done, on purpose: editing or deleting logged sets (needs PR/1RM recomputation tests in
 `frontend/src/lib` first), settings, and any account route.
 
