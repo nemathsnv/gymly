@@ -3,7 +3,11 @@
 import { z } from "zod";
 
 // mcp/src/private-keys.js
-const PRIVATE_KEYS = Object.freeze(["habitLog"]);
+const PRIVATE_KEYS = Object.freeze([
+	"habitLog",
+	"sex",
+	"birthYear"
+]);
 function dropPrivate(S) {
 	if (!S || typeof S !== "object" || Array.isArray(S)) return S;
 	const out = { ...S };

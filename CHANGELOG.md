@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Weekly sets per muscle, against a target range** (from openGym). A new Stats card lists this
+  week's working sets for each main muscle next to the range it aims for, "Chest 14 / 10–20", with
+  a bar that shows the range: room for more, in range or above range, never a telling-off. A set
+  counts fully for the muscles it mainly trains and a bit under half for the ones that help (the
+  same weights as the muscle map and the fatigue model); warm-ups don't count. The ranges start
+  from hypertrophy research (roughly the minimum that grows a muscle to the most you can recover
+  from) and each one is yours to change under Settings → Plan & schedule → **Weekly sets per
+  muscle**. Settings → Look & Home → On Home → **Weekly sets on Home** adds one line under your
+  streak: the muscle with the most room left. Both sync with your profile.
+- **Strength level per lift** (from openGym). Bench, squat, deadlift, overhead press, rows, curls
+  and a few more now say where you stand: Beginner, Novice, Intermediate, Advanced or Elite, from
+  your best estimated 1RM against your latest weigh-in, graded on published strength standards
+  (bodyweight ratios, dumbbells per bell). It sits in the exercise's details with what the next
+  level takes, and a Stats card lists every lift you have one for. Add your sex and year of birth
+  under Settings → Units & language → **About you** for a fairer read (from 40 on, the masters age
+  coefficients ease the lines). Worked out on your device, and hidden until you have weighed in.
+  Sex and year of birth sync with your profile but are never sent to the Coach or to AI
+  assistants (MCP).
 - **Merge two exercises into one** (ported from openGym #656). Imported "Bench Press (Barbell)"
   from FitNotes and now have two bench presses? An exercise's details have **Merge into…**: pick
   the one it should be, see what moves ("38 workouts, 3 routines move"), confirm. Every logged set
