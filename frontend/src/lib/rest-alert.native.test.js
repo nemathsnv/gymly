@@ -3,7 +3,7 @@
 // the plugin is a Capacitor proxy that answers `then` with a native call that never settles, so
 // it must never become the value of a promise (the Coach hang, #42): here that would hang every
 // rest alert call.
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 const h = vi.hoisted(() => {
@@ -53,6 +53,8 @@ beforeEach(() => {
   unhandled.length = 0
   process.on('unhandledRejection', onUnhandled)
 })
+// One listener at a time: each test adds it, so each takes it off again (Node warns past ten).
+afterEach(() => { process.off('unhandledRejection', onUnhandled) })
 afterAll(() => {
   process.off('unhandledRejection', onUnhandled)
   vi.unstubAllEnvs()
@@ -324,5 +326,45 @@ describe('the notification permission never holds the rest alarm back', () => {
       await settle()
     }
     expect(h.request).not.toHaveBeenCalled()
+  })
+})
+
+// Spoken cues (lib/spoken-cues.js, ported from upstream openGym 499d589d2): the Android app's own
+// voice, ducking the music like the end tone. The iPhone app has no RestAlert plugin in Gymly, so
+// it answers false there and lib/speech.js speaks through the page.
+describe('spoken cues through the phone', () => {
+  it('hands the line to the plugin on Android and answers true', async () => {
+    h.platform = 'android'
+    const alert = await import('./rest-alert.js')
+    await expect(alert.speakNative('Set 2, 80 kilos, 8 reps', { lang: 'en-GB', rate: 1.25, flush: true })).resolves.toBe(true)
+    await expect(alert.hushNative()).resolves.toBe(true)
+    expect(h.calls).toEqual(expect.arrayContaining(['speak', 'hush']))
+    await expect(alert.speakNative('')).resolves.toBe(false)
+    expect(unhandled).toEqual([])
+  })
+
+  it('answers false in the iPhone app without reaching for a plugin it does not have', async () => {
+    h.platform = 'ios'
+    const alert = await import('./rest-alert.js')
+    await expect(alert.speakNative('Rest is over')).resolves.toBe(false)
+    await expect(alert.hushNative()).resolves.toBe(false)
+    expect(h.registerPlugin).not.toHaveBeenCalled()
+    expect(h.calls).toEqual([])
+    expect(unhandled).toEqual([])
+  })
+
+  it('Android ducks for a line and lets go when nothing is left to say', () => {
+    const java = readFileSync(new URL('../../android/app/src/main/java/ch/duartesantos/opengym/SpeechCue.java', import.meta.url), 'utf8')
+    expect(java).toMatch(/RestAlert\.duck\(/)
+    expect(java).toMatch(/RestAlert\.unduck\(/)
+    expect(java).not.toMatch(/AUDIOFOCUS_GAIN\b(?!_TRANSIENT)/)
+    const restAlert = readFileSync(new URL('../../android/app/src/main/java/ch/duartesantos/opengym/RestAlert.java', import.meta.url), 'utf8')
+    expect(restAlert).toMatch(/\n {4}static Object duck\(AudioManager am, AudioAttributes attrs\)/)
+    expect(restAlert).toMatch(/\n {4}static void unduck\(AudioManager am, Object focus\)/)
+    const plugin = readFileSync(new URL('../../android/app/src/main/java/ch/duartesantos/opengym/RestAlertPlugin.java', import.meta.url), 'utf8')
+    expect(plugin).toMatch(/public void speak\(PluginCall call\)/)
+    expect(plugin).toMatch(/public void hush\(PluginCall call\)/)
+    const manifest = readFileSync(new URL('../../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8')
+    expect(manifest).toMatch(/android\.intent\.action\.TTS_SERVICE/)
   })
 })

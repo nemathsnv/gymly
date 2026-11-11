@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Spoken cues** (from openGym). Settings → Timer alerts → **Spoken cues** (off until you want
+  it) gives the timer a voice, so the phone can stay on the bench: it says your next set as the
+  rest starts ("Set 3, 80 kilos, 8 reps", with the exercise's name when it changes, and a
+  stepmill's level: "Set 2, 10 minutes, Level 9"), "10 seconds" before a rest ends, "Rest is
+  over", and counts the last 3, 2, 1 of a hold. Weights are read the way the app shows them, in
+  your unit. In the app's language, slow, normal or fast, with a Try it button. Nothing is said
+  while the workout is paused, and a rest the pause held carries on without repeating itself. The
+  Android app uses the phone's own voice and your music only turns down for a moment, it never
+  stops; a browser, and the iPhone app, use the built-in voice. Only while the app is on screen:
+  a locked phone still gets the end tone and the notification.
 - **Webhooks** (self-hosted, `INTEGRATIONS=webhook`; ported from openGym 1.4.4). Tell Home
   Assistant, n8n, ntfy or Node-RED when you finish a workout, set a record or weigh in, from
   whichever device you logged it on, or an AI assistant over the hosted MCP endpoint. Add them in

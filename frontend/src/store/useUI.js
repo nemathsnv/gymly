@@ -10,6 +10,7 @@ import { armRestAlert, bindNativeRest, disarmRestAlert, holdRestAlert, toneNativ
 import { useStore } from './useStore.js'
 import { REST_MAX } from '../lib/duration.js'
 import { accentValue } from '../lib/accent.js'
+import { cues, bindCueState, restTickCue, withCue, cuedAfterChange } from '../lib/spoken-cues.js'
 
 // Fire-and-forget: lets the server push a "rest over" alert if this tab gets suspended
 // before the local timer completes. No-ops for guests / offline. The device id keeps the
@@ -121,7 +122,8 @@ const runWork = (set, get) => {
       if (done) done(wk.total - left, { chimed: seenLive && !wk.alerted })
       return
     }
-    if (left <= 3) beep(snd, 660, 0.1)
+    // Spoken cues: "3", "2", "1" over the beeps (lib/spoken-cues.js; silent while the workout is paused).
+    if (left <= 3) { beep(snd, 660, 0.1); if (seenLive) cues.count(left) }
     set({ work: { ...wk, left } })
   }
   workInt = setInterval(workTick, 1000)
@@ -185,6 +187,7 @@ const runRest = (set, get) => {
         // the only one. Locked, this branch never runs and the alarm's tone does.
         endTone(snd, endSound)
         alertBuzz([200, 100, 200]); get().flashTimer()
+        cues.restOver()
       }
       // The toast stays even when the rest ran out while the app was hidden: a guest, or anyone
       // without push permission, gets no notification, and a countdown that silently vanishes
@@ -199,7 +202,11 @@ const runRest = (set, get) => {
       return
     }
     if (left <= 3) beep(snd, 660, 0.1)
-    set({ timer: { ...tm, left } })
+    // Spoken cues: "10 seconds", once per rest (lib/spoken-cues.js restTickCue). The rest keeps
+    // what it said in `cued`, so carrying on after a pause or a reload does not say it again.
+    const cue = seenLive ? restTickCue(tm, left) : null
+    if (cue) cues.restLeft(cue)
+    set({ timer: { ...tm, left, ...(cue ? { cued: withCue(tm.cued, cue) } : {}) } })
   }
   timerInt = setInterval(timerTick, 1000)
   document.addEventListener('visibilitychange', timerTick)
@@ -272,7 +279,9 @@ export const useUI = create((set, get) => ({
     if (get().toastMsg) runToast(set)
   },
 
-  startRest(sec, forIdx, { kind, forSet } = {}) {
+  // `announce: false` keeps the spoken cue for the next set quiet: a rest started again on one that
+  // already ran out (+15 s, the wheel) has said it once already.
+  startRest(sec, forIdx, { kind, forSet, announce = true } = {}) {
     get().stopRest()
     // Rest timer set to Off. Stopping and returning rather than starting a zero-length timer
     // keeps every caller honest: the four places that start a rest do not each need to know.
@@ -295,6 +304,9 @@ export const useUI = create((set, get) => ({
     set({ timer: { left: sec, total: sec, endsAt, forIdx, ...(forSet != null ? { forSet } : {}), ...(kind === 'switch' ? { kind } : {}) } })
     bookRestEnd(endsAt, sec, kind)
     runRest(set, get)
+    // Spoken cues: the next set, said as the rest begins (lib/spoken-cues.js). Only here: resuming
+    // a rest, or bringing one back after a reload, never says it again.
+    if (kind !== 'switch' && announce) cues.restStarted(forIdx)
   },
   // Holding the rest where it is — a longer break than planned, a machine to wait for, a phone
   // call (#193). Paused time does not count: the countdown stops, and so does everything that
@@ -327,7 +339,7 @@ export const useUI = create((set, get) => ({
   addRest(sec) {
     const tm = get().timer
     if (!tm) return
-    if (tm.ready) { if (sec > 0) get().startRest(Math.min(sec, REST_MAX), tm.forIdx, { forSet: tm.forSet }); else get().stopRest(); return }
+    if (tm.ready) { if (sec > 0) get().startRest(Math.min(sec, REST_MAX), tm.forIdx, { forSet: tm.forSet, announce: false }); else get().stopRest(); return }
     // +15 s stops where the wheel does (15:00), so the two never disagree about a rest's length.
     if (sec > 0) sec = Math.min(sec, Math.max(0, REST_MAX - tm.left))
     if (!sec) return
@@ -336,11 +348,13 @@ export const useUI = create((set, get) => ({
     // negative duration out of both the progress bar and the server-side push schedule
     if (left <= 0) { get().stopRest(); return }
     const total = Math.max(tm.total || left, left)
+    // Time added past the ten-second mark may hear "10 seconds" again (lib/spoken-cues.js).
+    const cued = cuedAfterChange(tm.cued, tm.left, left)
     // Paused, there is no end to move and nothing booked on the server: the time is simply held,
     // and the notification holds the new figure.
-    if (tm.paused) { set({ timer: { ...tm, left, total } }); holdRestAlert(left, total); return }
+    if (tm.paused) { set({ timer: { ...tm, left, total, ...(cued ? { cued } : {}) } }); holdRestAlert(left, total); return }
     const endsAt = tm.endsAt + sec * 1000
-    set({ timer: { ...tm, left, total, endsAt } })
+    set({ timer: { ...tm, left, total, endsAt, ...(cued ? { cued } : {}) } })
     bookRestEnd(endsAt, total, tm.kind)
   },
   // The active list changed shape (an exercise removed or inserted at `at`): keep the rest
@@ -357,7 +371,9 @@ export const useUI = create((set, get) => ({
   followNativeRest({ endsAt, left, total, paused }) {
     const tm = get().timer
     const forIdx = tm?.forIdx
-    const kind = { ...(tm?.kind === 'switch' ? { kind: 'switch' } : {}), ...(tm?.forSet != null ? { forSet: tm.forSet } : {}) }
+    // What the rest has said (spoken cues) goes along, unless the notification added time past it.
+    const cued = cuedAfterChange(tm?.cued, tm?.left, left)
+    const kind = { ...(tm?.kind === 'switch' ? { kind: 'switch' } : {}), ...(tm?.forSet != null ? { forSet: tm.forSet } : {}), ...(cued ? { cued } : {}) }
     if (paused) {
       stopRestTicking()
       set({ timer: { left, total, endsAt, forIdx, ...kind, paused: true } })
@@ -463,7 +479,7 @@ const saveRest = tm => {
   if (!ss) return
   try {
     if (!tm || tm.ready) ss.removeItem(REST_KEY)
-    else ss.setItem(REST_KEY, JSON.stringify({ endsAt: tm.endsAt, total: tm.total, forIdx: tm.forIdx ?? null, forSet: tm.forSet ?? null, kind: tm.kind || null, paused: !!tm.paused, left: tm.left }))
+    else ss.setItem(REST_KEY, JSON.stringify({ endsAt: tm.endsAt, total: tm.total, forIdx: tm.forIdx ?? null, forSet: tm.forSet ?? null, kind: tm.kind || null, paused: !!tm.paused, left: tm.left, ...(Array.isArray(tm.cued) && tm.cued.length ? { cued: tm.cued } : {}) }))
   } catch { /* the rest just does not outlive a reload */ }
 }
 export function restoreRest(now = Date.now()) {
@@ -474,7 +490,8 @@ export function restoreRest(now = Date.now()) {
   const total = Math.round(Number(saved.total))
   const ok = useStore.getState().S?.active && total > 0 && (saved.paused ? saved.left > 0 : saved.endsAt > now)
   if (!ok) { try { ss.removeItem(REST_KEY) } catch { /* nothing to drop */ } return false }
-  const base = { total, forIdx: saved.forIdx ?? undefined, ...(saved.forSet != null ? { forSet: saved.forSet } : {}), ...(saved.kind === 'switch' ? { kind: 'switch' } : {}) }
+  const cued = Array.isArray(saved.cued) ? saved.cued.filter(c => typeof c === 'string') : []
+  const base = { total, forIdx: saved.forIdx ?? undefined, ...(saved.forSet != null ? { forSet: saved.forSet } : {}), ...(saved.kind === 'switch' ? { kind: 'switch' } : {}), ...(cued.length ? { cued } : {}) }
   if (saved.paused) {
     useUI.setState({ timer: { ...base, left: Math.round(saved.left), endsAt: saved.endsAt, paused: true } })
     if (MOBILE) holdRestAlert(Math.round(saved.left), total)
@@ -540,3 +557,7 @@ bindNativeRest(ev => {
   const total = Math.max(left, Math.round((ev.totalMs || 0) / 1000))
   useUI.getState().followNativeRest({ endsAt: ev.endsAt, left, total, paused: !!ev.paused })
 })
+
+// Spoken cues read the profile (on or off, the rate, the running workout and whether it is
+// paused) from the store.
+bindCueState(() => useStore.getState?.()?.S)

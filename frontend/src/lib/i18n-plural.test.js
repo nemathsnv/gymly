@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { t, tn, _setLangState } from './i18n-core.js'
+import { t, tn, tnf, _setLangState } from './i18n-core.js'
 import ru from '../locales/ru.js'
 import de from '../locales/de.js'
 import uk from '../locales/uk.js'
@@ -14,7 +14,8 @@ const walk = d => readdirSync(d, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])
 const tnKeys = () => {
   const keys = new Set()
-  const re = /\btn\(\s*(['"`])((?:\\.|(?!\1).)*)\1\s*,\s*(['"`])((?:\\.|(?!\3).)*)\3/gs
+  // tnf() (a count shown formatted, lib/spoken-cues.js) reads the same plural keys.
+  const re = /\btnf?\(\s*(['"`])((?:\\.|(?!\1).)*)\1\s*,\s*(['"`])((?:\\.|(?!\3).)*)\3/gs
   for (const f of walk(SRC)) {
     if (!/\.(jsx?|mjs)$/.test(f) || /\.test\./.test(f) || /[\\/]locales[\\/]/.test(f)) continue
     const s = readFileSync(f, 'utf8')
@@ -23,6 +24,21 @@ const tnKeys = () => {
   }
   return [...keys]
 }
+
+describe('tnf() — the count shown formatted, the form picked by the number', () => {
+  afterEach(() => _setLangState('en', {}, null, null))
+
+  it('English, a two-form pack and Russian', () => {
+    expect(tnf('{0} kilo', '{0} kilos', 82.5, '82.5')).toBe('82.5 kilos')
+    expect(tnf('{0} kilo', '{0} kilos', 1, '1')).toBe('1 kilo')
+    _setLangState('de', de, null, null)
+    expect(tnf('{0} kilo', '{0} kilos', 82.5, '82,5')).toBe('82,5 Kilo')
+    _setLangState('ru', ru, null, null)
+    expect(tnf('{0} kilo', '{0} kilos', 5, '5')).toBe('5 килограммов')
+    expect(tnf('{0} kilo', '{0} kilos', 22, '22')).toBe('22 килограмма')
+    expect(tnf('{0} kilo', '{0} kilos', 1, '1')).toBe('1 килограмм')
+  })
+})
 
 describe('tn() — plural forms from the pack', () => {
   afterEach(() => _setLangState('en', {}, null, null))

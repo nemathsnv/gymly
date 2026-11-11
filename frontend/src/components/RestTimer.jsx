@@ -32,7 +32,8 @@ export function applyRestLeft(v, opened) {
   const now = ui.timer
   if (!now) { if (v > 0) ui.startRest(v); return }
   if (v <= 0) { ui.stopRest(); return }
-  if (now.ready) { ui.startRest(v, now.forIdx); return }
+  // A rest that ran out, started again: its next set was announced already (spoken cues).
+  if (now.ready) { ui.startRest(v, now.forIdx, { announce: false }); return }
   if (v !== now.left) ui.addRest(v - now.left)
 }
 
