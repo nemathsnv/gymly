@@ -1533,6 +1533,23 @@ export const PT_BR_OVERRIDES = {
   'Sex': 'Sexo',
   'Year of birth': 'Ano de nascimento',
   'For your strength levels': 'Para seus níveis de força',
+  'Merge into…': 'Juntar com…',
+  'Merge into “{0}”?': 'Juntar com “{0}”?',
+  '{0} move to “{1}”, with every set, note and record.': '{0} vão para “{1}”, com cada série, nota e recorde.',
+  'Nothing is logged or planned with it yet.': 'Ainda não tem nada registrado nem planejado com ele.',
+  'Then “{0}” is deleted.': 'Depois “{0}” é excluído.',
+  'Then “{0}” is hidden from your lists, and searching for it finds “{1}”.': 'Depois “{0}” fica escondido das suas listas, e buscar por ele encontra “{1}”.',
+  'Merge': 'Juntar',
+  'Merged into “{0}”': 'Juntado com “{0}”',
+  'Pick a different exercise.': 'Escolha outro exercício.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Unidade de medida",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Os valores salvos mantêm seu tipo. Adicione uma nova medida para usar outro tipo.",
+  "{0} must be between 0 and 100%.": "{0} deve estar entre 0 e 100%.",
+  "No unit": "Sem unidade",
+  "{0} measurement check-in imported": "{0} registro de medidas importado",
+  "{0} measurement check-ins imported": "{0} registros de medidas importados",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Este aplicativo não consegue confirmar com uma chave de acesso. Crie o código em um navegador conectado a este perfil, ou adicione uma senha lá primeiro.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

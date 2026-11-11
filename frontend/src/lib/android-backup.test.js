@@ -19,7 +19,7 @@ describe('Android backup rules', () => {
     expect(manifest).toMatch(/android:allowBackup="true"/)
   })
 
-  it('both leave the media folder out of the cloud backup, and only that', () => {
+  it('both leave the media folder out of the cloud backup', () => {
     expect(legacy).toMatch(/<full-backup-content>[\s\S]*<\/full-backup-content>/)
     expect(legacy).toMatch(EXCLUDE)
     const cloud = modern.match(/<cloud-backup>([\s\S]*?)<\/cloud-backup>/)?.[1] || ''
@@ -27,8 +27,17 @@ describe('Android backup rules', () => {
     // An <include> would turn either list into an allowlist and drop everything else.
     expect(legacy).not.toMatch(/<include/)
     expect(modern).not.toMatch(/<include/)
-    // Device transfer is left alone, so it takes everything.
-    expect(modern).not.toMatch(/<device-transfer/)
+    // Device transfer takes everything but the pairing.
+    const transfer = modern.match(/<device-transfer>([\s\S]*?)<\/device-transfer>/)?.[1] || ''
+    expect(transfer).not.toMatch(EXCLUDE)
+    expect(transfer.match(/<exclude/g)).toHaveLength(1)
+  })
+
+  it('the pairing token is left out of every backup and transfer', () => {
+    const TOKEN = /<exclude\s+domain="file"\s+path="opengym-remote\.json"\s*\/>/
+    expect(legacy).toMatch(TOKEN)
+    expect(modern.match(/<cloud-backup>([\s\S]*?)<\/cloud-backup>/)?.[1]).toMatch(TOKEN)
+    expect(modern.match(/<device-transfer>([\s\S]*?)<\/device-transfer>/)?.[1]).toMatch(TOKEN)
   })
 
   it('no comment carries a double dash, which breaks the Android build (v1.3.6)', () => {

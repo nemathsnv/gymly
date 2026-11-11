@@ -23,6 +23,19 @@ const ONE = {
 const TWO = { unit: 'lb', routines: [{ id: 'rz', name: 'Other profile', ex: [] }], workouts: [] }
 
 describe('hosted read tools', () => {
+  it('read an exercise merged into another in the app as the one it went into (#656)', () => {
+    const doc = {
+      ...ONE,
+      workouts: [...ONE.workouts, { id: 'w3', d: daysAgo(1), start: 3, end: 3600003, name: 'Push', entries: [{ id: 'cx1', sets: [{ w: 70, r: 5, done: true }] }] }],
+      exMerged: { cx1: { into: '0025', _ts: 5 } }
+    }
+    const before = JSON.stringify(doc)
+    const out = runReadTool('get_workout', { workout_id: 'w3' }, doc, { id: 'u1', name: 'One' })
+    expect(JSON.stringify(out)).toMatch(/bench press/i)
+    expect(JSON.stringify(out)).not.toContain('my sled push')
+    expect(JSON.stringify(doc)).toBe(before)
+  })
+
   it('are V1\'s tools plus search_exercises and get_training_progress', () => {
     const names = READ_TOOLS.map(t => t.name)
     expect(names).toEqual(expect.arrayContaining(['list_routines', 'get_routine', 'get_week_plan', 'list_workouts', 'get_workout', 'estimate_1rm', 'muscle_balance', 'get_bodyweight', 'preview_session', 'search_exercises', 'get_training_progress']))

@@ -20,6 +20,25 @@
   coefficients ease the lines). Worked out on your device, and hidden until you have weighed in.
   Sex and year of birth sync with your profile but are never sent to the Coach or to AI
   assistants (MCP).
+- **Merge two exercises into one** (ported from openGym #656). Imported "Bench Press (Barbell)"
+  from FitNotes and now have two bench presses? An exercise's details have **Merge into…**: pick
+  the one it should be, see what moves ("38 workouts, 3 routines move"), confirm. Every logged set
+  (a stepmill's machine level with it), note and record goes over, and so do routine slots (with
+  their warm-ups and superset), the kept working weight, the standing note, the favourite star and
+  its bar, plate, dumbbell and weight-step settings. Your own exercise is then deleted; a catalogue
+  one is hidden from your lists, and searching for its name finds the one you merged it into. Undo
+  on the toast puts everything back. Another device that still logged against the old one is
+  brought in line when it syncs, and the MCP bridge (local, remote and hosted) reads it the same way.
+- **Custom measurements get their own unit** (from openGym #699, #718). Body measurements →
+  Fields: a custom measurement can be in **%** (muscle ratio), **kg** or **lb** (lean mass),
+  **cm** or **in** (a calf), or have **No unit** at all (a visceral fat score). The chart, the
+  history, backups and sync keep it, a percentage stays between 0 and 100, and 0 counts as a
+  reading for a percentage or a score. Your existing custom fields stay in cm/in like before.
+  Once a field has values its unit can switch within its kind (cm ↔ in, kg ↔ lb) without changing
+  them; another kind needs a new field. A measurement pinned to Home keeps its unit on the card
+  and in the quick log, whose ± buttons and checks follow it (no inches for a kg field), and
+  Settings → On Home lists it as "Lean mass (kg)". Importing an openGym body CSV now brings its
+  measurements in too, custom fields with their units, not just the weigh-ins.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

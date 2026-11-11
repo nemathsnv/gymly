@@ -27,7 +27,8 @@ import {
 } from './password.js';
 import { createBackoff, createWindow } from './rate-limit.js';
 import {
-  listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS
+  listPasskeys, addPasskeyRecord, renamePasskeyRecord, removePasskeyRecord, passkeyRemovalRefused, MAX_PASSKEYS,
+  transportsOf,
 } from './passkeys-store.js';
 import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } from './device-link.js';
 import {
@@ -283,6 +284,7 @@ function isPrivateAddr(ip, operatorExceptions = true) {
     if (a === 192 && b === 168) return true;                      // private
     if (a === 192 && b === 0) return true;                        // 192.0.0.0/24, 192.0.2.0/24
     if (a === 100 && b >= 64 && b <= 127) return true;            // CGNAT
+    if (a === 198 && (b === 18 || b === 19)) return true;         // benchmarking 198.18.0.0/15
     if (a >= 224) return true;                                    // multicast + reserved
     return false;
   }
@@ -296,7 +298,17 @@ function isPrivateAddr(ip, operatorExceptions = true) {
   }
   if (g.slice(0, 7).every(x => x === 0) && g[7] <= 1) return true; // unspecified, loopback
   if ((g[0] & 0xffc0) === 0xfe80) return true;                    // link-local fe80::/10
+  if ((g[0] & 0xffc0) === 0xfec0) return true;                    // site-local fec0::/10 (deprecated, still routed by some)
   if ((g[0] & 0xfe00) === 0xfc00) return true;                    // unique local fc00::/7
+  if ((g[0] & 0xff00) === 0xff00) return true;                    // multicast ff00::/8
+  // The forms that carry an IPv4 address inside: on a host with NAT64 or a 6to4 relay they reach
+  // that IPv4 address, so they are judged by it. 64:ff9b:1::/48 is the local-use NAT64 prefix,
+  // which only ever translates into a network of the operator's own.
+  const v4 = (hi, lo) => isPrivateAddr(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  if (g.slice(0, 6).every(x => x === 0)) return v4(g[6], g[7]);          // IPv4-compatible ::a.b.c.d
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every(x => x === 0)) return v4(g[6], g[7]); // NAT64 64:ff9b::/96
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true;       // local-use NAT64 64:ff9b:1::/48
+  if (g[0] === 0x2002) return v4(g[1], g[2]);                            // 6to4 2002::/16
   return false;
 }
 
@@ -333,7 +345,31 @@ const PUSH_AGENT = new https.Agent({ lookup: guardedLookup, keepAlive: false });
 // Cheap pre-check so a bad endpoint is refused at subscribe time with a useful message, rather
 // than silently never delivering. For a hostname PUSH_AGENT is what actually enforces the address
 // rule; for a literal address this is the check, which is why sendPush runs it again.
+// Real push services hand out endpoints of a few hundred characters (FCM, Mozilla, Apple are all
+// well under 1 KB) and keys of 87 (p256dh, a 65-byte point) and 22 (auth, 16 bytes) base64url
+// characters. Everything here lands in db.json, which every save rewrites whole, so nothing bigger
+// is ever stored (GHSA-g65f-rj2m-6wj9).
+const MAX_PUSH_ENDPOINT = 2048;
+const MAX_PUSH_KEY = 256;
+const PUSH_KEY_RE = /^[A-Za-z0-9_\-+/]+={0,2}$/;
+function pushKeyError(v) {
+  if (typeof v !== 'string' || !v || v.length > MAX_PUSH_KEY || !PUSH_KEY_RE.test(v)) return 'invalid subscription keys';
+  return null;
+}
+
+// A db.json from before these limits may already carry an oversized row: drop it once at boot,
+// before the next save has to write it again.
+if (Array.isArray(db.subs)) {
+  const n = db.subs.length;
+  const tooBig = v => typeof v === 'string' && v.length > MAX_PUSH_KEY;
+  // Only size decides here: a row is never dropped for its format, just for being too big to keep.
+  db.subs = db.subs.filter(s => !(String(s?.endpoint ?? '').length > MAX_PUSH_ENDPOINT
+    || tooBig(s?.keys?.p256dh) || tooBig(s?.keys?.auth)));
+  if (db.subs.length !== n) { console.error(`push: dropped ${n - db.subs.length} oversized subscription(s)`); saveDb(); }
+}
+
 function pushEndpointError(raw) {
+  if (typeof raw !== 'string' || raw.length > MAX_PUSH_ENDPOINT) return 'endpoint is too long';
   let u;
   try { u = new URL(String(raw || '')); } catch { return 'endpoint is not a valid URL'; }
   if (u.protocol !== 'https:') return 'endpoint must be an https:// URL';
@@ -409,10 +445,19 @@ async function sendPush(userId, payload, deviceId) {
 // In memory only — an API restart drops whatever is pending.
 const restTimers = new Map(); // `${userId}:${deviceId}` -> Timeout
 const restKey = (userId, deviceId) => `${userId}:${deviceId || ''}`;
+// A browser holds one device id, so a person has a timer or two pending, never more than the
+// devices they train with. Each request with a new id used to leave another hour-long timer (and
+// its push to every id-less subscription) behind, without limit; past this many, the oldest goes.
+const MAX_REST_TIMERS_PER_USER = 5;
 function scheduleRestTimer(userId, deviceId, sec, lang) {
   const k = restKey(userId, deviceId);
   const t = restTimers.get(k);
   if (t) clearTimeout(t);
+  restTimers.delete(k);                     // re-inserted below, so the map stays oldest first
+  const mine = [...restTimers.keys()].filter(x => x.startsWith(userId + ':'));
+  for (const old of mine.slice(0, Math.max(0, mine.length - MAX_REST_TIMERS_PER_USER + 1))) {
+    clearTimeout(restTimers.get(old)); restTimers.delete(old);
+  }
   restTimers.set(k, setTimeout(() => {
     restTimers.delete(k);
     sendPush(userId, restTimerPush(lang), deviceId);
@@ -509,25 +554,56 @@ function nudgeTick(user, S, now) {
   saveDb();
   sendPush(user.id, nudgePush(S.lang, toneOf(S.reminder), routine, now.date));
 }
+// What the tick needs to know before it reads a whole state: the reminder settings and whether
+// the Coach was agreed to, kept per user against the state file's mtime and size. The state cache
+// above holds at most STATE_CACHE_MAX documents, and the tick walks every subscribed user in the
+// same order, so past that many it missed on every lookup and parsed every state every 10 s: a
+// handful of accounts with multi-megabyte states stalled the instance for everyone. A summary is
+// a few bytes, so there is one for every user, and a full read happens only while one of that
+// user's windows is open and something could still be sent.
+const stateSummaries = new Map(); // uid -> { mtimeMs, size, rem, consent, settled }
+function stateSummary(uid) {
+  let st;
+  try { st = fs.statSync(stateFile(uid)); } catch { stateSummaries.delete(uid); return null; }
+  const had = stateSummaries.get(uid);
+  if (had && had.mtimeMs === st.mtimeMs && had.size === st.size) return had;
+  const S = readStateCached(uid);
+  const r = S?.reminder;
+  const sum = {
+    mtimeMs: st.mtimeMs, size: st.size,
+    rem: r && typeof r === 'object' ? { on: !!r.on, tz: r.tz, time: r.time, nudge: !!r.nudge } : { on: false },
+    consent: !!S?.coach?.consent?.agreedAt,
+    settled: '',   // a local date the reminder was found to owe nothing on, for this file
+  };
+  stateSummaries.set(uid, sum);
+  return sum;
+}
 setInterval(() => {
   for (const user of db.users) {
+    if (user.disabled) continue;            // locked out everywhere, reminders included
     if (!db.subs.some(s => s.userId === user.id)) continue;
     // One user's state file is one user's problem: a shape this tick cannot read is logged and
     // skipped, not allowed to take the process — and everyone else's reminders — down with it.
     // PUT /api/data refuses the obvious shapes, but a file already on disk answers to nobody.
     try {
+      const sum = stateSummary(user.id);
+      if (!sum?.rem.on) continue;
+      const now = userNow(sum.rem.tz || 'UTC');
+      if (!now) continue;
+      const late = minutesLate(sum.rem.time, now);
+      const reminderOpen = late >= 0 && late <= REMINDER_WINDOW_MIN && user.lastReminder !== now.date && sum.settled !== now.date;
+      const nudgeOpen = sum.rem.nudge && user.lastNudge !== now.date && nudgeWindowOpen(sum.rem.time, now.hhmm);
+      if (!reminderOpen && !nudgeOpen) continue;
       const S = readStateCached(user.id);
       if (!S?.reminder?.on) continue;
-      const now = userNow(S.reminder.tz || 'UTC');
-      if (!now) continue;
-      nudgeTick(user, S, now);
-      const late = minutesLate(S.reminder.time, now);
-      if (!(late >= 0 && late <= REMINDER_WINDOW_MIN)) continue;
-      if (user.lastReminder === now.date) continue;
-      if ((S.workouts || []).some(w => w?.d === now.date)) continue;
-      if (excusedOn(S, now.date)) continue; // noted as sick, away, … (nudge.js excusedOn)
+      if (nudgeOpen) nudgeTick(user, S, now);
+      if (!reminderOpen) continue;
+      // Nothing below depends on anything but the file, so an answer of "nothing owed today"
+      // holds until the file changes (which drops the summary) or the date does.
+      if ((S.workouts || []).some(w => w?.d === now.date)) { sum.settled = now.date; continue; }
+      if (excusedOn(S, now.date)) { sum.settled = now.date; continue; } // noted as sick, away, … (nudge.js excusedOn)
       const rid = effectiveRoutineId(S, now.date);
-      if (!rid) continue; // rest day — nothing planned
+      if (!rid) { sum.settled = now.date; continue; } // rest day — nothing planned
       const routine = (S.routines || []).find(r => r?.id === rid);
       console.log('reminder firing', user.id, rid);
       user.lastReminder = now.date;
@@ -562,9 +638,14 @@ function verifySig(token) {
 // signing out the whole instance. Cookies minted before `sv` existed have no third field and are
 // read as version 0, matching a user who has never bumped — they stay valid until they expire.
 const sessionVersion = user => user.sv || 0;
-function makeSession(user) {
+// A fourth field says what the token was made for: `c` a browser's cookie, `b` a paired phone's
+// bearer. Both verify the same way and either works in either place, but only a phone's token is
+// renewed (GET /api/me): a cookie value replayed as a bearer used to be traded for a fresh 90-day
+// token whenever it was past half its life, so a stolen cookie never had to expire. Tokens from
+// before the field have none and are renewed as before; the cookies among them expire on their own.
+function makeSession(user, kind = 'b') {
   const exp = Date.now() + SESSION_DAYS * 86400000;
-  return sign(user.id + ':' + exp + ':' + sessionVersion(user));
+  return sign(user.id + ':' + exp + ':' + sessionVersion(user) + ':' + kind);
 }
 // With the __Host- prefix the *browser* guarantees the cookie is host-only (no Domain attribute
 // is even allowed) — which is what stops a sibling subdomain, e.g. anything-else.example.com
@@ -607,13 +688,19 @@ function sessionOf(req) {
   const auth = req.headers.authorization || '';
   const cookie = cookieToken(req);
   const tok = cookie || (auth.startsWith('Bearer ') ? auth.slice(7).trim() : null);
+  const s = sessionUser(tok);
+  return s && { ...s, bearer: !cookie };
+}
+// The session a token (a cookie value or a bearer) stands for — { user, exp } — or null. Split
+// out of sessionOf so the origin check can ask whether a bearer authenticates on its own.
+function sessionUser(tok) {
   if (!tok) return null;
   // An MCP token is not a session and never stands in for one (mcp-access.js). It would fail the
   // signature check below anyway; refused by name so that stays true whatever the format becomes.
   if (tok.startsWith(MCP_TOKEN_PREFIX) || tok.startsWith(OAUTH_TOKEN_PREFIX)) return null;
   const payload = verifySig(tok);
   if (!payload) return null;
-  const [uid, exp, ver] = payload.split(':');
+  const [uid, exp, ver, kind] = payload.split(':');
   if (!uid || +exp < Date.now()) return null;
   const user = db.users.find(u => u.id === uid) || null;
   if (!user) return null;
@@ -622,7 +709,7 @@ function sessionOf(req) {
   // payload (it still had to pass the HMAC, so this is belt-and-braces) and is refused outright.
   const claimed = ver === undefined ? 0 : Number(ver);
   if (!Number.isInteger(claimed) || claimed !== sessionVersion(user)) return null;
-  return { user, exp: +exp, bearer: !cookie };
+  return { user, exp: +exp, kind: kind || null };
 }
 function readSession(req) {
   return sessionOf(req)?.user || null;
@@ -638,7 +725,7 @@ function requireAdmin(req, res) {
 }
 const expireCookie = name => `${name}=; Path=/; Max-Age=0; HttpOnly;${SECURE} SameSite=Lax`;
 function sessionCookie(user) {
-  const fresh = `${COOKIE}=${makeSession(user)}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly;${SECURE} SameSite=Lax`;
+  const fresh = `${COOKIE}=${makeSession(user, 'c')}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly;${SECURE} SameSite=Lax`;
   // Signing in also retires any pre-upgrade cookie, so nobody is left carrying an unprefixed one
   // (or a shadowing copy of it) alongside the new session.
   return COOKIE === LEGACY_COOKIE ? [fresh] : [fresh, expireCookie(LEGACY_COOKIE)];
@@ -655,32 +742,64 @@ const clearCookie = COOKIE === LEGACY_COOKIE
 // Content-Type claims, so a hostile page could reach the state-changing routes with a form-style
 // POST that needs no CORS preflight at all.
 //
-// So a state-changing request that came from a browser has to come from ORIGIN. The exemptions
-// below are not holes: each of those routes carries its own credential in the body (a WebAuthn
-// challenge id, a one-shot pairing code), none of them acts on the caller's existing session, and
-// they have to keep working from the mobile WebView, whose origin is never ORIGIN.
+// So a state-changing request that came from a browser has to come from ORIGIN, the passkey
+// routes included. They used to be exempt on the grounds that the challenge id is a credential,
+// but it is the attacker's credential: /api/login/options hands a `cid` to anyone, the challenge
+// is bound to nothing else, and the attacker's own passkey can sign it — so a form on another site
+// could complete their sign-in in the victim's browser, and the Set-Cookie on that response
+// replaced the victim's session with one for the attacker's account. No legitimate caller is
+// cross-origin: a passkey only verifies against ORIGIN, so the mobile WebView could never use
+// these routes anyway.
 //
-// The password routes are deliberately NOT here. A name and a password are a credential too,
+// pair/redeem is the one exemption, and it has to be: the paired app calls it from its own
+// WebView origin, which is never ORIGIN. It is not a hole. The pairing code in the body is the
+// credential, and the answer sets no cookie: the token comes back in the body, which a
+// cross-site form or a no-cors fetch cannot read.
+//
+// The password routes are deliberately NOT exempt. A name and a password are a credential too,
 // but one a hostile page can know — its own — so an exempt POST /api/login/password would let
 // any site sign a visitor into the attacker's account and collect what they log (login CSRF).
 const CSRF_EXEMPT = new Set([
-  'POST /api/register/options', 'POST /api/register/verify',
-  'POST /api/login/options', 'POST /api/login/verify',
   'POST /api/pair/redeem',
   // The hosted MCP endpoint and the OAuth endpoints its clients call server to server. None of
   // them reads the session cookie, so there is no ambient authority for a page to borrow: each
   // carries its own credential (a bearer token, a client's PKCE verifier or secret, or nothing,
   // for a registration). /api/mcp does its own Origin check against DNS rebinding. The consent
   // form (POST /api/oauth/authorize) acts on the session and is deliberately not here.
-  'POST /api/mcp', 'POST /api/oauth/token', 'POST /api/oauth/register', 'POST /api/oauth/revoke'
+  'POST /api/mcp', 'POST /api/oauth/token', 'POST /api/oauth/register', 'POST /api/oauth/revoke',
+]);
+// The routes that answer to the credential in the body and never to a Bearer. No Bearer is the
+// credential that acts there, so none buys the shortcut below: any valid token would do, the
+// attacker's own included.
+const PASSKEY_ROUTES = new Set([
+  'POST /api/register/options', 'POST /api/register/verify',
+  'POST /api/login/options', 'POST /api/login/verify'
+]);
+// The other ways in are the same kind of route: the name and password, the reset code or the
+// device code in the body is the credential, never a Bearer.
+const SIGN_IN_ROUTES = new Set([
+  'POST /api/login/password', 'POST /api/register/password', 'POST /api/login/password-reset',
+  'POST /api/device-link/options', 'POST /api/device-link/verify'
 ]);
 const originsMatch = (a, b) => a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
+// Whether a Bearer is the credential that would act on this request: it verifies, and no session
+// cookie sits beside it (readSession takes the cookie first, so a cookie is what would act then).
+function bearerAuthenticates(req) {
+  const auth = req.headers.authorization || '';
+  if (!auth.startsWith('Bearer ') || cookieToken(req)) return false;
+  return !!sessionUser(auth.slice(7).trim());
+}
 function csrfOk(req, key) {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return true;
   if (CSRF_EXEMPT.has(key)) return true;
   // The paired mobile app authenticates with a Bearer token. A browser never attaches one on its
   // own, so there is no ambient authority for a hostile page to borrow and no origin to check.
-  if ((req.headers.authorization || '').startsWith('Bearer ')) return true;
+  // That holds only when the Bearer is the credential that acts, so it has to authenticate by
+  // itself: a header that merely starts with "Bearer " used to switch the check off, and then
+  // readSession acted on the session cookie next to it — safe only because the CORS preflight
+  // never allows credentials. And it buys nothing on the sign-in routes, where the body carries
+  // the credential and a Bearer never is.
+  if (!PASSKEY_ROUTES.has(key) && !SIGN_IN_ROUTES.has(key) && bearerAuthenticates(req)) return true;
   // Sec-Fetch-Site is set by the browser itself and no page can forge it, and it states exactly
   // the property wanted here — more precisely than comparing origins can. 'same-origin' is the
   // app talking to its own backend; a hostile page reports 'cross-site'; a sibling subdomain,
@@ -777,6 +896,14 @@ function readBody(req) {
     req.on('end', () => {
       if (over) return;
       if (!chunks.length) return resolve({});
+      // A body has to say it is JSON. The three types a form can send, and the ones a no-cors
+      // fetch can send, are exactly the ones that need no CORS preflight; parsing them anyway
+      // let another site's form reach any route that reads a body, and on the passkey sign-in
+      // that meant setting the victim's session to an account the attacker holds. Every client
+      // in the tree already sends application/json (lib/api.js, sw.js).
+      if (!/^application\/json\s*(;|$)/i.test(req.headers['content-type'] || '')) {
+        return reject(new HttpError(415, 'content-type must be application/json'));
+      }
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
       catch { return reject(new HttpError(400, 'invalid json')); }
@@ -979,6 +1106,8 @@ const THROTTLED = {
   // budget: the password that may prove them counts its own failures (passwordAttempt).
   'POST /api/device-link/options': 'link', 'POST /api/device-link/verify': 'link',
   'POST /api/account/passkeys/options': null, 'POST /api/account/device-link': null,
+  // Pairing a phone: the same, for the password that may prove it.
+  'POST /api/pair/create': null,
   'DELETE /api/account/passkeys': null,
   // Making and revoking an MCP token: each is a durable db.json write and an audit row.
   'POST /api/account/mcp-tokens': null, 'DELETE /api/account/mcp-tokens': null
@@ -1320,7 +1449,13 @@ const passwordRoutes = {
     const problem = passwordProblem(body.password, name);
     if (problem) return policyError(res, problem);
     const taken = () => json(res, 409, { error: 'another profile already signs in with this name', code: 'name-taken' });
-    if (nameTaken(name)) return taken();
+    // A name is also matched against every sign-in e-mail (nameTaken), so a name that is an
+    // address is the e-mail question asked through the name field: it waits for the hash below
+    // and counts against the address like the e-mail field does, or it would answer "in use" for
+    // any address at once and without limit.
+    const nameIsAddress = name.includes('@');
+    if (nameIsAddress && addressPaused(req, res, 'email')) return;
+    if (!nameIsAddress && nameTaken(name)) return taken();
     // An e-mail is optional here. One already in use counts against the address, the way it
     // does in Settings: this route needs no session, so it is the cheaper place to ask. Whether
     // it is in use is only answered after the hash and the invite check that follows it, so on
@@ -1343,7 +1478,11 @@ const passwordRoutes = {
         return json(res, 403, { error: 'invite code is no longer valid, ask for a new one', code: 'invite' });
       }
     }
-    if (nameTaken(name)) return taken();
+    if (nameTaken(name)) {
+      // No name in the row: it is an address, and the log keeps none (maskEmail is for owners).
+      if (nameIsAddress) { strikeAddress(req, 'email'); audit(req, 'auth.register.fail', { ok: false, msg: 'email-taken' }); }
+      return taken();
+    }
     // No await from here to the push: nothing can take the address between this check and it.
     if (email && emailTaken(email)) return emailRefused();
     const created = new Date().toISOString();
@@ -1801,6 +1940,17 @@ setInterval(() => {
   MEDIA_BURST.sweep(); MEDIA_SWEEPS.sweep();
   for (const [k, until] of mediaThrottleNoted) if (until < Date.now()) mediaThrottleNoted.delete(k);
 }, 600000).unref();
+// Every one of these makes the server send pushes, one per subscription of the account. A
+// person taps "send test" a few times and starts a rest after each set; a loop does neither.
+const PUSH_TESTS = createWindow({ max: 10, windowMs: 600000 });
+const REST_TIMER_SETS = createWindow({ max: 60, windowMs: 60000 });
+setInterval(() => { PUSH_TESTS.sweep(); REST_TIMER_SETS.sweep(); }, 600000).unref();
+function pushThrottled(res, win, user) {
+  const wait = win.take(user.id);
+  if (!wait) return false;
+  json(res, 429, { error: 'too many requests, try again later', code: 'locked', retryAfter: wait }, { 'Retry-After': String(wait) });
+  return true;
+}
 function mediaThrottle(req, user, win) {
   const wait = win.take(user.id);
   if (!wait) return;
@@ -2223,7 +2373,7 @@ const routes = {
     const s = sessionOf(req);
     if (!s) return json(res, 401, { error: 'not signed in' });
     const { user } = s;
-    const renew = s.bearer && s.exp - Date.now() < SESSION_DAYS * 86400000 / 2;
+    const renew = s.bearer && s.kind !== 'c' && s.exp - Date.now() < SESSION_DAYS * 86400000 / 2;
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) }, ...(renew ? { token: makeSession(user) } : {}) });
   },
 
@@ -2296,7 +2446,7 @@ const routes = {
       id: credential.id, userId: user.id,
       publicKey: Buffer.from(credential.publicKey).toString('base64url'),
       counter: credential.counter || 0,
-      transports: body.credential?.response?.transports || [],
+      transports: transportsOf(body.credential?.response?.transports),
       // What Settings → Passkeys shows (#95); a passkey from before then has neither.
       created: user.created, lastUsed: user.created
     });
@@ -2395,16 +2545,26 @@ const routes = {
   },
 
   // Mobile app pairing: called from an already signed-in browser tab (Settings → "Pair the
-  // mobile app") to mint a short code the phone can redeem below.
+  // mobile app") to mint a short code the phone can redeem below. The code turns into a phone's
+  // token, which /api/me renews for as long as it is used and which gets the device pass on the
+  // account's own delete, so it asks the proof a device link asks (proveOwner): a session alone
+  // may be a cookie someone walked off with, and minting a phone token is how that cookie would
+  // stop having to expire.
   'POST /api/pair/create': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    const proof = await proveOwner(req, res, user, body, 'pair');
+    if (!proof) return;
+    // Awaited: a sign-out everywhere, a disable or an admin reset may have ended this session.
+    if (readSession(req) !== user) return json(res, 401, { error: 'not signed in' });
+    if (proof === 'passkey') saveDb();   // the confirming passkey's counter and last use
     // One live code per profile: the newest is the one on screen. Keeping every code minted
     // let one session grow this Map without limit for five minutes at a time.
     for (const [k, v] of pairings) if (v.uid === user.id) pairings.delete(k);
     const code = makePairCode();
     pairings.set(code, { uid: user.id, exp: Date.now() + 5 * 60000 });
-    audit(req, 'auth.pair.create', { user });
+    audit(req, 'auth.pair.create', { user, msg: proof });
     json(res, 200, { code });
   },
 
@@ -2707,7 +2867,7 @@ const routes = {
     const body = await readBody(req);
     const sub = body.subscription;
     if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) return json(res, 400, { error: 'invalid subscription' });
-    const bad = pushEndpointError(sub.endpoint);
+    const bad = pushEndpointError(sub.endpoint) || pushKeyError(sub.keys.p256dh) || pushKeyError(sub.keys.auth);
     if (bad) return json(res, 400, { error: bad });
     // Only the two keys the push protocol needs are kept: `sub` is caller-supplied and would
     // otherwise put arbitrary fields into db.json, which every admin route reads back out.
@@ -2716,6 +2876,20 @@ const routes = {
     // An upsert: the client re-sends its subscription on every boot (lib/push.js) so a row this
     // instance lost — pruned after a dead send, a rebuilt db.json — comes back without anyone
     // touching Settings. The same endpoint sent again keeps its original `created`.
+    //
+    // A row filed under another account moves only for a caller that sends its keys. The endpoint
+    // alone is a URL, and whoever learned it could otherwise re-file it as theirs: the owner's
+    // device stops getting their alerts, and the caller's are sent to it instead, encrypted to
+    // keys of the caller's choosing. The keys are what the browser holds (the auth secret never
+    // leaves it and this server), and the legitimate move carries them: a shared browser signed
+    // into a second account re-registers the same subscription on boot, and the row should
+    // follow the person now using it. Refusing that, or keeping both rows, would leave the first
+    // account's reminders arriving on a device somebody else is using.
+    const keyDigest = k => crypto.createHash('sha256').update(`${k?.p256dh}\n${k?.auth}`).digest();
+    const sameKeys = k => crypto.timingSafeEqual(keyDigest(k), keyDigest(keys));
+    if (db.subs.some(s => s.endpoint === sub.endpoint && s.userId !== user.id && !sameKeys(s.keys))) {
+      return json(res, 409, { error: 'this subscription belongs to another account' });
+    }
     const prev = db.subs.find(s => s.endpoint === sub.endpoint);
     // No usable id in the request (none, or not a short token) leaves the id the row already
     // has: the request is a re-send, not a request to forget which device the row is.
@@ -2761,6 +2935,7 @@ const routes = {
   'POST /api/push/test': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    if (pushThrottled(res, PUSH_TESTS, user)) return;
     await sendPush(user.id, testPush(readStateCached(user.id)?.lang));
     json(res, 200, { ok: true });
   },
@@ -2768,6 +2943,7 @@ const routes = {
   'POST /api/push/rest-timer': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    if (pushThrottled(res, REST_TIMER_SETS, user)) return;
     const body = await readBody(req);
     // Validated before it is clamped: the clamp used to run first, which turned a missing or
     // unusable value into a 1-second push and made the 400 below unreachable. `Number()` only
@@ -3011,7 +3187,7 @@ coachJobs.setProposalHook((uid, pending) => {
     tag: 'coach-proposal', url: '#/coach'
   });
 });
-startCadence({ users: () => db.users, userNow });
+startCadence({ users: () => db.users.filter(u => !u.disabled), userNow, skip: uid => !stateSummary(uid)?.consent });
 startWarmup();
 
 // node's requestTimeout is one number for every route, and it is half an hour (below) for the
@@ -3073,6 +3249,12 @@ const server = http.createServer(async (req, res) => {
   let url;
   try { url = new URL(req.url, 'http://x'); }
   catch { return json(res, 400, { error: 'bad request' }); }
+  // The path routed on has to be the path that was sent. The URL parser turns a backslash into a
+  // slash and resolves dot segments; nginx does neither, so `/api/media/..\data` matched nginx's
+  // media block (its body size and buffering) and reached `/api/data` here. Any rule the proxy
+  // keys on the path could be stepped around the same way. No client sends such a path.
+  const sent = req.url.split('?')[0];
+  if (sent.startsWith('/') && sent !== url.pathname) return json(res, 400, { error: 'bad request' });
   let key = req.method + ' ' + url.pathname;
   // The one route with a parameter in its path. Mapped onto its template key here so the table
   // above stays a plain lookup, and so csrfOk and the catch-all see one name for every file.
@@ -3081,6 +3263,13 @@ const server = http.createServer(async (req, res) => {
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
   if (!csrfOk(req, key)) {
+    // A Bearer that does not verify and no cookie beside it: nothing ambient is in play, the caller
+    // is simply not signed in. That is the paired app once its token is revoked or expired, and it
+    // needs the 401 to know it (lib/api.js callers and the boot path act on the status), not a 403
+    // and a log line that blames ORIGIN. Still refused before any handler runs.
+    if ((req.headers.authorization || '').startsWith('Bearer ') && !cookieToken(req) && !bearerAuthenticates(req)) {
+      return json(res, 401, { error: 'not signed in' });
+    }
     // Logged, not audited: this is reachable without a session, and an audit entry per attempt
     // would let anyone fill the log. An operator who has genuinely mis-set ORIGIN needs to see
     // the mismatch, and the container log is where they will look.
