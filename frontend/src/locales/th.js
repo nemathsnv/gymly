@@ -2435,4 +2435,8 @@ export default {
   "{0} measurement check-in imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
   "{0} measurement check-ins imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'แอปนี้ยืนยันด้วยพาสคีย์ไม่ได้ สร้างรหัสในเบราว์เซอร์ที่ลงชื่อเข้าใช้โปรไฟล์นี้ หรือเพิ่มรหัสผ่านที่นั่นก่อน',
+  // Privacy Policy and Terms of Service links (components/LegalLinks.jsx)
+  'Legal': 'ข้อมูลทางกฎหมาย',
+  'Privacy Policy': 'นโยบายความเป็นส่วนตัว',
+  'Terms of Service': 'ข้อกำหนดในการให้บริการ',
 }
