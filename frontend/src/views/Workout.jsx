@@ -43,7 +43,7 @@ import { sessionNoProg, setSessionNoProg, setEntryNoProg, joinSessionNoProg } fr
 import { glyphOf } from '../lib/glyphs.js'
 import { markAllSetsDone, sessionHistory } from '../lib/backfill.js'
 import { bestSetFor } from '../lib/exercise-history.js'
-import { isWarmupRow, isFailureSet, toggleFailure, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps, isSideSet, makeSideSet, setSideField, toggleSide, addSideDrop, removeSideDropAt, setSideDropAt, addSideCluster, removeSideClusterAt, setSideClusterAt, WEIGHT_ORIGIN_MANUAL } from '../lib/workout-model.js'
+import { isWarmupRow, isFailureSet, toggleFailure, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps, isSideSet, makeSideSet, setSideField, toggleSide, addSideDrop, removeSideDropAt, setSideDropAt, addSideCluster, removeSideClusterAt, setSideClusterAt, WEIGHT_ORIGIN_MANUAL, setNumberAt } from '../lib/workout-model.js'
 import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, canMoveActiveWorkoutEntry, moveActiveWorkoutEntry } from '../lib/active-workout-order.js'
 import { nextOpenSet, workoutKeyAction } from '../lib/workout-keys.js'
 import { MUSCLE_NAME } from '../lib/muscles.js'
@@ -824,14 +824,8 @@ const shiftRowRefs = (idx, from, by) => {
   const rest = useUI.getState().timer
   if (rest && rest.forIdx === idx && rest.forSet != null && rest.forSet >= from) setUI({ timer: { ...rest, forSet: rest.forSet + by } })
 }
-/** The number a set row shows: counted per phase (warm-ups and work sets each from 1), and a
- *  timed per-side L/R pair as one set. */
-export function setNumberAt(sets, i) {
-  const s = sets[i]
-  const warm = isWarmupRow(s)
-  const phaseNum = sets.slice(0, i + 1).filter(x => isWarmupRow(x) === warm).length
-  return s?.side ? Math.ceil(phaseNum / 2) : phaseNum
-}
+// The number a set row shows lives in lib/workout-model.js now (spoken cues read it too).
+export { setNumberAt }
 /** Removes set `i` of active entry `idx`, with an Undo on the toast. In a live session one set
  *  always stays (removeRowAt); the editor of a saved workout may take them all. */
 export function deleteActiveSet(idx, i, { editing = false } = {}) {

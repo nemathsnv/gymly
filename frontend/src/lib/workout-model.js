@@ -22,6 +22,15 @@ export function isWarmupRow(set) {
   return phaseForSet(set) === 'warmup'
 }
 
+/** The number a set row shows: counted per phase (warm-ups and work sets each from 1), and a
+ *  timed per-side L/R pair as one set. The workout screen and the spoken cues both read it. */
+export function setNumberAt(sets, i) {
+  const s = sets[i]
+  const warm = isWarmupRow(s)
+  const phaseNum = sets.slice(0, i + 1).filter(x => isWarmupRow(x) === warm).length
+  return s?.side ? Math.ceil(phaseNum / 2) : phaseNum
+}
+
 // A row's shape beyond warm-up/work: 'straight' (default), 'dropset' (a main set followed by
 // weight drops logged with no rest) or 'restpause' (an activation set followed by short-rest
 // bursts). Both extras ride on the row itself — same card, not a new set in the array — the

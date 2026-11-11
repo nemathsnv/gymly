@@ -631,9 +631,9 @@ public final class RestAlert {
                 .build();
     }
 
-    /** Asks other apps to turn down for the tone. Returns what unduck needs, or null. */
+    /** Asks other apps to turn down for the tone (and a spoken cue, SpeechCue). Returns what unduck needs, or null. */
     @SuppressWarnings("deprecation")
-    private static Object duck(AudioManager am, AudioAttributes attrs) {
+    static Object duck(AudioManager am, AudioAttributes attrs) {
         if (am == null) return null;
         try {
             if (Build.VERSION.SDK_INT >= 26) {
@@ -653,7 +653,7 @@ public final class RestAlert {
     }
 
     @SuppressWarnings("deprecation")
-    private static void unduck(AudioManager am, Object focus) {
+    static void unduck(AudioManager am, Object focus) {
         if (am == null || focus == null) return;
         try {
             if (Build.VERSION.SDK_INT >= 26 && focus instanceof AudioFocusRequest) am.abandonAudioFocusRequest((AudioFocusRequest) focus);
