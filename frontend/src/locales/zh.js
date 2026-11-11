@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "已导入 {0} 条身体测量记录",
   "{0} measurement check-ins imported": "已导入 {0} 条身体测量记录",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此应用无法用通行密钥确认。请在已登录此档案的浏览器中生成代码，或先在那里设置密码。',
+  'Weight stack': '配重片',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': '这台器械真实有的重量，奇怪的档位也算。进阶、减载、热身和 + − 按钮都只落在这些重量上。',
+  'No list yet, so this exercise steps by its increment as usual.': '还没有列表，所以这个动作照常按增量递增。',
+  'First ({0})': '起始 ({0})',
+  'How many': '数量',
+  'Fill in': '填入',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': '已经到底了：{0} {1} 是最重的一档，所以重量不变。',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ 和 − 按这台器械的配重片逐个切换。清空配重片即可改用步长。',
 }

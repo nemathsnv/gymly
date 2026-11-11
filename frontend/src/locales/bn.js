@@ -2503,4 +2503,12 @@ export default {
   "{0} measurement check-in imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
   "{0} measurement check-ins imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'এই অ্যাপ পাসকি দিয়ে নিশ্চিত করতে পারে না। এই প্রোফাইলে সাইন ইন করা ব্রাউজারে কোডটি বানান, অথবা আগে সেখানে একটি পাসওয়ার্ড যোগ করুন।',
+  'Weight stack': 'ওজনের স্ট্যাক',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'এই মেশিনে আসলে যে ওজনগুলো আছে, অদ্ভুত ধাপসহ। প্রগ্রেশন, ডিলোড, ওয়ার্ম-আপ আর + ও − বোতাম কেবল এগুলোতেই পড়ে।',
+  'No list yet, so this exercise steps by its increment as usual.': 'এখনও তালিকা নেই, তাই এই ব্যায়াম আগের মতো নিজের ধাপে বাড়ে।',
+  'First ({0})': 'প্রথম ({0})',
+  'How many': 'কতগুলো',
+  'Fill in': 'পূরণ করুন',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'এটাই পুরো স্ট্যাক: {0} {1} সবচেয়ে ভারী, তাই ওজন একই থাকে।',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ আর − এই মেশিনের ওজনের স্ট্যাকের মধ্যে চলে। তার বদলে একটি ধাপ ব্যবহার করতে স্ট্যাকটি মুছে দিন।',
 }

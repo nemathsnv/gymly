@@ -190,6 +190,9 @@ export const DEF = {
   // and never converted; `pulley` a note on the cable's rigging that changes no number. Stamped
   // like S.loadKind. Absent = the buttons step by the dumbbells you own or the plan's increment.
   exEquip: {},
+  // A machine's own weight stack, keyed by exercise id: { unit, weights: [5, 11.3, 18.1, …], _ts }
+  // (lib/dumbbells.js, issue #688). Absent or empty = the increment decides, as before.
+  stackWeights: {},
   // Gym check-in cards (see views/CheckIn.jsx). Each is a membership
   // code shown as a QR/barcode at the gym's turnstile — added by typing it, importing a photo
   // of the card, or scanning it. We only ever keep the code's VALUE, never a photo: the image

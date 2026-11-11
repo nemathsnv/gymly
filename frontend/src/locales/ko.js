@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "측정 기록 {0}개를 가져왔습니다",
   "{0} measurement check-ins imported": "측정 기록 {0}개를 가져왔습니다",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '이 앱에서는 패스키로 확인할 수 없어요. 이 프로필로 로그인한 브라우저에서 코드를 만들거나, 먼저 그곳에서 비밀번호를 추가하세요.',
+  'Weight stack': '웨이트 스택',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': '이 머신에 실제로 있는 무게예요. 들쭉날쭉한 간격도 그대로요. 진행, 디로드, 워밍업, + 와 − 버튼은 이 무게에만 맞춰져요.',
+  'No list yet, so this exercise steps by its increment as usual.': '아직 목록이 없어서 이 운동은 평소처럼 증가 단위로 올라가요.',
+  'First ({0})': '첫 무게 ({0})',
+  'How many': '개수',
+  'Fill in': '채우기',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': '스택 끝이에요: {0} {1}이(가) 가장 무거우니 무게를 유지해요.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+와 −는 이 기구의 웨이트 스택을 따라 이동합니다. 대신 단위를 쓰려면 스택을 비우세요.',
 }

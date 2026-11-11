@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "Zaimportowano {0} pomiar",
   "{0} measurement check-ins imported": {"one":"Zaimportowano {0} pomiar","few":"Zaimportowano {0} pomiary","many":"Zaimportowano {0} pomiarów","other":"Zaimportowano {0} pomiaru"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ta aplikacja nie może potwierdzić kluczem dostępu. Utwórz kod w przeglądarce zalogowanej na ten profil albo najpierw ustaw tam hasło.',
+  'Weight stack': 'Stos obciążenia',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Ciężary, które ta maszyna naprawdę ma, z dziwnymi skokami włącznie. Progresja, deloady, rozgrzewki i przyciski + i − trafiają tylko na nie.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Jeszcze bez listy, więc to ćwiczenie rośnie o swój krok, jak zwykle.',
+  'First ({0})': 'Pierwszy ({0})',
+  'How many': 'Ile',
+  'Fill in': 'Wypełnij',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'To cały stos: {0} {1} to najwięcej, więc ciężar zostaje.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ i − przechodzą po stosie obciążenia tej maszyny. Wyczyść stos, aby zamiast tego używać kroku.',
 }

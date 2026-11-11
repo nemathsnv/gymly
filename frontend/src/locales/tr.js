@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "{0} ölçüm kaydı içe aktarıldı",
   "{0} measurement check-ins imported": "{0} ölçüm kaydı içe aktarıldı",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Bu uygulama geçiş anahtarıyla onaylayamaz. Kodu bu profille oturum açmış bir tarayıcıda oluştur ya da önce orada bir parola ekle.',
+  'Weight stack': 'Ağırlık bloğu',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Bu makinede gerçekten olan ağırlıklar, tuhaf adımlar dahil. İlerleme, deload, ısınma ve + ile − düğmeleri yalnızca bunlara düşer.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Henüz liste yok, bu yüzden bu egzersiz her zamanki gibi kendi artışıyla ilerler.',
+  'First ({0})': 'İlk ({0})',
+  'How many': 'Kaç tane',
+  'Fill in': 'Doldur',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Bloğun tamamı bu: {0} {1} en ağırı, o yüzden ağırlık sabit kalır.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ ve − bu makinenin ağırlık bloğu arasında gezinir. Bunun yerine bir adım kullanmak için bloğu temizle.',
 }

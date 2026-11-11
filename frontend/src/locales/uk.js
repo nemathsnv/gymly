@@ -2421,4 +2421,12 @@ export default {
   "{0} measurement check-in imported": "Імпортовано {0} вимір",
   "{0} measurement check-ins imported": {"one":"Імпортовано {0} вимір","few":"Імпортовано {0} виміри","many":"Імпортовано {0} вимірів","other":"Імпортовано {0} виміру"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Цей застосунок не може підтвердити ключем доступу. Створіть код у браузері, де ви ввійшли в цей профіль, або спершу задайте там пароль.',
+  'Weight stack': 'Стек вантажів',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Ваги, які на цьому тренажері справді є, з усіма дивними кроками. Прогресія, розвантаження, розминка й кнопки + і − потрапляють лише на них.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Списку ще немає, тож вправа зростає на свій крок, як завжди.',
+  'First ({0})': 'Перший ({0})',
+  'How many': 'Скільки',
+  'Fill in': 'Заповнити',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Це весь стек: {0} {1} і є максимум, тож вага лишається.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ і − переходять стеком вантажів цього тренажера. Очистьте стек, щоб використовувати крок замість нього.',
 }

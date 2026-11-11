@@ -2427,4 +2427,12 @@ export default {
   "{0} measurement check-in imported": "{0} méretfelvétel importálva",
   "{0} measurement check-ins imported": "{0} méretfelvétel importálva",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ez az app nem tud jelszókulccsal megerősíteni. Készítsd el a kódot egy böngészőben, ahol ebbe a profilba vagy bejelentkezve, vagy előbb adj meg ott egy jelszót.',
+  'Weight stack': 'Súlyoszlop',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'A súlyok, amik ezen a gépen tényleg vannak, a furcsa lépésekkel együtt. A progresszió, a deloadok, a bemelegítések és a + és − gombok csak ezekre esnek.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Még nincs lista, így ez a gyakorlat a szokásos lépésével halad.',
+  'First ({0})': 'Első ({0})',
+  'How many': 'Hány darab',
+  'Fill in': 'Kitöltés',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Ez az egész oszlop: {0} {1} a legtöbb, így a súly marad.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': 'A + és a − ennek a gépnek a súlyoszlopán lépked. Ürítsd ki az oszlopot, ha inkább lépést használnál.',
 }

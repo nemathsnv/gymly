@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Machines with odd weight steps** (ported from openGym #688). A machine or cable exercise (and
+  one of your own) has a Weight stack under Plate loading: type in the weights its pin really picks
+  (5, 11.3, 18.1, the LifeFitness special) or fill an even stack and fix the odd ones. Progression,
+  deloads, warm-ups, drops and the + and − buttons then land only on those, and at the top of the
+  stack the weight holds and says so. A stack wins over the exercise's own Weight step, whose
+  editor says so; clear the stack and the step you picked is back. Without a stack nothing changes.
+  Merging an exercise into another takes its stack along.
 - **Weigh in as often as you like, with the time** (ported from openGym #859). A day can now hold
   several weigh-ins, each with its time. The weigh-in sheet has a date and a time field (now for
   today; for an earlier day, that day's first time or 08:00), so a weigh-in can also be logged for

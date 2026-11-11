@@ -2428,4 +2428,12 @@ export default {
   "{0} measurement check-in imported": "Импортирован {0} замер",
   "{0} measurement check-ins imported": {"one":"Импортирован {0} замер","few":"Импортировано {0} замера","many":"Импортировано {0} замеров","other":"Импортировано {0} замера"},
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Это приложение не может подтвердить ключом доступа. Создайте код в браузере, где вы вошли в этот профиль, или сначала задайте там пароль.',
+  'Weight stack': 'Стек грузов',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Веса, которые на этом тренажёре реально есть, со всеми странными шагами. Прогрессия, разгрузки, разминка и кнопки + и − попадают только на них.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Списка пока нет, поэтому упражнение растёт на свой шаг, как обычно.',
+  'First ({0})': 'Первый ({0})',
+  'How many': 'Сколько',
+  'Fill in': 'Заполнить',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Это весь стек: {0} {1} и есть максимум, так что вес остаётся.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ и − переходят по стеку грузов этого тренажёра. Очистите стек, чтобы использовать шаг вместо него.',
 }

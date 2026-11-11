@@ -3,7 +3,8 @@
 // into progression or a logged set.
 import { describe, expect, it } from 'vitest'
 import * as Server from '../../../api/sync-stamps.js'
-import { PULLEYS, onPlanGrid, ownStepFor, pulleyFor, stepBy, takesPulley, weightStepper, withExEquip } from './weight-step.js'
+import { PULLEYS, onPlanGrid, ownStepFor, pulleyFor, stepBy, takesPulley, weightStepper, weightStepSummary, withExEquip } from './weight-step.js'
+import { withStack } from './dumbbells.js'
 import { nextPrescription } from './progression.js'
 import { convertStateUnit } from './units.js'
 import { highestStamp, mergeStates, resetIdsOf, stampChange, STAMPED_MAPS } from './sync-merge.js'
@@ -182,6 +183,59 @@ describe('the step an exercise steps by', () => {
     expect(ownStepFor(S({ exEquip: { [ROW]: { step: { kg: '2.5' }, _ts: 1 } } }), ROW)).toBe(2.5)
     expect(ownStepFor(S({ exEquip: { [ROW]: 'junk' } }), ROW)).toBeNull()
     expect(ownStepFor(S({ exEquip: null }), ROW)).toBeNull()
+  })
+})
+
+describe('a machine\'s own weight stack (#688)', () => {
+  const STACK = [5, 11.3, 18.1, 24.9, 31.7]
+  const S = (over = {}) => base({ unit: 'kg', stackWeights: { [LEG_EXT]: { unit: 'kg', weights: STACK, _ts: 1 } }, ...over })
+
+  it('+ and − walk the stack, and hold at either end', () => {
+    const s = weightStepper(S(), { id: LEG_EXT })
+    expect(s.source).toBe('stack')
+    expect(s.move(11.3, 1)).toBe(18.1)
+    expect(s.move(18.1, -1)).toBe(11.3)
+    expect(s.move(31.7, 1)).toBe(31.7)
+    expect(s.move(5, -1)).toBe(5)
+    // an off-list weight goes to the nearest one that way
+    expect(s.move(20, 1)).toBe(24.9)
+    expect(s.move(20, -1)).toBe(18.1)
+  })
+
+  it('wins over a step of the exercise\'s own, which comes back once the stack is cleared', () => {
+    const st = S({ exEquip: withExEquip(S(), LEG_EXT, { step: 2.5 }, 1) })
+    expect(weightStepper(st, { id: LEG_EXT }).source).toBe('stack')
+    expect(weightStepper(st, { id: LEG_EXT }).move(11.3, 1)).toBe(18.1)
+    const cleared = { ...st, stackWeights: withStack(st, LEG_EXT, [], 2) }
+    expect(weightStepper(cleared, { id: LEG_EXT })).toMatchObject({ step: 2.5, source: 'exercise' })
+    expect(weightStepper(cleared, { id: LEG_EXT }).move(11.3, 1)).toBe(13.8)
+  })
+
+  it('wins over the dumbbells you own on the exercise it was set on', () => {
+    const st = base({ dumbbells: { kg: { weights: RACK, _ts: 1 } }, stackWeights: { [CURL]: { unit: 'kg', weights: [7, 9], _ts: 1 } } })
+    expect(weightStepper(st, { id: CURL }).source).toBe('stack')
+    expect(weightStepper(st, { id: CURL }).move(7, 1)).toBe(9)
+    expect(weightStepper(st, { id: LUNGE }).source).toBe('dumbbells')
+  })
+
+  it('without a stack every exercise steps exactly as before', () => {
+    const st = S()
+    // the plan's grid on another machine, untouched by the leg extension's list
+    expect(weightStepper(st, { id: CABLE_ROW })).toMatchObject({ step: 5, source: 'plan' })
+    expect(weightStepper(st, { id: CABLE_ROW }).move(20, 1)).toBe(25)
+    expect(weightStepper(base(), { id: LEG_EXT })).toMatchObject({ source: 'plan' })
+    const own = base({ exEquip: withExEquip(base(), CABLE_ROW, { step: 1.25 }, 1) })
+    expect(weightStepper(own, { id: CABLE_ROW }).move(20, 1)).toBe(21.25)
+  })
+
+  it('a bodyweight lift or an assistance machine never walks a stray list', () => {
+    const st = S()
+    expect(weightStepper(st, { id: LEG_EXT, bodyweight: true }).source).not.toBe('stack')
+    expect(weightStepper(st, { id: LEG_EXT, assisted: true }).source).not.toBe('stack')
+  })
+
+  it('the menu line says the stack', () => {
+    expect(weightStepSummary(S(), { id: LEG_EXT })).toBe('Weight stack')
   })
 })
 

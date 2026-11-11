@@ -2435,4 +2435,12 @@ export default {
   "{0} measurement check-in imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
   "{0} measurement check-ins imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'แอปนี้ยืนยันด้วยพาสคีย์ไม่ได้ สร้างรหัสในเบราว์เซอร์ที่ลงชื่อเข้าใช้โปรไฟล์นี้ หรือเพิ่มรหัสผ่านที่นั่นก่อน',
+  'Weight stack': 'สแต็กน้ำหนัก',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'น้ำหนักที่เครื่องนี้มีจริง รวมขั้นแปลก ๆ ด้วย การเพิ่มน้ำหนัก การดีโหลด การวอร์มอัป และปุ่ม + กับ − จะลงที่ค่าเหล่านี้เท่านั้น',
+  'No list yet, so this exercise steps by its increment as usual.': 'ยังไม่มีรายการ ท่านี้จึงเพิ่มตามขั้นปกติของมัน',
+  'First ({0})': 'แรก ({0})',
+  'How many': 'กี่ค่า',
+  'Fill in': 'เติม',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'สุดสแต็กแล้ว: {0} {1} หนักที่สุด น้ำหนักจึงคงเดิม',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ และ − ไล่ตามสแต็กน้ำหนักของเครื่องนี้ ล้างสแต็กเพื่อใช้ขั้นแทน',
 }

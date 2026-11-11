@@ -2417,4 +2417,12 @@ export default {
   "{0} measurement check-in imported": "已匯入 {0} 筆身體測量紀錄",
   "{0} measurement check-ins imported": "已匯入 {0} 筆身體測量紀錄",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '此 App 無法以通行密鑰確認。請在已登入此個人檔案的瀏覽器中產生代碼，或先在那裡設定密碼。',
+  'Weight stack': '配重片',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': '這台器械實際有的重量，奇怪的級距也算。進階、減量、熱身和 + − 按鈕都只會落在這些重量上。',
+  'No list yet, so this exercise steps by its increment as usual.': '還沒有清單，所以這個動作照常按增量遞增。',
+  'First ({0})': '起始 ({0})',
+  'How many': '數量',
+  'Fill in': '填入',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': '已經到底了：{0} {1} 是最重的一檔，所以重量不變。',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ 和 − 依這台器械的配重片逐一切換。清空配重片即可改用級距。',
 }

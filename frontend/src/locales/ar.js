@@ -2479,4 +2479,12 @@ export default {
   "{0} measurement check-in imported": "تم استيراد {0} تسجيل قياسات",
   "{0} measurement check-ins imported": "تم استيراد {0} تسجيلات قياسات",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'لا يستطيع هذا التطبيق التأكيد بمفتاح مرور. أنشئ الرمز في متصفح مسجّل الدخول إلى هذا الملف الشخصي، أو أضف كلمة مرور هناك أولًا.',
+  'Weight stack': 'مجموعة الأوزان',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'الأوزان الموجودة فعلًا في هذا الجهاز، بخطواتها الغريبة كلها. التدرج والتخفيف والإحماء وزرّا + و − تقع على هذه فقط.',
+  'No list yet, so this exercise steps by its increment as usual.': 'لا قائمة بعد، لذا يتقدم هذا التمرين بزيادته المعتادة.',
+  'First ({0})': 'الأول ({0})',
+  'How many': 'كم عددها',
+  'Fill in': 'املأ',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'هذه المجموعة كلها: {0} {1} هو الأثقل، لذا يبقى الوزن كما هو.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': 'ينتقل + و − بين أوزان مجموعة الأوزان في هذا الجهاز. امسح القائمة لاستخدام خطوة بدلًا منها.',
 }

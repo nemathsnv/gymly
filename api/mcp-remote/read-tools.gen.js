@@ -89514,12 +89514,27 @@ function currentDbLoad(S, exId) {
 const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy))].sort((a, b) => a - b);
 const dumbbellsOf = (S) => cleanWeights(S?.dumbbells?.[unitOf$1(S)]?.weights);
 function ownedWeightsFor(S, cfg) {
-	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
 	if (cfg?.bodyweight != null ? !!cfg.bodyweight : isBodyweightEq(cfg?.id)) return null;
+	const stack = isAssisted({ ...cfg || {} }) ? [] : stackOf(S, cfg?.id);
+	if (stack.length) return stack;
+	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
 	const ws = dumbbellsOf(S);
 	if (!ws.length) return null;
 	return dbLoadFor(S, cfg) === "total" && bellsIn(cfg) === 2 ? ws.map((w) => tidy(w * 2)) : ws;
 }
+function ownedKindFor(S, cfg) {
+	if (!ownedWeightsFor(S, cfg)) return null;
+	return stackOf(S, cfg?.id).length ? "stack" : "dumbbells";
+}
+function stackOf(S, exId) {
+	const e = isMap$2(S?.stackWeights) ? S.stackWeights[exId] : null;
+	if (!isMap$2(e)) return [];
+	const ws = cleanWeights(e.weights);
+	const from = e.unit === "lb" ? "lb" : "kg", to = unitOf$1(S);
+	if (from === to) return ws;
+	return cleanWeights(ws.map((w) => Math.round((to === "lb" ? w / LB_KG : w * LB_KG) * 10) / 10));
+}
+const LB_KG = .45359237;
 const EPS = 1e-6;
 function ownedUp(ws, w, n = 1) {
 	const above = (ws || []).filter((x) => x > (Number(w) || 0) + EPS);
@@ -90358,7 +90373,8 @@ const MOVE_MAPS = [
 	"barWeights",
 	"loadKind",
 	"dbLoad",
-	"exEquip"
+	"exEquip",
+	"stackWeights"
 ];
 const RESTORE = [
 	"routines",
@@ -90794,12 +90810,17 @@ function nextPrescription(S, cfg, routine) {
 	const harder = (weight, step) => assisted ? Math.max(0, addStep(weight, -step, inc)) : owned ? ownedUp(owned, weight, step > inc ? 2 : 1) ?? weight : addStep(weight, step, inc);
 	const easier = (weight) => assisted ? addStep(weight, inc, inc) : owned ? ownedDeload(owned, weight, DELOAD_FACTOR) : deloadTo(weight, inc);
 	const topped = (weight) => !!owned && ownedUp(owned, weight) == null;
+	const onStack = !!owned && ownedKindFor(S, cfg) === "stack";
 	const toppedOut = (weight, extra = {}) => ({
 		policy,
 		kind: "hold",
 		weight,
 		...extra,
-		why: [
+		why: onStack ? [
+			"That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.",
+			weight,
+			unit
+		] : [
 			"You’ve outgrown the rack: {0} {1} is your heaviest dumbbell, so the weight stays.",
 			weight,
 			unit
@@ -92427,6 +92448,7 @@ const STAMPED_MAPS = [
 	"plates",
 	"dbLoad",
 	"dumbbells",
+	"stackWeights",
 	"dayNotes",
 	"habitLog",
 	"exEquip",

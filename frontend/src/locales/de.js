@@ -2444,4 +2444,12 @@ export default {
   "{0} measurement check-in imported": "{0} Messung importiert",
   "{0} measurement check-ins imported": "{0} Messungen importiert",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Diese App kann nicht mit einem Passkey bestätigen. Erstell den Code in einem Browser, der mit diesem Profil angemeldet ist, oder leg dort zuerst ein Passwort fest.',
+  'Weight stack': 'Gewichtsblock',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Die Gewichte, die diese Maschine wirklich hat, auch die krummen. Progression, Deloads, Aufwärmsätze und die Tasten + und − landen nur auf diesen.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Noch keine Liste, also geht diese Übung wie gewohnt in ihrem Schritt.',
+  'First ({0})': 'Erstes ({0})',
+  'How many': 'Wie viele',
+  'Fill in': 'Ausfüllen',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Das ist der ganze Block: {0} {1} ist das Schwerste, also bleibt das Gewicht.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ und − gehen den Gewichtsblock dieser Maschine durch. Leere den Block, um stattdessen einen Schritt zu nutzen.',
 }

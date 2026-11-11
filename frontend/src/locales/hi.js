@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "{0} माप रिकॉर्ड आयात हुआ",
   "{0} measurement check-ins imported": "{0} माप रिकॉर्ड आयात हुए",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'यह ऐप पासकी से पुष्टि नहीं कर सकता। इस प्रोफ़ाइल में साइन इन किए ब्राउज़र में कोड बनाएँ, या पहले वहाँ एक पासवर्ड जोड़ें।',
+  'Weight stack': 'वज़न स्टैक',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'इस मशीन में सच में जो वज़न हैं, अजीब स्टेप समेत। प्रोग्रेशन, डीलोड, वार्म-अप और + व − बटन सिर्फ़ इन्हीं पर आते हैं।',
+  'No list yet, so this exercise steps by its increment as usual.': 'अभी कोई सूची नहीं, इसलिए यह एक्सरसाइज़ हमेशा की तरह अपने स्टेप से बढ़ती है।',
+  'First ({0})': 'पहला ({0})',
+  'How many': 'कितने',
+  'Fill in': 'भरें',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'यही पूरा स्टैक है: {0} {1} सबसे भारी है, इसलिए वज़न वही रहता है।',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ और − इस मशीन के वज़न स्टैक पर चलते हैं। उसकी जगह कोई स्टेप इस्तेमाल करने के लिए स्टैक साफ़ करें।',
 }

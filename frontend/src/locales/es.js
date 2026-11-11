@@ -2424,4 +2424,12 @@ export default {
   "{0} measurement check-in imported": "{0} registro de medidas importado",
   "{0} measurement check-ins imported": "{0} registros de medidas importados",
   'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Esta app no puede confirmar con una passkey. Crea el código en un navegador con este perfil abierto, o añade allí una contraseña primero.',
+  'Weight stack': 'Columna de pesos',
+  'The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.': 'Los pesos que de verdad tiene esta máquina, saltos raros incluidos. La progresión, las descargas, los calentamientos y los botones + y − solo caen en estos.',
+  'No list yet, so this exercise steps by its increment as usual.': 'Aún no hay lista, así que este ejercicio sube según su incremento, como siempre.',
+  'First ({0})': 'Primero ({0})',
+  'How many': 'Cuántos',
+  'Fill in': 'Rellenar',
+  'That’s the whole stack: {0} {1} is the heaviest it goes, so the weight stays.': 'Es toda la columna: {0} {1} es lo máximo que da, así que el peso se queda.',
+  '+ and − walk this machine’s weight stack. Clear the stack to use a step instead.': '+ y − recorren la columna de pesos de esta máquina. Vacía la columna para usar un paso en su lugar.',
 }
