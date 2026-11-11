@@ -46,6 +46,8 @@ import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchFi
 import { dailyModeOf, settleAll } from '../lib/weigh-ins.js'
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement, customMeasurementLabel } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
+import { WebhooksRow } from '../components/Webhooks.jsx'
+import { webhooksOffered } from '../lib/webhooks.js'
 import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
 import { aboutYouSheet } from '../components/StrengthLevel.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
@@ -401,6 +403,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID,
+    webhooks: webhooksOffered(config, { user, demo: DEMO }),
   }
   const mode = scheduleModeOf(S)
   const layout = workoutLayoutOf(S.workoutView)
@@ -896,6 +899,8 @@ export default function Settings({ page = null, find = null, via = null }) {
       {user && !DEMO && <ServerSyncSection>
         {MOBILE && <>
           {user.admin && <Row icon="crown" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
+          {/* Sent by the server this phone is paired with, so they live here too. */}
+          <WebhooksRow />
           <AccountIdRow id={user.id} />
           <Row icon="signOut" iconTint="var(--red)" title={t('Disconnect')} danger onClick={disconnect} />
         </>}
@@ -921,6 +926,8 @@ export default function Settings({ page = null, find = null, via = null }) {
           <Row icon="qr" iconTint="var(--blue)" title={t('Pair the mobile app')} subtitle={t('Connect the Gymly app on your phone to this account.')} accessory="chevron"
             onClick={() => useUI.getState().openSheet(close => <PairSheet close={close} />)} />
           <McpTokensRow />
+          {/* Only where the server offers them (INTEGRATIONS=webhook); nothing otherwise. */}
+          <WebhooksRow />
           {pwOn && <PasswordRow version={credsV} />}
           <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={signOutHere} />
           <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />
