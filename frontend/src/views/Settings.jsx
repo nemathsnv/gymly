@@ -45,6 +45,7 @@ import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem } from '.
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { MEASUREMENT_FIELDS, homeMeasurementField, pinHomeMeasurement } from '../lib/measurements.js'
 import { McpTokensRow } from '../components/McpTokens.jsx'
+import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { workoutLayoutOf } from '../lib/workout-layout.js'
 
@@ -643,6 +644,8 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
       </Section>
       <Section>
+        {/* The target range of weekly sets for each main muscle (lib/muscle-targets.js). */}
+        <Row icon="slider" iconTint="var(--teal)" title={t('Weekly sets per muscle')} subtitle={t('The range each muscle aims for')} accessory="chevron" onClick={muscleTargetsSheet} />
         <Row icon="clipboard" iconTint="var(--green)" title={t('Load starter plan')} accessory="chevron" onClick={starterPlanSheet} />
       </Section>
     </>,
@@ -782,6 +785,12 @@ export default function Settings({ page = null, find = null, via = null }) {
             ...MEASUREMENT_FIELDS.map(f => ({ value: f.key, label: t(f.label) })),
             ...(S.customMeasurements || []).map(c => ({ value: 'other:' + c.id, label: c.name }))]}
           onChange={v => update(s => { pinHomeMeasurement(s, v || null) })} />
+        {/* This week's sets for the muscle with the most room, under the streak (components/WeeklySets.jsx).
+            Off by default. */}
+        <Row icon="figureStrength" iconTint="var(--teal)" title={t('Weekly sets on Home')}
+          subtitle={t('The muscle with the most room left this week, under your streak.')}>
+          <Switch aria-label={t('Weekly sets on Home')} checked={S.homeMuscleSets === true} onChange={v => update(s => { s.homeMuscleSets = v })} />
+        </Row>
         {/* The bar at the top that says the app is offline, kept local, or not synced (#369, #330).
             Here and not under Server & sync, which a phone kept local never shows. Switching it on
             also brings back the no-server line its × hid (#454). */}

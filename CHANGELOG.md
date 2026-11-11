@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Weekly sets per muscle, against a target range** (from openGym). A new Stats card lists this
+  week's working sets for each main muscle next to the range it aims for, "Chest 14 / 10–20", with
+  a bar that shows the range: room for more, in range or above range, never a telling-off. A set
+  counts fully for the muscles it mainly trains and a bit under half for the ones that help (the
+  same weights as the muscle map and the fatigue model); warm-ups don't count. The ranges start
+  from hypertrophy research (roughly the minimum that grows a muscle to the most you can recover
+  from) and each one is yours to change under Settings → Plan & schedule → **Weekly sets per
+  muscle**. Settings → Look & Home → On Home → **Weekly sets on Home** adds one line under your
+  streak: the muscle with the most room left. Both sync with your profile.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.
