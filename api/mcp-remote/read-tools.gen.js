@@ -11,263 +11,6 @@ function dropPrivate(S) {
 	return out;
 }
 
-// mcp/src/hosted-state.js
-let _current = null;
-function defaultsShape() {
-	return {
-		unit: "kg",
-		restSec: 90,
-		sound: true,
-		lang: "en",
-		theme: "dark",
-		accent: "lime",
-		body: "male",
-		targetW: null,
-		bodyweight: [],
-		routines: [],
-		week: {},
-		dayPlan: {},
-		exWeights: {},
-		workouts: [],
-		customEx: [],
-		gifSize: "full",
-		reminder: {
-			on: false,
-			time: "08:00",
-			tz: null
-		}
-	};
-}
-function withState(S, user, fn) {
-	if (_current) throw new Error("withState is not re-entrant");
-	_current = {
-		state: S ? Object.assign({}, defaultsShape(), dropPrivate(S)) : null,
-		user: {
-			id: user.id,
-			name: user.name,
-			created: user.created || null
-		}
-	};
-	try {
-		const out = fn();
-		if (out && typeof out.then === "function") throw new Error("a hosted tool handler must be synchronous");
-		return out;
-	} finally {
-		_current = null;
-	}
-}
-function current() {
-	if (!_current) throw new Error("no profile is current — call through withState");
-	return _current;
-}
-const getState = () => current().state;
-
-// frontend/src/lib/workout-model.js
-const MODES = [
-	"reps",
-	"time",
-	"cardio"
-];
-const objectOf$1 = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
-function normalizedPhase(value, fallback = "work") {
-	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
-	if (token === "warmup" || token === "warm-up" || token === "warm_up") return "warmup";
-	if (token === "work") return "work";
-	return fallback === "warmup" ? "warmup" : "work";
-}
-function phaseForSet(set, fallback = "work") {
-	const source = objectOf$1(set);
-	if (source.phase != null && source.phase !== "") return normalizedPhase(source.phase, fallback);
-	return source.warmup === true ? "warmup" : normalizedPhase(void 0, fallback);
-}
-function isWarmupRow(set) {
-	return phaseForSet(set) === "warmup";
-}
-function setType(set) {
-	const source = objectOf$1(set);
-	return source.type === "dropset" || source.type === "restpause" ? source.type : "straight";
-}
-const isDropSet = (set) => setType(set) === "dropset";
-const isRestPauseSet = (set) => setType(set) === "restpause";
-const isFailureSet = (set) => {
-	const source = objectOf$1(set);
-	return source.failure === true && !isWarmupRow(source);
-};
-function dropsOf(set) {
-	const source = objectOf$1(set);
-	return isDropSet(source) && Array.isArray(source.drops) ? source.drops : [];
-}
-function clustersOf(set) {
-	const source = objectOf$1(set);
-	return isRestPauseSet(source) && Array.isArray(source.clusters) ? source.clusters : [];
-}
-function extraVolumeOf(set) {
-	const source = objectOf$1(set);
-	if (isSideSet(source)) return [source.sides.L, source.sides.R].reduce((v, side) => v + dropsOf(side).reduce((n, d) => n + (Number(d?.w) || 0) * (Number(d?.r) || 0), 0), 0);
-	return dropsOf(source).reduce((v, d) => v + (Number(d?.w) || 0) * (Number(d?.r) || 0), 0);
-}
-function nextDropWeight(prevWeight, pct = 20, grid) {
-	const p = Math.min(90, Math.max(1, Number(pct) || 20));
-	const prev = Math.max(0, Number(prevWeight) || 0);
-	const raw = prev * (1 - p / 100);
-	const tidy = (w) => Math.round(w * 1e3) / 1e3;
-	if (typeof grid === "function") {
-		const w = Number(grid(raw));
-		if (Number.isFinite(w) && w >= 0) return tidy(w);
-	} else if (Number(grid) > 0) {
-		const step = Number(grid);
-		let w = Math.round(raw / step) * step;
-		if (prev > 0 && w >= prev) w = prev - step;
-		return tidy(Math.max(0, w));
-	}
-	return Math.round(raw * 2) / 2;
-}
-function nextBurstReps(prevReps) {
-	return Math.max(1, Math.round((Number(prevReps) || 0) / 2));
-}
-function splitBurstReps(total) {
-	const bursts = [];
-	let remaining = Math.max(0, Math.round(Number(total) || 0));
-	while (remaining > 0) {
-		const burst = Math.min(remaining, nextBurstReps(remaining));
-		bursts.push(burst);
-		remaining -= burst;
-	}
-	return bursts;
-}
-function isSideSet(set) {
-	const s = objectOf$1(set);
-	return !!(s.sides && typeof s.sides === "object" && s.sides.L && s.sides.R);
-}
-const WEIGHT_ORIGIN_MANUAL = "manual";
-const hasCompletedWork = (set) => isSideSet(set) ? set.sides.L.done === true || set.sides.R.done === true : set?.done === true;
-function completedVolumeOf(set) {
-	if (isSideSet(set)) return completedVolumeOf(set.sides.L) + completedVolumeOf(set.sides.R);
-	if (!set?.done) return 0;
-	return (Number(set.w) || 0) * (Number(set.r) || 0) + extraVolumeOf(set);
-}
-const sideOf = (value) => {
-	const v = objectOf$1(value);
-	const out = {
-		w: Number(v.w) || 0,
-		r: Number(v.r) || 0,
-		done: v.done === true
-	};
-	if (v.rir != null) out.rir = v.rir;
-	if (v.rpe != null) out.rpe = v.rpe;
-	if (v.weightOrigin === "manual") out.weightOrigin = WEIGHT_ORIGIN_MANUAL;
-	if (v.type === "dropset" || v.type === "restpause") out.type = v.type;
-	if (Array.isArray(v.drops)) out.drops = v.drops;
-	if (Array.isArray(v.clusters)) out.clusters = v.clusters;
-	return out;
-};
-function makeSideSet(row = {}) {
-	const base = objectOf$1(row);
-	const half = Math.round((Number(base.r) || 0) / 2);
-	const w = Number(base.w) || 0;
-	const side = () => ({
-		w,
-		r: half,
-		done: false
-	});
-	const next = {
-		...base,
-		sides: {
-			L: side(),
-			R: side()
-		}
-	};
-	delete next.rir;
-	delete next.rpe;
-	return syncSideAggregate(next);
-}
-function syncSideAggregate(row) {
-	const base = objectOf$1(row);
-	if (!isSideSet(base)) return { ...base };
-	const L = sideOf(base.sides.L);
-	const R = sideOf(base.sides.R);
-	const out = {
-		...base,
-		sides: {
-			L,
-			R
-		},
-		r: L.r + R.r,
-		w: Math.max(L.w, R.w),
-		done: L.done && R.done
-	};
-	delete out.rir;
-	delete out.rpe;
-	const rirs = [L.rir, R.rir].filter((v) => v != null);
-	const rpes = [L.rpe, R.rpe].filter((v) => v != null);
-	if (rirs.length) out.rir = Math.min(...rirs);
-	else if (rpes.length) out.rpe = Math.max(...rpes);
-	delete out.drops;
-	delete out.clusters;
-	delete out.type;
-	const sideType = setType(L) !== "straight" ? setType(L) : setType(R);
-	if (sideType !== "straight") out.type = sideType;
-	return out;
-}
-function normalizeMode(value, fallback = "reps") {
-	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
-	if (MODES.includes(token)) return token;
-	return MODES.includes(fallback) ? fallback : "reps";
-}
-function modeFromUnit(value) {
-	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
-	if ([
-		"rep",
-		"reps",
-		"repetition",
-		"repetitions"
-	].includes(token)) return "reps";
-	if ([
-		"sec",
-		"secs",
-		"second",
-		"seconds"
-	].includes(token)) return "time";
-	if ([
-		"min",
-		"mins",
-		"minute",
-		"minutes"
-	].includes(token)) return "cardio";
-	return null;
-}
-function explicitMode(source) {
-	const value = objectOf$1(source).mode;
-	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
-	return MODES.includes(token) ? token : modeFromUnit(objectOf$1(source).unit);
-}
-function inferredMode(source) {
-	const value = objectOf$1(source);
-	const explicit = explicitMode(value);
-	if (explicit) return explicit;
-	if (String(value.mode || "").trim().toLowerCase() === "amrap") return "reps";
-	if (value.min != null || value.speed != null) return "cardio";
-	if (value.sec != null || value.seconds != null || value.durationSec != null) return "time";
-	if (value.r != null || value.reps != null || value.actualReps != null) return "reps";
-	return null;
-}
-function modeForSet(set, target = {}) {
-	return explicitMode(set) || inferredMode(target) || inferredMode(set) || "reps";
-}
-function modeForEntry(entry, fallback = null) {
-	const source = objectOf$1(entry);
-	const target = objectOf$1(source.target || source);
-	const sets = Array.isArray(source.sets) ? source.sets : [];
-	const work = sets.filter((set) => !isWarmupRow(set));
-	const observed = work.length ? work : sets;
-	const modes = [...new Set(observed.map((set) => modeForSet(set, target)))];
-	if (modes.length > 1) return null;
-	if (modes.length === 1) return modes[0];
-	const targetMode = inferredMode(target);
-	if (targetMode) return targetMode;
-	return fallback == null ? modeForSet(source, target) : normalizeMode(fallback);
-}
-
 // frontend/src/lib/exercises-data.js
 const EXDB = [
 	{
@@ -88856,7 +88599,51 @@ function registerCustom(list) {
 		EXIDX[e.id] = e;
 	});
 }
-const allExercises = (st) => [...st.customEx || [], ...CATALOGUE];
+const isCustomEx = (ex) => !!ex && typeof ex === "object" && !BUILTIN.has(ex) && (ex.custom === true || customIds.has(ex.id));
+function mergedTarget(exMerged, id) {
+	const m = exMerged && typeof exMerged === "object" && !Array.isArray(exMerged) ? exMerged : {};
+	let cur = id;
+	for (let i = 0; i < 16; i++) {
+		const into = m[cur]?.into;
+		if (!into || into === id) return cur;
+		cur = into;
+	}
+	return cur;
+}
+let AKA = /* @__PURE__ */ new Map();
+let akaSig = "";
+let akaRev = 0;
+function registerMerged(exMerged) {
+	const m = exMerged && typeof exMerged === "object" && !Array.isArray(exMerged) ? exMerged : null;
+	const away = m ? Object.keys(m).filter((k) => m[k] && m[k].into).sort() : [];
+	const sig = away.map((k) => `${k}>${m[k].into}>${m[k].n || ""}`).join("|");
+	if (sig === akaSig) return away;
+	akaSig = sig;
+	akaRev++;
+	AKA = /* @__PURE__ */ new Map();
+	for (const from of away) {
+		const to = mergedTarget(m, from);
+		if (!to || to === from) continue;
+		if (!AKA.has(to)) AKA.set(to, []);
+		AKA.get(to).push({
+			id: from,
+			n: typeof m[from].n === "string" ? m[from].n : null
+		});
+	}
+	return away;
+}
+const akaText = (e) => {
+	const aka = e?.id != null && AKA.get(e.id);
+	if (!aka) return "";
+	return aka.map((a) => a.n || (EXIDX[a.id] && !customIds.has(a.id) ? exerciseNameSearchText(EXIDX[a.id]) : "")).join(" ");
+};
+const allExercises = (st) => {
+	const all = [...st?.customEx || [], ...CATALOGUE];
+	const away = registerMerged(st?.exMerged);
+	if (!away.length) return all;
+	const gone = new Set(away);
+	return all.filter((e) => !gone.has(e.id));
+};
 const ENV = import.meta.env || {};
 const IMG_BASE = ENV.VITE_IMG_BASE || "exercise-media/still/";
 const GIF_BASE = ENV.VITE_GIF_BASE || "exercise-media/clip/";
@@ -88925,23 +88712,26 @@ const VOCAB = /* @__PURE__ */ new Set();
 function corpusOf(e) {
 	const v = getVersion();
 	const hit = corpusCache.get(e);
-	if (hit && hit.v === v) return hit;
+	if (hit && hit.v === v && hit.a === akaRev) return hit;
 	const sm = Array.isArray(e?.sm) ? e.sm : [];
-	const name = normalizeStr(exerciseNameSearchText(e));
+	const aka = akaText(e);
+	const name = normalizeStr(exerciseNameSearchText(e) + (aka ? " " + aka : ""));
+	const s = normalizeStr([
+		name,
+		e?.tg || "",
+		t(e?.tg || ""),
+		e?.eq || "",
+		t(e?.eq || ""),
+		e?.bp || "",
+		t(e?.bp || ""),
+		...sm,
+		...sm.map((m) => t(m)),
+		e?.desc || ""
+	].join(" "));
 	const entry = {
 		v,
-		s: normalizeStr([
-			name,
-			e?.tg || "",
-			t(e?.tg || ""),
-			e?.eq || "",
-			t(e?.eq || ""),
-			e?.bp || "",
-			t(e?.bp || ""),
-			...sm,
-			...sm.map((m) => t(m)),
-			e?.desc || ""
-		].join(" ")),
+		a: akaRev,
+		s,
 		name,
 		...joinedOf(name),
 		nameWords: name.split(/[\s\-‐-―()/,]+/).filter(Boolean)
@@ -89189,6 +88979,212 @@ function rankByRelevance(found, tokens) {
 	return scored.map((x) => x.e);
 }
 
+// frontend/src/lib/workout-model.js
+const MODES = [
+	"reps",
+	"time",
+	"cardio"
+];
+const objectOf$1 = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
+function normalizedPhase(value, fallback = "work") {
+	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
+	if (token === "warmup" || token === "warm-up" || token === "warm_up") return "warmup";
+	if (token === "work") return "work";
+	return fallback === "warmup" ? "warmup" : "work";
+}
+function phaseForSet(set, fallback = "work") {
+	const source = objectOf$1(set);
+	if (source.phase != null && source.phase !== "") return normalizedPhase(source.phase, fallback);
+	return source.warmup === true ? "warmup" : normalizedPhase(void 0, fallback);
+}
+function isWarmupRow(set) {
+	return phaseForSet(set) === "warmup";
+}
+function setType(set) {
+	const source = objectOf$1(set);
+	return source.type === "dropset" || source.type === "restpause" ? source.type : "straight";
+}
+const isDropSet = (set) => setType(set) === "dropset";
+const isRestPauseSet = (set) => setType(set) === "restpause";
+const isFailureSet = (set) => {
+	const source = objectOf$1(set);
+	return source.failure === true && !isWarmupRow(source);
+};
+function dropsOf(set) {
+	const source = objectOf$1(set);
+	return isDropSet(source) && Array.isArray(source.drops) ? source.drops : [];
+}
+function clustersOf(set) {
+	const source = objectOf$1(set);
+	return isRestPauseSet(source) && Array.isArray(source.clusters) ? source.clusters : [];
+}
+function extraVolumeOf(set) {
+	const source = objectOf$1(set);
+	if (isSideSet(source)) return [source.sides.L, source.sides.R].reduce((v, side) => v + dropsOf(side).reduce((n, d) => n + (Number(d?.w) || 0) * (Number(d?.r) || 0), 0), 0);
+	return dropsOf(source).reduce((v, d) => v + (Number(d?.w) || 0) * (Number(d?.r) || 0), 0);
+}
+function nextDropWeight(prevWeight, pct = 20, grid) {
+	const p = Math.min(90, Math.max(1, Number(pct) || 20));
+	const prev = Math.max(0, Number(prevWeight) || 0);
+	const raw = prev * (1 - p / 100);
+	const tidy = (w) => Math.round(w * 1e3) / 1e3;
+	if (typeof grid === "function") {
+		const w = Number(grid(raw));
+		if (Number.isFinite(w) && w >= 0) return tidy(w);
+	} else if (Number(grid) > 0) {
+		const step = Number(grid);
+		let w = Math.round(raw / step) * step;
+		if (prev > 0 && w >= prev) w = prev - step;
+		return tidy(Math.max(0, w));
+	}
+	return Math.round(raw * 2) / 2;
+}
+function nextBurstReps(prevReps) {
+	return Math.max(1, Math.round((Number(prevReps) || 0) / 2));
+}
+function splitBurstReps(total) {
+	const bursts = [];
+	let remaining = Math.max(0, Math.round(Number(total) || 0));
+	while (remaining > 0) {
+		const burst = Math.min(remaining, nextBurstReps(remaining));
+		bursts.push(burst);
+		remaining -= burst;
+	}
+	return bursts;
+}
+function isSideSet(set) {
+	const s = objectOf$1(set);
+	return !!(s.sides && typeof s.sides === "object" && s.sides.L && s.sides.R);
+}
+const WEIGHT_ORIGIN_MANUAL = "manual";
+const hasCompletedWork = (set) => isSideSet(set) ? set.sides.L.done === true || set.sides.R.done === true : set?.done === true;
+function completedVolumeOf(set) {
+	if (isSideSet(set)) return completedVolumeOf(set.sides.L) + completedVolumeOf(set.sides.R);
+	if (!set?.done) return 0;
+	return (Number(set.w) || 0) * (Number(set.r) || 0) + extraVolumeOf(set);
+}
+const sideOf = (value) => {
+	const v = objectOf$1(value);
+	const out = {
+		w: Number(v.w) || 0,
+		r: Number(v.r) || 0,
+		done: v.done === true
+	};
+	if (v.rir != null) out.rir = v.rir;
+	if (v.rpe != null) out.rpe = v.rpe;
+	if (v.weightOrigin === "manual") out.weightOrigin = WEIGHT_ORIGIN_MANUAL;
+	if (v.type === "dropset" || v.type === "restpause") out.type = v.type;
+	if (Array.isArray(v.drops)) out.drops = v.drops;
+	if (Array.isArray(v.clusters)) out.clusters = v.clusters;
+	return out;
+};
+function makeSideSet(row = {}) {
+	const base = objectOf$1(row);
+	const half = Math.round((Number(base.r) || 0) / 2);
+	const w = Number(base.w) || 0;
+	const side = () => ({
+		w,
+		r: half,
+		done: false
+	});
+	const next = {
+		...base,
+		sides: {
+			L: side(),
+			R: side()
+		}
+	};
+	delete next.rir;
+	delete next.rpe;
+	return syncSideAggregate(next);
+}
+function syncSideAggregate(row) {
+	const base = objectOf$1(row);
+	if (!isSideSet(base)) return { ...base };
+	const L = sideOf(base.sides.L);
+	const R = sideOf(base.sides.R);
+	const out = {
+		...base,
+		sides: {
+			L,
+			R
+		},
+		r: L.r + R.r,
+		w: Math.max(L.w, R.w),
+		done: L.done && R.done
+	};
+	delete out.rir;
+	delete out.rpe;
+	const rirs = [L.rir, R.rir].filter((v) => v != null);
+	const rpes = [L.rpe, R.rpe].filter((v) => v != null);
+	if (rirs.length) out.rir = Math.min(...rirs);
+	else if (rpes.length) out.rpe = Math.max(...rpes);
+	delete out.drops;
+	delete out.clusters;
+	delete out.type;
+	const sideType = setType(L) !== "straight" ? setType(L) : setType(R);
+	if (sideType !== "straight") out.type = sideType;
+	return out;
+}
+function normalizeMode(value, fallback = "reps") {
+	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
+	if (MODES.includes(token)) return token;
+	return MODES.includes(fallback) ? fallback : "reps";
+}
+function modeFromUnit(value) {
+	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
+	if ([
+		"rep",
+		"reps",
+		"repetition",
+		"repetitions"
+	].includes(token)) return "reps";
+	if ([
+		"sec",
+		"secs",
+		"second",
+		"seconds"
+	].includes(token)) return "time";
+	if ([
+		"min",
+		"mins",
+		"minute",
+		"minutes"
+	].includes(token)) return "cardio";
+	return null;
+}
+function explicitMode(source) {
+	const value = objectOf$1(source).mode;
+	const token = typeof value === "string" ? value.trim().toLowerCase() : "";
+	return MODES.includes(token) ? token : modeFromUnit(objectOf$1(source).unit);
+}
+function inferredMode(source) {
+	const value = objectOf$1(source);
+	const explicit = explicitMode(value);
+	if (explicit) return explicit;
+	if (String(value.mode || "").trim().toLowerCase() === "amrap") return "reps";
+	if (value.min != null || value.speed != null) return "cardio";
+	if (value.sec != null || value.seconds != null || value.durationSec != null) return "time";
+	if (value.r != null || value.reps != null || value.actualReps != null) return "reps";
+	return null;
+}
+function modeForSet(set, target = {}) {
+	return explicitMode(set) || inferredMode(target) || inferredMode(set) || "reps";
+}
+function modeForEntry(entry, fallback = null) {
+	const source = objectOf$1(entry);
+	const target = objectOf$1(source.target || source);
+	const sets = Array.isArray(source.sets) ? source.sets : [];
+	const work = sets.filter((set) => !isWarmupRow(set));
+	const observed = work.length ? work : sets;
+	const modes = [...new Set(observed.map((set) => modeForSet(set, target)))];
+	if (modes.length > 1) return null;
+	if (modes.length === 1) return modes[0];
+	const targetMode = inferredMode(target);
+	if (targetMode) return targetMode;
+	return fallback == null ? modeForSet(source, target) : normalizeMode(fallback);
+}
+
 // frontend/src/lib/format.js
 const todayISO = () => {
 	const d = /* @__PURE__ */ new Date();
@@ -89361,11 +89357,11 @@ const DEFAULT_BAR_LB = {
 	"smith machine": 20,
 	"trap bar": 55
 };
-const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
-const usesBar = (exOrId) => BAR_EQ.has(exOf$2(exOrId)?.eq);
+const exOf$3 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
+const usesBar = (exOrId) => BAR_EQ.has(exOf$3(exOrId)?.eq);
 const defaultBarWeight = (eq, unit) => (unit === "lb" ? DEFAULT_BAR_LB : DEFAULT_BAR_KG)[eq] ?? null;
 function barWeightFor(S, exOrId) {
-	const ex = exOf$2(exOrId);
+	const ex = exOf$3(exOrId);
 	if (!BAR_EQ.has(ex?.eq)) return null;
 	const own = (S?.barWeights || {})[ex.id];
 	if (own === 0) return 0;
@@ -89422,12 +89418,12 @@ function applyBackoff(rows, step) {
 }
 
 // frontend/src/lib/dumbbells.js
-const exOf$1 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
+const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
-const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const tidy = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
-	const m = isMap(value) ? value.mode : value;
+	const m = isMap$1(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
 }
 function dbLoadFor(S, cfgOrId) {
@@ -89435,7 +89431,7 @@ function dbLoadFor(S, cfgOrId) {
 	return dbLoadOf(cfg.dbLoad) || dbLoadOf(S?.dbLoad?.[cfg.id]) || "as";
 }
 const ONE_ARM = /\b(one|single)[- ]?(arm|hand|handed)\b/i;
-const isOneArm = (cfg) => !!cfg?.side || ONE_ARM.test(exOf$1(cfg?.id)?.n || "");
+const isOneArm = (cfg) => !!cfg?.side || ONE_ARM.test(exOf$2(cfg?.id)?.n || "");
 const bellsIn = (cfg) => isOneArm(cfg) ? 1 : 2;
 const entryDbLoad = (entry) => dbLoadOf(entry?.target?.dbLoad) || "as";
 const cfgOfEntry = (entry) => ({
@@ -89450,14 +89446,14 @@ function meaningFactor(from, to, cfg) {
 	return from === "each" ? n : 1 / n;
 }
 const scaleRow = (row, f) => {
-	if (!isMap(row)) return row;
+	if (!isMap$1(row)) return row;
 	const out = { ...row };
 	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy(Number(row.w) * f);
-	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap(d) ? {
+	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$1(d) ? {
 		...d,
 		w: tidy((Number(d.w) || 0) * f)
 	} : d);
-	if (isMap(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
+	if (isMap$1(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
 };
 function entryAs(entry, to) {
@@ -89514,7 +89510,7 @@ function currentDbLoad(S, exId) {
 const cleanWeights = (list) => [...new Set((Array.isArray(list) ? list : []).map(Number).filter((w) => Number.isFinite(w) && w > 0 && w < 1e4).map(tidy))].sort((a, b) => a - b);
 const dumbbellsOf = (S) => cleanWeights(S?.dumbbells?.[unitOf$1(S)]?.weights);
 function ownedWeightsFor(S, cfg) {
-	if (exOf$1(cfg?.id)?.eq !== "dumbbell") return null;
+	if (exOf$2(cfg?.id)?.eq !== "dumbbell") return null;
 	if (cfg?.bodyweight != null ? !!cfg.bodyweight : isBodyweightEq(cfg?.id)) return null;
 	const ws = dumbbellsOf(S);
 	if (!ws.length) return null;
@@ -90218,10 +90214,44 @@ function explicitGroupsOf(ex) {
 	}
 	return null;
 }
+function hasExplicitMuscleMetadata(entry) {
+	const ex = metadataOf(entry);
+	if (!ex || typeof ex !== "object") return false;
+	const parts = explicitPartsOf(ex);
+	if (parts && [...parts.primary, ...parts.secondary].some((value) => canonicalMuscle(value))) return true;
+	const groups = explicitGroupsOf(ex);
+	if (groups && groups.some((value) => canonicalMuscle(value))) return true;
+	return [
+		ex.tg,
+		ex.mg,
+		...arrayOf(smOf(ex))
+	].some((value) => canonicalMuscle(value));
+}
 function canonicalMuscle(value) {
 	const name = String(value || "").toLowerCase().trim();
 	if (MUSCLES.includes(name)) return name;
 	return ALIAS[name] || null;
+}
+function canonicalUnique(values) {
+	const out = [];
+	for (const value of values || []) {
+		const slug = canonicalMuscle(value);
+		if (slug && !out.includes(slug)) out.push(slug);
+	}
+	return out;
+}
+function muscleGroupsOf(entry) {
+	const ex = metadataOf(entry);
+	const parts = explicitPartsOf(ex);
+	const explicit = explicitGroupsOf(ex);
+	const useParts = parts && [...parts.primary, ...parts.secondary].some((value) => canonicalMuscle(value));
+	const out = canonicalUnique(useParts ? [...parts.primary, ...parts.secondary] : explicit || [
+		ex?.tg,
+		ex?.mg,
+		...arrayOf(smOf(ex))
+	]);
+	if (!out.length && !useParts) canonicalUnique(Object.keys(BY_BODYPART[ex?.bp] || {})).forEach((slug) => out.push(slug));
+	return out;
 }
 function muscleWeightsOf(ex) {
 	if (!ex) return {};
@@ -90256,6 +90286,23 @@ function muscleWeightsOf(ex) {
 }
 function musclesOf(ex) {
 	return Object.fromEntries(Object.entries(muscleWeightsOf(ex)).filter(([, weight]) => weight > 0));
+}
+function exerciseMuscleSnapshot(ex) {
+	if (!ex || typeof ex !== "object") return {};
+	const out = {};
+	if (ex.n != null) out.n = ex.n;
+	if (ex.bp != null) out.bp = ex.bp;
+	const weights = muscleWeightsOf(ex);
+	if (Object.keys(weights).length) out.muscleWeights = { ...weights };
+	const parts = explicitPartsOf(ex);
+	if (parts) {
+		const primaries = canonicalUnique(parts.primary);
+		const secondaries = canonicalUnique(parts.secondary).filter((slug) => !primaries.includes(slug));
+		if (primaries.length) out.primaries = primaries;
+		if (secondaries.length) out.secondaries = secondaries;
+	}
+	if (hasExplicitMuscleMetadata(ex)) out.muscleGroups = [...muscleGroupsOf(ex)];
+	return out;
 }
 function loadOf$1(items) {
 	const load = {};
@@ -90298,6 +90345,142 @@ function rankOf(load) {
 		missed: MUSCLES.filter((m) => !(load[m] > 0))
 	};
 }
+
+// frontend/src/lib/exercise-merge.js
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const list = (v) => Array.isArray(v) ? v : [];
+const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
+const MOVE_MAPS = [
+	"barWeights",
+	"loadKind",
+	"dbLoad",
+	"exEquip"
+];
+const RESTORE = [
+	"routines",
+	"customEx",
+	"exWeights",
+	"exNotes",
+	"favEx",
+	"balanceOverrides",
+	...MOVE_MAPS
+];
+const mergedInto = (S, id) => mergedTarget(S?.exMerged, id);
+function mergedAway(S) {
+	const m = isMap(S?.exMerged) ? S.exMerged : null;
+	if (!m) return null;
+	const out = /* @__PURE__ */ new Set();
+	for (const [k, v] of Object.entries(m)) if (v && v.into) out.add(k);
+	return out.size ? out : null;
+}
+const exOf$1 = (S, id) => list(S?.customEx).find((c) => c?.id === id) || EXIDX[id] || null;
+const entryHas = (w, id) => list(w?.entries).some((e) => e?.id === id);
+const routineHas = (r, id) => list(r?.ex).some((c) => c?.id === id);
+const workoutKey = (w) => w?.id != null ? w.id : `${w?.d}|${w?.start}`;
+function retarget(e, toId, toEx) {
+	e.id = toId;
+	if (toEx && isCustomEx(toEx)) {
+		const snap = exerciseMuscleSnapshot(toEx);
+		if (Object.keys(snap).length) e.muscleSnapshot = snap;
+		else delete e.muscleSnapshot;
+		if (toEx.n) e.n = toEx.n;
+	} else {
+		delete e.muscleSnapshot;
+		delete e.n;
+	}
+}
+function redirect(S, fromId, toId, { stamp = false, now = Date.now() } = {}) {
+	const toEx = exOf$1(S, toId);
+	const changed = [];
+	for (const w of list(S.workouts)) {
+		if (!entryHas(w, fromId)) continue;
+		for (const e of list(w.entries)) if (e?.id === fromId) retarget(e, toId, toEx);
+		if (Array.isArray(w.prs) && w.prs.includes(fromId)) w.prs = [...new Set(w.prs.map((id) => id === fromId ? toId : id))];
+		if (stamp) w._ts = now;
+		changed.push(workoutKey(w));
+	}
+	for (const r of list(S.routines)) {
+		if (!routineHas(r, fromId)) continue;
+		r.ex = list(r.ex).map((c) => c && c.id === fromId ? {
+			...c,
+			id: toId
+		} : c);
+	}
+	return changed;
+}
+function applyExerciseMerges(S) {
+	const away = mergedAway(S);
+	if (!away) return 0;
+	let n = 0;
+	for (const fromId of away) {
+		const toId = mergedInto(S, fromId);
+		if (!toId || toId === fromId) continue;
+		n += redirect(S, fromId, toId).length;
+		if (list(S.customEx).some((c) => c?.id === fromId)) S.customEx = S.customEx.filter((c) => c?.id !== fromId);
+	}
+	return n;
+}
+function withExerciseMerges(S) {
+	if (!S || typeof S !== "object" || !mergedAway(S)) return S;
+	const out = clone(S);
+	try {
+		applyExerciseMerges(out);
+	} catch {
+		return S;
+	}
+	return out;
+}
+
+// mcp/src/hosted-state.js
+let _current = null;
+function defaultsShape() {
+	return {
+		unit: "kg",
+		restSec: 90,
+		sound: true,
+		lang: "en",
+		theme: "dark",
+		accent: "lime",
+		body: "male",
+		targetW: null,
+		bodyweight: [],
+		routines: [],
+		week: {},
+		dayPlan: {},
+		exWeights: {},
+		workouts: [],
+		customEx: [],
+		gifSize: "full",
+		reminder: {
+			on: false,
+			time: "08:00",
+			tz: null
+		}
+	};
+}
+function withState(S, user, fn) {
+	if (_current) throw new Error("withState is not re-entrant");
+	_current = {
+		state: S ? withExerciseMerges(Object.assign({}, defaultsShape(), dropPrivate(S))) : null,
+		user: {
+			id: user.id,
+			name: user.name,
+			created: user.created || null
+		}
+	};
+	try {
+		const out = fn();
+		if (out && typeof out.then === "function") throw new Error("a hosted tool handler must be synchronous");
+		return out;
+	} finally {
+		_current = null;
+	}
+}
+function current() {
+	if (!_current) throw new Error("no profile is current — call through withState");
+	return _current;
+}
+const getState = () => current().state;
 
 // frontend/src/lib/rep-range.js
 function normalizeRepRange(reps, repsMin, stride = 1) {
@@ -92178,7 +92361,8 @@ const STAMPED_MAPS = [
 	"dumbbells",
 	"dayNotes",
 	"habitLog",
-	"exEquip"
+	"exEquip",
+	"exMerged"
 ];
 const RESET_MAPS = [
 	"exNotes",
