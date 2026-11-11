@@ -87,6 +87,12 @@ describe.each(Object.keys(PAGES))('%s page', page => {
 
   it('gives a contact address and a last-updated date, and carries no unfinished text', () => {
     expect(d.querySelector(`a[href="mailto:${CONTACT}"]`)).toBeTruthy()
+    // Cloudflare's Email Obfuscation (on for gymly.churntech.com) rewrites every address it finds
+    // into "[email protected]" plus a decoder script: a reader or reviewer without JavaScript then
+    // has no address at all. It leaves the text between these two markers alone.
+    const mailtos = html[page].match(/<a href="mailto:[^"]+">[^<]*<\/a>/g)
+    expect(mailtos.length).toBeGreaterThan(0)
+    for (const a of mailtos) expect(html[page]).toContain(`<!--email_off-->${a}<!--/email_off-->`)
     expect(d.querySelector('.meta time').getAttribute('datetime')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(text(page)).not.toMatch(/\b(TODO|TBD|FIXME|lorem ipsum)\b|\[[A-Z ]+\]/i)
   })
