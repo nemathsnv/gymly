@@ -39,7 +39,7 @@ import { setNoteOf, withSetNote, setNotesOf, SET_NOTE_MAX } from './lib/set-note
 import { exerciseHistory } from './lib/exercise-history.js'
 import { StrengthLevelBlock } from './components/StrengthLevel.jsx'
 import { mergeExercise, undoMerge, mergePreview, mergeBlocked } from './lib/exercise-merge.js'
-import { isBellEx, dbLoadOf, dbLoadFor, withDbLoad, withMeaning, historyAs, entryDbLoad, currentDbLoad, isOneArm, ownedWeightsFor, dumbbellsOf, ownsDumbbells, withDumbbells, presetWeights, cleanWeights } from './lib/dumbbells.js'
+import { isBellEx, dbLoadOf, dbLoadFor, withDbLoad, withMeaning, historyAs, entryDbLoad, currentDbLoad, isOneArm, ownedWeightsFor, dumbbellsOf, ownsDumbbells, withDumbbells, presetWeights, cleanWeights, canHaveStack, stackOf, withStack, stackFromStep } from './lib/dumbbells.js'
 import { weightStepper, ownStepFor, pulleyFor, withExEquip, takesPulley, fmtStep, PULLEYS, STEP_PRESETS } from './lib/weight-step.js'
 import { policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS, MAX_TRIPLE_SETS, weightIncrement } from './lib/progression.js'
 import { normalizeRepRange } from './lib/rep-range.js'
@@ -53,10 +53,12 @@ import { isWarmupRow, hasCompletedWork } from './lib/workout-model.js'
 import { saveSessionAsRoutine } from './lib/session-routines.js'
 import { repeatSessionEntries } from './lib/session-repeat.js'
 import { swapActiveExercise } from './lib/active-exercise-swap.js'
+import WarmupConfig from './components/WarmupConfig.jsx'
+import { warmupModeOf, ownRowsOf } from './lib/warmup-ramp.js'
 import { useSheetKeyboard, useRevealActiveChip, tappable } from './lib/use-sheet-keyboard.js'
 import { useAutoMore } from './lib/use-auto-more.js'
 import { isFav, toggleFav, sortFavouritesFirst, sortYoursFirst } from './lib/favourites.js'
-import { buildSessionEntries, buildPlannedEntry, builtOutOfProgression } from './lib/session-start.js'
+import { buildSessionEntries, buildPlannedEntry, builtOutOfProgression, buildFreestyleEntry } from './lib/session-start.js'
 import { finishCompare, finishCardio } from './lib/finish-compare.js'
 import { workoutFit, fitFileName } from './lib/fit-export.js'
 import { joinSessionNoProg } from './lib/session-noprog.js'
@@ -69,6 +71,7 @@ import { weeklyWeights } from './lib/bodyweight.js'
 import { addWeighIn, editWeighIn, removeWeighIn, restoreWeighIn, readingsOf, readingTime, allReadings, defaultTimeFor, cleanTime, timeOf, dailyModeOf, DEFAULT_TIME } from './lib/weigh-ins.js'
 import { workoutText } from './lib/workout-text.js'
 import { workoutCardModel, layoutWorkoutCard, drawWorkoutCard, viewAspect, CARD_FONT } from './lib/workout-card.js'
+import { shareImage as shareImageOut } from './lib/share-image.js'
 import { copyText } from './lib/clipboard.js'
 import { queueRemaining, pinState } from './lib/queue.js'
 import { DAY_NOTE_TAGS, DAY_NOTE_LABEL, DAY_NOTE_ICON, dayNoteOf, dayNoteLine, canNoteDay, withDayNote } from './lib/day-notes.js'
@@ -894,12 +897,69 @@ function DbLoadPicker({ ex, cfg, value, onChange }) {
 }
 
 // Mid-workout sheet behind the ⋯ menu's "Plate loading" — same values, same editor.
+// A machine's own weight stack (issue #688, lib/dumbbells.js): the weights its pin really
+// selects, for this exercise everywhere. With a list, progression, deloads, warm-ups, drops and the
+// + and − buttons land on these instead of on the increment, like the dumbbell list (#376). It wins
+// over the exercise's own Weight step too (lib/weight-step.js weightStepper). Tap a
+// weight to take it off, the field adds one, and the quick fill writes an even stack to edit from.
+function StackEditor({ ex }) {
+  const st = useStore(s => s.S)
+  const unit = st.unit === 'lb' ? 'lb' : 'kg'
+  const list = stackOf(st, ex.id)
+  const [draft, setDraft] = useState(null)
+  const [first, setFirst] = useState(null)
+  const [step, setStep] = useState(null)
+  const [count, setCount] = useState(null)
+  const save = ws => update(s => { s.stackWeights = withStack(s, ex.id, ws) })
+  const add = () => {
+    const w = cleanWeights([draft])[0]
+    if (!w) { toast(t('Enter a valid weight')); return }
+    save([...list, w])
+    setDraft(null)
+  }
+  const fill = () => {
+    const ws = stackFromStep(first, step, count || 10)
+    if (!ws.length) { toast(t('Enter a valid weight')); return }
+    save(ws)
+  }
+  return <>
+    <div className="small dim" style={{ marginBottom: 10 }}>
+      {t('The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.')}
+    </div>
+    {list.length > 0
+      ? <div className="chips" style={{ flexWrap: 'wrap', overflow: 'visible', touchAction: 'auto', marginBottom: 12 }}>
+        {list.map(w => <button key={w} className="chip on nocap" aria-label={t('Remove {0}', fmtPlate(w) + ' ' + unit)}
+          onClick={() => save(list.filter(x => x !== w))}>{fmtPlate(w)} <Icon name="xmark" /></button>)}
+      </div>
+      : <div className="small dim" style={{ marginBottom: 12 }}>{t('No list yet, so this exercise steps by its increment as usual.')}</div>}
+    <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+      <NumberField className="input" decimal value={draft ?? ''} onChange={v => setDraft(v)}
+        aria-label={t('Weight ({0})', unit)} placeholder={t('Weight ({0})', unit)} onKeyDown={e => { if (e.key === 'Enter') add() }} />
+      <Button icon="plus" onClick={add} style={{ flex: '0 0 auto', width: 'auto' }}>{t('Add')}</Button>
+    </div>
+    {/* An evenly spaced stack in three numbers, to fix the odd ones on after. */}
+    {list.length === 0 && <>
+      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+        <NumberField className="input" decimal value={first ?? ''} onChange={setFirst} aria-label={t('First ({0})', unit)} placeholder={t('First ({0})', unit)} />
+        <NumberField className="input" decimal value={step ?? ''} onChange={setStep} aria-label={t('Step ({0})', unit)} placeholder={t('Step ({0})', unit)} />
+      </div>
+      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+        <NumberField className="input" value={count ?? ''} onChange={setCount} aria-label={t('How many')} placeholder={t('How many')} />
+        <Button onClick={fill} style={{ flex: '0 0 auto', width: 'auto' }}>{t('Fill in')}</Button>
+      </div>
+    </>}
+    {list.length > 0 && <Button variant="danger" onClick={() => save([])} style={{ marginBottom: 8 }}>{t('Clear the list')}</Button>}
+    <div style={{ height: 10 }} />
+  </>
+}
+
 function BarWeightSheet({ exId, cfg, close }) {
   const ex = exOr(exId)
   return <>
     <h3>{t('Plate loading')}</h3>
     <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 12 }}>{exerciseNameFor(ex)}</div>
     <BarWeightEditor ex={ex} cfg={cfg} extra={t('Applies to this exercise everywhere, not just this plan.')} />
+    {canHaveStack(ex) && <><h4 className="sec">{t('Weight stack')}</h4><StackEditor ex={ex} /></>}
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
 }
@@ -932,7 +992,7 @@ function WeightStepEditor({ ex, cfg }) {
   return <>
     <div className="chips" role="group" aria-label={t('Weight step')} style={{ flexWrap: 'wrap', marginBottom: 8 }}>
       <button className={'chip' + (own ? '' : ' on')} style={unitCase} aria-pressed={!own} onClick={() => { setTyped(undefined); set({ step: null }) }}>
-        {fallback.source === 'dumbbells' ? t('Your dumbbells') : t('Default ({0})', fmtStep(fallback.step, unit))}
+        {fallback.source === 'stack' ? t('Weight stack') : fallback.source === 'dumbbells' ? t('Your dumbbells') : t('Default ({0})', fmtStep(fallback.step, unit))}
       </button>
       {STEP_PRESETS[unit].map(n => (
         <button key={n} className={'chip' + (own === n ? ' on' : '')} style={unitCase} aria-pressed={own === n} onClick={() => { setTyped(undefined); set({ step: n }) }}>{fmtStep(n, unit)}</button>
@@ -946,7 +1006,8 @@ function WeightStepEditor({ ex, cfg }) {
         onChange={v => { if (v > 0) { setTyped(undefined); set({ step: v }) } else setTyped(v) }} />
     </div>
     <div className="small dim" style={{ marginBottom: 18 }}>
-      {own ? t('+ and − add {0} on this exercise, in every plan. Progression keeps its own step.', fmtStep(own, unit))
+      {s.source === 'stack' ? t('+ and − walk this machine’s weight stack. Clear the stack to use a step instead.')
+        : own ? t('+ and − add {0} on this exercise, in every plan. Progression keeps its own step.', fmtStep(own, unit))
         : s.source === 'dumbbells' ? t('+ and − walk the dumbbells you own. Pick a step to use it instead.')
           : t('+ and − use the plan’s step. Pick the one this machine or rack really has.')}
     </div>
@@ -1145,6 +1206,7 @@ function ExerciseDetail({ ex, close }) {
     {modeOf({ id: ex.id }) === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} extra={t('You still log the total weight. This only feeds the plate line under each set.')} />
+      {canHaveStack(ex) && <><h4 className="sec">{t('Weight stack')}</h4><StackEditor ex={ex} /></>}
       <h4 className="sec">{t('Weight step')}</h4>
       <WeightStepEditor ex={ex} />
     </>}
@@ -1610,12 +1672,12 @@ export function swapActiveWorkoutExercise(index) {
     // Same rows the add flow builds: last time's loads and, in a planned session, the
     // prescription — swapping barbell for dumbbell bench must not start you at an empty bar.
     // Built from what came before the session's day when it is logged into the past (sessionHistory).
-    const step = modeOf(full) === 'reps' ? weightIncrement(full, st.unit) : defaultIncrement(ex.id, st.unit)
     const past = sessionHistory(st)
     // A freestyle swap logs dumbbell weights the way the exercise means them now, and starts
-    // from last time read in that meaning (lib/dumbbells.js), as a planned one does.
+    // from last time read in that meaning (lib/dumbbells.js), as a planned one does, with the
+    // warm-ups Settings or the exercise ask for (lib/warmup-ramp.js).
     const built = freestyle
-      ? { target: withMeaning(st, cfg, ex.id), plan: null, sets: applyIntensifierPlan(buildSets(historyAs(past, ex.id, dbLoadFor(st, full)), full, { step: (modeOf(full) === 'reps' && ownedWeightsFor(st, full)) || step, preferLast: true }), full, dropGrid(st, full)) }
+      ? buildFreestyleEntry(st, past, cfg, ex.id)
       : buildPlannedEntry(past, full, slotRoutine, { noProg: builtOutOfProgression(current, slotRoutine) })
     const replacement = {
       id: ex.id,
@@ -1889,8 +1951,12 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     const withNote = note ? { note } : {}
     // Only written when there are any, so a plan that never asked for warm-ups keeps the exact
     // shape it had — and reads back as 0 either way (buildSets).
-    const warmupSets = Math.max(0, Math.min(MAX_PLANNED_WARMUPS, Math.round(c.warmupSets) || 0))
-    const withWarmups = warmupSets ? { warmupSets } : {}
+    // The slot's own warm-up choice (lib/warmup-ramp.js): Auto, a block of its own or none, written
+    // only when picked; otherwise the older count, or nothing and the slot follows Settings.
+    const warmChoice = warmupModeOf(c)
+    const ownRows = warmChoice === 'own' ? ownRowsOf(c) : []
+    const warmupSets = warmChoice ? 0 : Math.max(0, Math.min(MAX_PLANNED_WARMUPS, Math.round(c.warmupSets) || 0))
+    const withWarmups = warmChoice ? { warmup: warmChoice, ...(ownRows.length ? { warmupRows: ownRows } : {}) } : warmupSets ? { warmupSets } : {}
     // Per-exercise rest (issue #10): written only when a positive value was set, so 0 keeps
     // inheriting the global rest timer and a config that never touched it stays the shape it
     // was. Mode-independent — a heavy triple, a plank and a cardio interval all rest.
@@ -2038,17 +2104,9 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     {/* Planned warm-ups: the session used to start at the work weight and you added every
         warm-up by hand, every time. Rest-pause is excluded because it builds its own warm-up
         row, and cardio because an interval plan has no load to ramp. */}
-    {!cardio && c.intensifier?.type !== 'restpause' && <>
-      <div className="row cfgrow" style={{ marginBottom: 6 }}>
-        <Stepper label={t('Warm-up sets')} value={c.warmupSets || 0} step={1} decimal={false}
-          onChange={v => setC(x => ({ ...x, warmupSets: Math.max(0, Math.min(MAX_PLANNED_WARMUPS, Math.round(v) || 0)) }))} />
-      </div>
-      <div className="small dim" style={{ marginBottom: 18 }}>
-        {(c.warmupSets || 0) > 0
-          ? t('Added before your work sets and left out of volume, records and progression. Each one closes half the gap to the work weight, never below the bar on a barbell lift, and you can still change any of them mid-session.')
-          : t('Ramp-up sets added before the work sets, so you do not have to add them by hand each session.')}
-      </div>
-    </>}
+    {/* Where the warm-ups come from (#156, #525): Default (Settings → Workout), Auto, My own rows,
+        the older number of ramp sets, or None. components/WarmupConfig.jsx, lib/warmup-ramp.js. */}
+    {!cardio && c.intensifier?.type !== 'restpause' && <WarmupConfig st={st} ex={ex} c={c} setC={setC} />}
     {mode === 'time' && !bw && <div className="small dim" style={{ marginBottom: 18 }}>
       {t('A timer runs while you hold the set. Leave the weight at 0 for bodyweight holds.')}
     </div>}
@@ -2181,6 +2239,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     {mode === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} cfg={c} extra={t('Applies to this exercise everywhere, not just this plan.')} />
+      {canHaveStack(ex) && !bw && <><h4 className="sec">{t('Weight stack')}</h4><StackEditor ex={ex} /></>}
       {/* The + and − step, per exercise like the loading above (S.exEquip): the step under
           Progression below is the plan's, and stays what it is. */}
       <h4 className="sec">{t('Weight step')}</h4>
@@ -2866,17 +2925,9 @@ async function saveFitFile(blob, name) {
   toast(t('Saved. Garmin Connect can take it from here.'))
 }
 // The phone app goes through the OS share sheet the way a backup does; a browser that can share
-// files (most phones) opens its own; anything else saves the picture as a download.
-async function shareImage(blob, name, title) {
-  if (MOBILE) { try { await shareExportBlob(blob, name) } catch (e) { /* share sheet dismissed */ } return }
-  const file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null
-  if (file && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title }) } catch (e) { /* dismissed */ }
-    return
-  }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
-  toast(t('Image saved'))
-}
+// files (most phones) opens its own; anything else saves the picture as a download. The week and
+// month recap's picture goes out the same way (lib/share-image.js).
+const shareImage = (blob, name, title) => shareImageOut(blob, name, title, toast)
 // The sentence a workout's Delete adds when its photos and videos go with it — every file the
 // record lists, shown or not. Empty when it has none.
 function mediaGoesToo(rec) {

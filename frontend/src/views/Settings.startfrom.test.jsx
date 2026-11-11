@@ -101,4 +101,48 @@ describe('Settings — planned sessions start from', () => {
     choose('Your plan')
     expect(mocks.S.startFrom).toBe('plan')
   })
+
+  // "Your last session" carries the warm-ups you set up yourself too (#525, #658).
+  it('says the warm-ups you set up come along', () => {
+    mount()
+    act(() => { row().click() })
+    const box = document.createElement('div')
+    document.body.appendChild(box)
+    const sheetRoot = createRoot(box)
+    act(() => sheetRoot.render(sheet(() => {})))
+    const option = [...box.querySelectorAll('button.lrow')].find(button => button.querySelector('.lrow-t')?.textContent === 'Your last session')
+    expect(option?.querySelector('.lrow-s')?.textContent).toBe('The reps you logged last time in that routine, carried over, and any warm-ups you set up yourself.')
+    act(() => sheetRoot.unmount())
+    box.remove()
+  })
+
+  it('has the new subtitle in every locale, and the old key is gone', () => {
+    const locales = import.meta.glob('../locales/*.js', { eager: true })
+    const oldKey = 'The reps you logged last time in that routine, carried over.'
+    const newKey = 'The reps you logged last time in that routine, carried over, and any warm-ups you set up yourself.'
+    for (const module of Object.values(locales)) {
+      expect(module.default[newKey]).toBeTypeOf('string')
+      expect(module.default[newKey].trim()).not.toBe('')
+      expect(module.default[oldKey]).toBeUndefined()
+    }
+  })
+})
+
+describe('Settings — automatic warm-ups (#156)', () => {
+  const mountWorkout = () => act(() => root.render(<Settings page="workout" />))
+  const warmRow = () => [...host.querySelectorAll('.lrow')].find(r => r.textContent.includes('Automatic warm-ups'))
+  it('reads a profile without the setting as off, and writes the choice', () => {
+    mountWorkout()
+    expect(warmRow().textContent).toContain('Off')
+    act(() => { warmRow().click() })
+    const box = document.createElement('div')
+    document.body.appendChild(box)
+    const sheetRoot = createRoot(box)
+    act(() => sheetRoot.render(sheet(() => {})))
+    const option = [...box.querySelectorAll('button.lrow')].find(b => b.querySelector('.lrow-t')?.textContent === 'Compound lifts')
+    act(() => { option.click() })
+    expect(mocks.S.warmupAuto).toBe('compounds')
+    act(() => sheetRoot.unmount())
+    box.remove()
+  })
 })

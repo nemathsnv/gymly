@@ -138,6 +138,27 @@ describe('+ and − with a step of the exercise\'s own', () => {
   })
 })
 
+describe('+ and − on a machine with its own weight stack (#688)', () => {
+  const STACK = [5, 11.3, 18.1, 24.9]
+  const stack = { [LEG_EXT]: { unit: 'kg', weights: STACK, _ts: 1 } }
+  it('walk the stack, and the stack wins over a step of the exercise\'s own', () => {
+    mount([entry(LEG_EXT, [work(11.3)]), entry(CABLE_ROW, [work(20)])],
+      { stackWeights: stack, exEquip: steps({ [LEG_EXT]: 2.5, [CABLE_ROW]: 2.5 }) })
+    up(0); expect(setOf(0, 0).w).toBe(18.1)
+    up(0); up(0); expect(setOf(0, 0).w).toBe(24.9)
+    down(0); expect(setOf(0, 0).w).toBe(18.1)
+    // the cable row next to it keeps its own step
+    up(1); expect(setOf(1, 0).w).toBe(22.5)
+  })
+
+  it('the step editor says the stack decides', () => {
+    mount([entry(LEG_EXT, [work(11.3)])], { stackWeights: stack })
+    const host = openSheet(() => weightStepSheet(LEG_EXT, { id: LEG_EXT }))
+    expect(host.textContent).toContain('weight stack')
+    expect(chip(host, 'Weight stack')).toBeTruthy()
+  })
+})
+
 describe('what the buttons leave alone', () => {
   it('finished sets, warm-ups, effort, the rest timer and history', () => {
     const history = [{ id: 'old', d: '2026-10-20', start: 1, end: 2, entries: [entry(ROW, [{ w: 12.5, r: 8, done: true }])] }]

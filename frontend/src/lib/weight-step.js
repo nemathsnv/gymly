@@ -19,9 +19,14 @@
 //
 // Only the buttons read the step. Progression, deloads and warm-ups keep their own increment
 // (lib/progression.js weightIncrement), and nothing here touches a logged set.
+//
+// A machine's own weight stack (S.stackWeights, lib/dumbbells.js stackOf, issue #688) wins over
+// all of it: once the weights the pin really picks are listed (5, 11.3, 18.1 …), + and − walk
+// that list like progression and the warm-ups do, and a step of the exercise's own waits until
+// the list is cleared. Without a stack every rule above is unchanged.
 
 import { weightIncrement } from './progression.js'
-import { ownedWeightsFor, stepOwned } from './dumbbells.js'
+import { ownedWeightsFor, ownedKindFor, stepOwned } from './dumbbells.js'
 import { EXIDX } from './exercises.js'
 import { t } from './i18n-core.js'
 import { fmtPlate } from './format.js'
@@ -122,12 +127,17 @@ export function onPlanGrid(value, step) {
 /**
  * What the weight buttons of this exercise do, resolved once per render:
  *   { step, source, move(value, dir) }
- * `source` says where the step came from — 'exercise' (its own, S.exEquip), 'dumbbells' (bell to
- * bell over the ones you own; `step` is then the plan's, for display), or 'plan' (the slot's
- * progression step, or the default for the exercise). `cfg` is the session's or routine's
- * config with the exercise `id` on it.
+ * `source` says where the step came from — 'stack' (the machine's own weight stack, S.stackWeights:
+ * it wins over everything, since it is what the pin really picks), 'exercise' (its own,
+ * S.exEquip), 'dumbbells' (bell to bell over the ones you own; `step` is then the plan's, for
+ * display), or 'plan' (the slot's progression step, or the default for the exercise). `cfg` is
+ * the session's or routine's config with the exercise `id` on it.
  */
 export function weightStepper(S, cfg) {
+  // The stack first. ownedWeightsFor answers the stack ahead of the dumbbells and refuses it on a
+  // bodyweight lift or an assistance machine, so a stray list there changes nothing here either.
+  const stack = ownedKindFor(S, cfg) === 'stack' ? ownedWeightsFor(S, cfg) : null
+  if (stack) return { step: weightIncrement(cfg, S?.unit), source: 'stack', move: (v, dir) => stepOwned(stack, v, dir) }
   const own = ownStepFor(S, cfg?.id)
   if (own) return { step: own, source: 'exercise', move: (v, dir) => stepBy(v, own, dir) }
   const plan = weightIncrement(cfg, S?.unit)
@@ -144,6 +154,7 @@ export function weightStepSummary(S, cfg) {
   const s = weightStepper(S, cfg)
   const pulley = pulleyFor(S, cfg?.id)
   const step = s.source === 'exercise' ? fmtStep(s.step, S?.unit)
+    : s.source === 'stack' ? t('Weight stack')
     : s.source === 'dumbbells' ? t('Your dumbbells') : t('Default ({0})', fmtStep(s.step, S?.unit))
   return pulley ? step + ' · ' + t('Pulley {0}', pulley) : step
 }

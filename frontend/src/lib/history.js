@@ -9,6 +9,7 @@ import { barWeightFor } from './bar.js'
 import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, isFailureSet, isDropSet, isRestPauseSet, normalizeMode, completedVolumeOf, hasCompletedWork, nextDropWeight, splitBurstReps, makeSideSet, isSideSet, syncSideAggregate, WEIGHT_ORIGIN_MANUAL, dropsOf, clustersOf } from './workout-model.js'
 import { backoffAt, backoffStepOf, backoffWeights } from './backoff.js'
 import { dbLoadOf, bellsIn, volumeFactor, historyAs, ownedFloor } from './dumbbells.js'
+import { isRungRow, rungWeight } from './warmup-snap.js'
 const objectOf = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 // Completed-state-independent work rows whose authoritative mode matches the requested mode.
 const workRowsForMode = (entry = {}, mode = 'reps') => {
@@ -393,7 +394,11 @@ function lastEntryIn(S, exId, rid) {
     // none — modeOf() falls back to the body part for them, which is what they were.
     if (done.length) {
       const slot = entryRoutineId(w, en)
-      return { d: w.d, sets: done, target: en.target || null, ...(slot ? { rid: slot } : {}), ...(en.planned ? { planned: en.planned } : {}) }
+      // The entry's warm-up rows ride along (done or not — a warm-up that was in the finished
+      // session is one the lifter set up) so "start from your last session" can carry them
+      // over (#525). `sets` stays work-only: every existing caller reads what it always read.
+      const warmups = en.sets.filter(isWarmupRow)
+      return { d: w.d, sets: done, target: en.target || null, ...(slot ? { rid: slot } : {}), ...(en.planned ? { planned: en.planned } : {}), ...(warmups.length ? { warmups } : {}) }
     }
   }
   return null
@@ -890,12 +895,14 @@ export function moveRoutineEntry(items, index, direction) {
 }
 export function unitOf(units, idx) { return units.find(u => u.includes(idx)) || [idx] }
 
-export function streakWeeks(S) {
+// Weeks in a row with a workout, up to the week of `today` (a local date; the week recap counts
+// it as of the week it looks back on). The current week not trained yet does not break it.
+export function streakWeeks(S, today = todayISO()) {
   if (!S.workouts.length) return 0
   const ws = weekStartOf(S)
   const weeks = new Set(S.workouts.map(w => weekKey(w.d, ws)))
   let streak = 0
-  const cur = new Date()
+  const cur = new Date(today + 'T12:00:00')
   for (let i = 0; i < 520; i++) {
     const wk = weekKey(isoOf(cur), ws)
     if (weeks.has(wk)) streak++
@@ -988,10 +995,13 @@ export function cascadeWeight(rows, from, value, side, backoffStep = 0) {
  */
 // A warm-up rung rounded down to something loadable: the step's grid, or — when `step` is the
 // list of dumbbells the profile owns (lib/dumbbells.js ownedWeightsFor, issue #376) — the
-// heaviest bell at or under it.
-const rungDown = (x, step) => (Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step)
+// heaviest bell at or under it. A function is the plates you own (plates.js dropGrid), the
+// heaviest load at or under `x`.
+const rungDown = (x, step) => (typeof step === 'function' ? step(x) : Array.isArray(step) ? ownedFloor(step, x) : Math.floor(x / step) * step)
 
-export function rerampWarmups(rows, step = 2.5, floor = 0) {
+// `keep` says which rows stay as they are: a logged one always (rewriting performed work is data
+// loss), and during a workout a rung you typed yourself too (liveReramp below).
+export function rerampWarmups(rows, step = 2.5, floor = 0, keep = row => row.done) {
   const firstWork = rows.findIndex(x => !isWarmupRow(x))
   if (firstWork <= 0) return rows
   const target = rows[firstWork].w || 0
@@ -999,10 +1009,14 @@ export function rerampWarmups(rows, step = 2.5, floor = 0) {
   const out = rows.slice()
   let from = 0
   for (let i = 0; i < firstWork; i++) {
-    if (out[i].done) { from = out[i].w || 0; continue }
-    const w = target > from
-      ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step)))
-      : target
+    if (keep(out[i])) { from = out[i].w || 0; continue }
+    // A rung of a generated or saved block (lib/warmup-ramp.js) keeps its own share of the work
+    // weight instead of halving the gap: 60% stays 60% of whatever the work set now weighs.
+    const w = isRungRow(out[i])
+      ? rungWeight(out[i], target, step, floor)
+      : target > from
+        ? Math.min(target, Math.max(0, floor, rungDown(from + (target - from) / 2, step)))
+        : target
     // A per-side warm-up ramps the same bar for both limbs: set each side's weight and resync
     // the aggregate, so the L/R rows and the row's own `w` agree. A straight row sets `w` alone.
     out[i] = isSideSet(out[i])
@@ -1012,6 +1026,14 @@ export function rerampWarmups(rows, step = 2.5, floor = 0) {
   }
   return out
 }
+
+/**
+ * The open warm-ups re-aimed at the work weight after it changed mid-workout (#156): bump the first
+ * work set from 100 to 110 and the rungs you have not done yet follow it. A warm-up already
+ * logged, or one you set yourself (workout-model.js markWarmupEdited), stays exactly as it is.
+ */
+export const liveReramp = (rows, step, floor = 0) =>
+  rerampWarmups(rows, step, floor, row => row.done || hasCompletedWork(row) || row.edited === true)
 
 export function insertWarmupRow(rows, mode, target, step = 2.5, floor = 0) {
   const firstWork = rows.findIndex(x => !isWarmupRow(x))
@@ -1066,6 +1088,7 @@ export function insertWarmupRow(rows, mode, target, step = 2.5, floor = 0) {
 // warm-up (its weight, reps and tick kept; drops, bursts, sides and effort dropped, since a
 // warm-up has none) and moves to the end of the warm-ups, so it is numbered, rested and left out
 // of progression and records like any other warm-up. A row that is one already is left alone.
+// It is a warm-up you chose, so it is marked `edited` (workout-model.js markWarmupEdited).
 // Only a plain straight set: a warm-up is one weight times one rep count, so a drop set would
 // lose its drops, a rest-pause row would add its bursts into one inflated rep count, and a
 // per-side row would merge both sides with no way back (a per-side warm-up is never made a work
@@ -1075,7 +1098,7 @@ export const canBeWarmup = row => !!row && !isWarmupRow(row) && !isSideSet(row) 
 export function makeWarmupAt(rows, i) {
   const src = rows[i]
   if (!canBeWarmup(src)) return rows
-  const warm = { w: src.w || 0, r: src.r, done: !!src.done, phase: 'warmup', warmup: true }
+  const warm = { w: src.w || 0, r: src.r, done: !!src.done, phase: 'warmup', warmup: true, edited: true }
   if (src.at != null) warm.at = src.at
   return placeRow(rows, i, warm)
 }
@@ -1083,7 +1106,7 @@ export function makeWarmupAt(rows, i) {
 export function makeWorkAt(rows, i) {
   const src = rows[i]
   if (!src || !isWarmupRow(src)) return rows
-  const { phase, warmup, ...work } = src
+  const { phase, warmup, edited: _edited, wp: _wp, wb: _wb, ...work } = src
   return placeRow(rows, i, work)
 }
 // Takes row i out and puts `row` where the work sets begin.

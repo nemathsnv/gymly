@@ -17,6 +17,8 @@ frontend/  React 19 + Vite app (src/views, src/components, src/store, src/lib). 
 api/       backend — server.js (Node, no framework), deps: @simplewebauthn/server, web-push, undici,
            and for the hosted MCP endpoint @modelcontextprotocol/server + zod.
            coach/ is the optional AI coach; mcp-remote/ the hosted MCP server + its OAuth server;
+           integrations/ the optional outbound webhooks (INTEGRATIONS=webhook, docs/INTEGRATIONS.md),
+           net-guard.js the outbound address rules shared by push and webhooks;
            openapi.yaml documents every route.
 web/       multi-stage Dockerfile (builds frontend → nginx) + nginx.conf.template (serves app, proxies /api).
 mcp/       optional MCP server — read-only stdio bridge exposing a user's workouts/1RM/muscle
@@ -129,11 +131,25 @@ resource-bound hashed tokens in `db.mcpGrants`, consent page `consent.js`). Off 
 `MCP_OAUTH_USERS` lists profile ids. Writes: `plan-ops.js` turns operations into the Coach's
 change contract and validates them with `coach/core/validate.js`; preview → apply-by-id
 (`tools.js`), staleness scoped to the touched routines (`scopeKey`), journal for undo (`journal.js`), committed through
-`commitState` in server.js (the same path as `PUT /api/data`). `plan-apply.js` is a hand copy of
+`commitState` in server.js (the same path as `PUT /api/data`). Workout logging
+(`preview_workout_log` → `log_workout`) builds the session with `frontend/src/lib/log-workout.js`
+(names resolved through `S.exMerged` or asked about, id from the description so it never logs
+twice, filed the way Finish files it), 20 saves an hour per profile (`log-budget.js`); the stdio
+bridge stays read-only. `plan-apply.js` is a hand copy of
 the Coach's `CHANGE_APPLY` pinned by `frontend/src/lib/mcp-apply-parity.test.js`.
 `read-tools.gen.js` is GENERATED (`node scripts/build-mcp-hosted.mjs`) from `mcp/src/hosted.js`
 + V1 tools + `frontend/src/lib`; regenerate after changing any of those (CI runs `--check`).
 Design and departures: `docs/dev/MCP_WRITES.md`.
+
+### Webhooks (`api/integrations`)
+
+Outbound webhooks (ported from openGym), off unless `INTEGRATIONS=webhook`. `events.js` reads
+`workout.finished` / `workout.pr` / `weighin.logged` (one per weigh-in reading) off the documents
+before and after `commitState`, so device syncs and hosted-MCP writes both fire; `outbox.js` queues
+with idempotency keys and backoff; `store.js` keeps per-profile files in `DATA_DIR/integrations`
+with URL and secret sealed (`crypto.js`, key from `DATA_DIR/secret`). URLs pass `net-guard.js`
+(`INTEGRATIONS_ALLOW_LAN=1` opens the home network). App side: Settings → Account → Webhooks
+(`components/Webhooks.jsx`, `lib/webhooks.js`), shown only when `/api/config` has `integrations`.
 
 ### Passkeys and self-hosting constraints
 

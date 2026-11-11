@@ -33,6 +33,7 @@ function state() {
     loadKind: { [CUSTOM]: { kind: 'pairs', _ts: 5 } },
     dbLoad: {},
     exEquip: { [CUSTOM]: { step: { kg: 1.25 }, pulley: null, _ts: 5 } },
+    stackWeights: { [CUSTOM]: { unit: 'kg', weights: [5, 11.3, 18.1], _ts: 5 } },
     balanceOverrides: { 'tpl:bench': { id: CUSTOM, _ts: 5 } },
     active: null,
   }
@@ -71,6 +72,7 @@ describe('merging an exercise into another (#656)', () => {
     expect(S.barWeights).toEqual({ [BENCH]: 20 })
     expect(S.loadKind).toEqual({ [BENCH]: { kind: 'pairs', _ts: 1000 } })
     expect(S.exEquip).toEqual({ [BENCH]: { step: { kg: 1.25 }, pulley: null, _ts: 1000 } })
+    expect(S.stackWeights).toEqual({ [BENCH]: { unit: 'kg', weights: [5, 11.3, 18.1], _ts: 1000 } })
     expect(S.balanceOverrides['tpl:bench']).toEqual({ id: BENCH, _ts: 1000 })
     expect(S.customEx).toEqual([])
     expect(S.exMerged[CUSTOM]).toEqual({ into: BENCH, n: 'Bench Press (Barbell)', _ts: 1000 })
@@ -87,6 +89,17 @@ describe('merging an exercise into another (#656)', () => {
     expect(S.exWeights[BENCH].w).toBe(90)
     expect(S.barWeights[BENCH]).toBe(15)
     expect(S.exEquip).toEqual({ [BENCH]: { step: { kg: 2.5 }, pulley: null, _ts: 3 } })
+  })
+
+  test('a weight stack (#688) moves unless the target has its own list; a cleared one takes it', () => {
+    const own = state()
+    own.stackWeights[BENCH] = { unit: 'kg', weights: [10, 20], _ts: 3 }
+    mergeExercise(own, CUSTOM, BENCH, { now: 1000 })
+    expect(own.stackWeights).toEqual({ [BENCH]: { unit: 'kg', weights: [10, 20], _ts: 3 } })
+    const cleared = state()
+    cleared.stackWeights[BENCH] = { _ts: 3 }
+    mergeExercise(cleared, CUSTOM, BENCH, { now: 1000 })
+    expect(cleared.stackWeights).toEqual({ [BENCH]: { unit: 'kg', weights: [5, 11.3, 18.1], _ts: 1000 } })
   })
 
   test('a stepmill keeps the machine level on every set it moves', () => {
@@ -163,12 +176,13 @@ describe('merging an exercise into another (#656)', () => {
     const was = clone(S)
     const { undo } = mergeExercise(S, CUSTOM, BENCH, { now: 1000 })
     undoMerge(S, undo, { now: 2000 })
-    const { exMerged, workouts, loadKind, exEquip, balanceOverrides, ...rest } = S
-    const { workouts: w0, loadKind: l0, exEquip: e0, balanceOverrides: b0, ...rest0 } = was
+    const { exMerged, workouts, loadKind, exEquip, stackWeights, balanceOverrides, ...rest } = S
+    const { workouts: w0, loadKind: l0, exEquip: e0, stackWeights: s0, balanceOverrides: b0, ...rest0 } = was
     expect(rest).toEqual(rest0)
     // the stamped settings are back as they were, stamped again so a sync keeps them
     expect(loadKind).toEqual({ [CUSTOM]: { ...l0[CUSTOM], _ts: 2000 } })
     expect(exEquip).toEqual({ [CUSTOM]: { ...e0[CUSTOM], _ts: 2000 } })
+    expect(stackWeights).toEqual({ [CUSTOM]: { ...s0[CUSTOM], _ts: 2000 } })
     expect(balanceOverrides).toEqual({ 'tpl:bench': { id: CUSTOM, _ts: 2000 } })
     expect(workouts.map(w => w.entries[0])).toEqual(w0.map(w => w.entries[0]))
     expect(workouts[0]._ts).toBe(2000)

@@ -12,6 +12,54 @@
   Android app uses the phone's own voice and your music only turns down for a moment, it never
   stops; a browser, and the iPhone app, use the built-in voice. Only while the app is on screen:
   a locked phone still gets the end tone and the notification.
+- **Webhooks** (self-hosted, `INTEGRATIONS=webhook`; ported from openGym 1.4.4). Tell Home
+  Assistant, n8n, ntfy or Node-RED when you finish a workout, set a record or weigh in, from
+  whichever device you logged it on, or an AI assistant over the hosted MCP endpoint. Add them in
+  **Settings → Account → Webhooks**, a row that is only there when your server offers them. Each
+  message is signed, retried for about an hour if the other side is down, never sent twice, and a
+  test event is one tap away. With several weigh-ins a day, each weigh-in is its own message, the
+  evening's too. Home Assistant on your home network needs `INTEGRATIONS_ALLOW_LAN=1` from your
+  admin. Payloads and a signature checker are in docs/INTEGRATIONS.md.
+- **Your week, your month** (from openGym). When a new week starts (your first weekday, Monday or
+  Sunday as Settings has it) Home shows a small "Your week" card about the one that just ended, and
+  on the 1st a "Your month": workouts, volume, new bests, the streak and the muscle that did the
+  most work. Tap it for the numbers and share them as a picture (story or square, dark or light).
+  A week off gets no card, nobody needs a recap of the sofa. The × puts it away on all your
+  devices, and Settings → Look & Home → On Home → **Week and month recap** switches it off.
+- **Warm-ups that build themselves** (ported from openGym #156). Settings → Workout → Automatic
+  warm-ups: Off (the default, nothing changes), Compound lifts or Every loaded lift. The ramp comes
+  from your work weight, the way a coach would scribble it: a heavy squat gets the bar for ten and
+  then 40, 60 and 80 percent, a medium press two sets, a light curl one, a 6 kg raise none, and a
+  pull-up none until you hang weight on it. Every rung is rounded down to what you can load (your
+  plates, your dumbbells, the machine's weight stack), never under the bar. Bump the first work set
+  from 100 to 110 mid-workout and the warm-ups you have not done yet follow it.
+- **Your own warm-ups, kept** (ported from openGym #525). Each exercise's settings have Warm-ups:
+  Default, Auto, My own, A number of ramp sets (the old stepper) or None. My own is a few rows as a
+  share of the work weight (or the bare bar), so 20 × 12, 30 × 8, 40 × 5 on a 60 kg bench stays
+  yours and grows when the bench does. Did them your way today? The exercise's ⋯ menu has Keep
+  these warm-ups, and Update routine offers it too. A routine's own warm-ups win over Your last
+  session, and a shared plan file carries them.
+- **"Your last session" brings your warm-ups too** (ported from openGym #525, #658). With Settings →
+  Workout → Fine-tuning → Planned sessions start from → Your last session, the warm-ups you set up
+  yourself (typed, stepped, added by hand) come back next time just as you left them. The ramp the
+  routine builds for you stays automatic and follows today's work weight, so a 50 % rung from your
+  60 kg days doesn't stay stuck at 30 kg once you bench 100.
+- **Machines with odd weight steps** (ported from openGym #688). A machine or cable exercise (and
+  one of your own) has a Weight stack under Plate loading: type in the weights its pin really picks
+  (5, 11.3, 18.1, the LifeFitness special) or fill an even stack and fix the odd ones. Progression,
+  deloads, warm-ups, drops and the + and − buttons then land only on those, and at the top of the
+  stack the weight holds and says so. A stack wins over the exercise's own Weight step, whose
+  editor says so; clear the stack and the step you picked is back. Without a stack nothing changes.
+  Merging an exercise into another takes its stack along.
+- **Log a workout by telling your AI about it** (ported from openGym #739, thanks
+  @matthewjablack). Connected to Gymly's hosted MCP endpoint, an assistant turns "curls, 12 kg,
+  12/12/10" into a workout: it shows you how it will be saved, and once you agree it lands in
+  History on every device, with its PR badges and, for today's session, the next suggested weight,
+  as Finish would. Exercises go by name: when one could mean two exercises (or none), it asks you
+  which; an exercise you merged into another is logged as the one it went into; cardio and a
+  stepmill's level work too. It never logs the same thing twice, takes 20 workouts an hour at
+  most, and `undo_change` takes one back. The local MCP bridge stays read-only: its token is
+  read-only by design.
 - **Weigh in as often as you like, with the time** (ported from openGym #859). A day can now hold
   several weigh-ins, each with its time. The weigh-in sheet has a date and a time field (now for
   today; for an earlier day, that day's first time or 08:00), so a weigh-in can also be logged for

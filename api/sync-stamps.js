@@ -64,13 +64,14 @@ const capStamps = m => {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'habitLog', 'exEquip', 'exMerged',
+  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged',
 ]);
 const PER_KEY = new Set(['week', 'dayPlan', 'exNotes', 'barWeights']);
 // The maps whose every entry carries its own edit time (sync-merge.js STAMPED_MAPS): merged per
 // key by the app, so never stamped here as a whole setting. dayNotes is a note per day off, habitLog a habit's status per day,
-// exEquip an exercise's +/− step and pulley, exMerged where an exercise was merged into another (#656).
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'habitLog', 'exEquip', 'exMerged'];
+// exEquip an exercise's +/− step and pulley, exMerged where an exercise was merged into another (#656),
+// stackWeights a machine's own weight stack (#688).
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged'];
 const ENTRY_META = new Set(['id', '_ts', '_f', '_u']);
 const ENTRY_LISTS = ['routines', 'customEx', 'equipProfiles', 'gymCards', 'workouts'];
 

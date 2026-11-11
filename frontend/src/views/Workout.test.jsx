@@ -663,6 +663,34 @@ describe('active workout weight controls', () => {
     expect(mocks.S.active.entries[0].sets[0].w).toBe(62.5)
   })
 
+  // "Your last session" carries only the warm-ups you set up (#525): stepping a ramp rung makes it
+  // yours, the work set next to it and an untouched rung stay unmarked.
+  it('marks a warm-up you changed as set by hand, and nothing else', async () => {
+    await mount([exercise('plain-bench', [false, false], {
+      target: { mode: 'reps', reps: 5, weight: 60 },
+      sets: [{ w: 30, r: 5, done: false, phase: 'warmup', warmup: true }, { w: 60, r: 5, done: false }],
+    })])
+    expect(mocks.S.active.entries[0].sets[0].edited).toBeUndefined()
+    await press('Increase', '.setrow .stp.r')
+    const [warm, work] = mocks.S.active.entries[0].sets
+    expect([warm.r, warm.edited]).toEqual([6, true])
+    expect(work.edited).toBeUndefined()
+  })
+
+  // Warm-ups that build themselves (#156): raise the first work set and the open rungs follow it,
+  // each at its own share; a rung already done, or one you typed, stays where it is.
+  it('moves the open warm-ups with the first work set, and leaves done and typed ones', async () => {
+    const rung = (w, wp, extra = {}) => ({ w, r: 5, done: false, phase: 'warmup', warmup: true, wp, ...extra })
+    await mount([exercise('plain-bench', [false, false], {
+      target: { mode: 'reps', reps: 5, weight: 60, inc: 2.5 },
+      sets: [rung(20, 30, { done: true }), rung(30, 50), rung(40, 70, { edited: true }), rung(48, 80), { w: 60, r: 5, done: false }, { w: 60, r: 5, done: false }],
+    })])
+    const work = container.querySelectorAll('.setrow .stp.w')[4]
+    await act(async () => { work.querySelector('button[aria-label="Increase"]').dispatchEvent(new dom.Event('click', { bubbles: true })) })
+    await rerender()
+    expect(mocks.S.active.entries[0].sets.map(x => x.w)).toEqual([20, 30, 40, 50, 62.5, 62.5])  // 50% of 62.5 rounds down to 30
+  })
+
   it.each(['list', 'cards', 'compact'])('keeps added weight editable at zero in %s view', async workoutView => {
     await mount([exercise('bodyweight-pull-up', [false], {
       target: { mode: 'reps', reps: 8, weight: 0, bodyweight: true, inc: 1 },
@@ -2356,6 +2384,8 @@ describe('workout controls: the more menu and the set menu', () => {
     await act(async () => { container.querySelector('button[aria-label="More"]').dispatchEvent(new dom.Event('click', { bubbles: true })) })
     await act(async () => { item('Add warm-up set').onClick() })
     expect(mocks.S.active.entries[0].sets.map(s => s.w)).toEqual([45, 55])
+    // added by hand, so it is part of your setup (#525)
+    expect(mocks.S.active.entries[0].sets.map(s => s.edited)).toEqual([true, undefined])
   })
 
   // Move down on a superset member's More menu moved the whole superset and left the member next
@@ -2492,7 +2522,7 @@ describe('workout controls: the more menu and the set menu', () => {
     await act(async () => { item('Make it a warm-up set').onClick() })
     const sets = () => mocks.S.active.entries[0].sets
     // moved in front of the work sets, in the shape Add warm-up set gives one
-    expect(sets()[0]).toEqual({ w: 60, r: 5, done: false, phase: 'warmup', warmup: true })
+    expect(sets()[0]).toEqual({ w: 60, r: 5, done: false, phase: 'warmup', warmup: true, edited: true })
     expect(isWarmupRow(sets()[1])).toBe(false)
     // the last work set cannot become one too
     await rerender()
@@ -2871,6 +2901,24 @@ describe('Update routine, from the More menu of an exercise', () => {
     // The rest of the slot is exactly what it was.
     expect(mocks.S.routines[0].ex[0]).toEqual({ id: 'plain-bench', sets: 1, mode: 'reps', reps: 5, weight: 60, warmupSets: 1 })
     expect(mocks.toast).toHaveBeenCalledWith('Routine updated')
+  })
+
+  // "Keep these warm-ups" (#525): today's rows become the slot's own block, as shares of the work weight.
+  it('keeps the warm-ups on screen as the routine slot\'s own block', async () => {
+    const warm = (w, r) => ({ w, r, done: true, phase: 'warmup', warmup: true })
+    await mount([ownEntry({ sets: [warm(30, 8), warm(45, 3), { w: 60, r: 5, done: false }] })], 0, { routines: [routine({ warmupSets: 2 })] })
+    await openMore()
+    const keep = item('Keep these warm-ups')
+    expect(keep).toBeTruthy()
+    await act(async () => { keep.onClick() })
+    expect(mocks.S.routines[0].ex[0]).toEqual({ id: 'plain-bench', sets: 1, mode: 'reps', reps: 5, weight: 60, warmup: 'own', warmupRows: [{ wp: 50, r: 8 }, { wp: 75, r: 3 }] })
+    expect(mocks.toast).toHaveBeenCalledWith('Kept. Same warm-ups next time, scaled to your work weight.')
+  })
+
+  it('offers no Keep these warm-ups without warm-ups or a routine', async () => {
+    await mount([ownEntry()], 0, { routines: [routine()] })
+    await openMore()
+    expect(item('Keep these warm-ups')).toBeUndefined()
   })
 
   it('names the rest and note edited on the settings sheet mid-session', async () => {
