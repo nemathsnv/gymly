@@ -91315,6 +91315,9 @@ function muscleOrder() {
 	return MUSCLES.slice();
 }
 
+// frontend/src/lib/set-notes.js
+const setNoteOf = (s) => s && typeof s.note === "string" ? s.note.trim() : "";
+
 // frontend/src/lib/onerm.js
 const REP_CAP = 12;
 const WEIGHTED_REP_CAP = 15;
@@ -91738,7 +91741,8 @@ function entryView(e, S) {
 			sec: Number(s.sec) || 0,
 			min: Number(s.min) || 0,
 			speed: Number(s.speed) || 0,
-			...Number(s.level) > 0 ? { level: Number(s.level) } : {}
+			...Number(s.level) > 0 ? { level: Number(s.level) } : {},
+			...setNoteOf(s) ? { note: setNoteOf(s) } : {}
 		}))
 	};
 }
