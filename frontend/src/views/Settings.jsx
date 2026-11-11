@@ -34,6 +34,7 @@ import { CUSTOM, accentKey, adjustedIn, applyAccent, cleanHex, inkOn, isGrey } f
 import { checkForUpdate, downloadAndInstall, fetchChecksum, RELEASES_PAGE } from '../lib/update.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import LegalLinks from '../components/LegalLinks.jsx'
+import OuraCard from '../components/OuraCard.jsx'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
@@ -837,6 +838,8 @@ export default function Settings({ page = null, find = null, via = null }) {
         {MOBILE && android && S.autoBackup && <BackupFolderRow />}
       </Section>
       {MOBILE && android && <HealthConnectCard S={S} toast={toast} />}
+      {/* Oura: a server-side connection (OAuth callback on this origin), so signed-in web only. */}
+      {user && !MOBILE && !DEMO && <OuraCard />}
       <Section title={t('Bring data in')}>
         <Row icon="download" iconTint="var(--teal)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
         <Row icon="download" iconTint="var(--teal)" title={t('Import from another app')}

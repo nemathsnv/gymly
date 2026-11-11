@@ -58,6 +58,8 @@ COPY coach ./coach
 # The hosted MCP endpoint (OAuth + /api/mcp). Its read-tools.gen.js is generated from mcp/ and
 # frontend/src/lib by scripts/build-mcp-hosted.mjs and committed, so the image needs nothing else.
 COPY mcp-remote ./mcp-remote
+# The Oura integration (OAuth, encrypted token store, read-only client). Inert without OURA_CLIENT_ID.
+COPY oura ./oura
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000

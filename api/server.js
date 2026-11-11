@@ -46,6 +46,7 @@ import {
 import { consentPage, signInPage, errorPage, pageHeaders, newNonce } from './mcp-remote/consent.js';
 import { createJournal } from './mcp-remote/journal.js';
 import { createLogBudget } from './mcp-remote/log-budget.js';
+import { ouraRoutes } from './oura/routes.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -124,6 +125,15 @@ const lock = f => { try { fs.chmodSync(path.join(DATA, f), 0o600); } catch { /* 
 const secretFile = path.join(DATA, 'secret');
 if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
 const SECRET = fs.readFileSync(secretFile, 'utf8').trim();
+
+/* ---------- Oura (api/oura) ---------- */
+// Off unless OURA_CLIENT_ID and OURA_CLIENT_SECRET are set. Tokens are kept encrypted under
+// DATA/oura/; Oura health data is never written to disk (oura/routes.js says why).
+const OURA = ouraRoutes({
+  json: (...a) => json(...a), readSession: req => readSession(req), audit: (...a) => audit(...a),
+  env: process.env, origin: ORIGIN, dataDir: DATA, instanceSecret: SECRET,
+  version: JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version,
+});
 
 const dbFile = path.join(DATA, 'db.json');
 // Every account, passkey and invite. Only a missing file starts empty: an unreadable one (a write
@@ -2361,6 +2371,9 @@ const routes = {
       // Public like the two flags above: the caps are not a secret, and the absence of the
       // block is how the app knows this server does not take photos and videos at all.
       ...(MEDIA_ON ? { media: mediaConfig(MEDIA_LIMITS) } : {}),
+      // Only when on, like password_login: whether Oura can be connected here, never a credential.
+      // The published Privacy Policy already says the service offers it.
+      ...(OURA.configured ? { oura: true } : {}),
       ...(readSession(req) ? { coach: coachConfig.publicConfig() } : {})
     });
   },
@@ -3083,6 +3096,9 @@ const routes = {
     try { fs.unlinkSync(stateFile(u.id)); } catch { /* already gone */ }
     MCP_JOURNAL.remove(u.id);
     try { coachConfig.clearProfileAuth(u.id); } catch { /* nothing stored */ }
+    // An Oura connection: revoked at Oura and its tokens deleted (the API Agreement's deletion
+    // duty). Not awaited: Oura being slow must not hold up the delete.
+    OURA.forgetUser(u.id);
     // Their photos and videos — the one place a profile's folder under uploads/ is removed.
     try { MEDIA.removeUser(u.id); } catch (e) { console.error('media: could not remove uploads of', u.id, e.message); }
     saveDb();
@@ -3169,6 +3185,10 @@ const routes = {
   // them: they are closures over db and SECRET, and passing them in keeps that module free of
   // a cycle. Every one of them is inert while the feature is unconfigured.
   ...coachRoutes({ json, readBody, readSession, requireAdmin }),
+
+  /* ---------- Oura ---------- */
+  // oura/routes.js. Inert (status says configured: false, the rest 503) without credentials.
+  ...OURA.routes,
 
   /* ---------- photos & videos ---------- */
   // Absent, not refusing, when MEDIA_UPLOADS=0: a 404 is what a server from before the feature
