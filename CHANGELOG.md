@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Warm-ups that build themselves** (ported from openGym #156). Settings → Workout → Automatic
+  warm-ups: Off (the default, nothing changes), Compound lifts or Every loaded lift. The ramp comes
+  from your work weight, the way a coach would scribble it: a heavy squat gets the bar for ten and
+  then 40, 60 and 80 percent, a medium press two sets, a light curl one, a 6 kg raise none, and a
+  pull-up none until you hang weight on it. Every rung is rounded down to what you can load (your
+  plates, your dumbbells, the machine's weight stack), never under the bar. Bump the first work set
+  from 100 to 110 mid-workout and the warm-ups you have not done yet follow it.
+- **Your own warm-ups, kept** (ported from openGym #525). Each exercise's settings have Warm-ups:
+  Default, Auto, My own, A number of ramp sets (the old stepper) or None. My own is a few rows as a
+  share of the work weight (or the bare bar), so 20 × 12, 30 × 8, 40 × 5 on a 60 kg bench stays
+  yours and grows when the bench does. Did them your way today? The exercise's ⋯ menu has Keep
+  these warm-ups, and Update routine offers it too. A routine's own warm-ups win over Your last
+  session, and a shared plan file carries them.
+- **"Your last session" brings your warm-ups too** (ported from openGym #525, #658). With Settings →
+  Workout → Fine-tuning → Planned sessions start from → Your last session, the warm-ups you set up
+  yourself (typed, stepped, added by hand) come back next time just as you left them. The ramp the
+  routine builds for you stays automatic and follows today's work weight, so a 50 % rung from your
+  60 kg days doesn't stay stuck at 30 kg once you bench 100.
 - **Machines with odd weight steps** (ported from openGym #688). A machine or cable exercise (and
   one of your own) has a Weight stack under Plate loading: type in the weights its pin really picks
   (5, 11.3, 18.1, the LifeFitness special) or fill an even stack and fix the odd ones. Progression,
