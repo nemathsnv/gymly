@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': 'Noter {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Rien de noté pour l’instant. Note-le chaque matin pour voir la tendance.',
   'That number looks too big. Check it and try again.': 'Ce nombre paraît trop grand. Vérifie-le et réessaie.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Cette app ne peut pas confirmer avec une passkey. Crée le code dans un navigateur connecté à ce profil, ou ajoute d’abord un mot de passe là-bas.',
 }

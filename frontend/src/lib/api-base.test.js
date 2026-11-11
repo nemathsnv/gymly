@@ -3,7 +3,7 @@
 // already relative; the API call was not, so it went to the proxy's own root where nothing
 // answers it. The base is read from where the app is being served.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { appBase, beacon } from './api.js'
+import { api, appBase, beacon } from './api.js'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
@@ -258,8 +258,8 @@ describe('the web container refuses a BASE_PATH it cannot serve', () => {
     // master both stay there. The listen port stays 80: compose, the probes and the healthcheck
     // all address NGINX_PORT. The base image's EXPOSE 8080 is only metadata.
     const dockerfile = readFileSync(join(WEB, 'Dockerfile'), 'utf8')
-    expect(dockerfile).toMatch(/^FROM --platform=\$BUILDPLATFORM node:22-alpine AS build$/m)
-    expect(dockerfile).toMatch(/^FROM nginxinc\/nginx-unprivileged:alpine$/m)
+    expect(dockerfile).toMatch(/^FROM --platform=\$BUILDPLATFORM node:22(\.\d+\.\d+)?-alpine AS build$/m)
+    expect(dockerfile).toMatch(/^FROM nginxinc\/nginx-unprivileged:(\d+\.\d+\.\d+-)?alpine$/m)
     const users = [...dockerfile.matchAll(/^USER \S+$/gm)].map(m => m[0])
     expect(users.at(-1)).toBe('USER 101')
     const root = dockerfile.search(/^USER root$/m)
@@ -270,5 +270,70 @@ describe('the web container refuses a BASE_PATH it cannot serve', () => {
     expect(finalUser).toBeGreaterThan(upgrade)
     expect(dockerfile).toMatch(/^ENV NGINX_PORT=80$/m)
     expect(dockerfile).toMatch(/^COPY web\/nginx\.conf\.template \/etc\/nginx\/templates\/default\.conf\.template$/m)
+  })
+})
+
+// A path that begins with two slashes is still served the real app on the real origin: nginx
+// merges the slashes and resolves an encoded "..%2F" before it looks for a file, so
+// https://gym.example//evil.example/..%2F/ is the shell, with its scripts. Taken as-is, that
+// path is a protocol-relative URL, and every API call, the passkey sign-in included, went to
+// evil.example.
+const ORIGIN = 'https://gym.test'
+const lands = base => new URL(base.replace(/\/$/, '') + '/api/login/verify', ORIGIN).origin
+
+describe('the base never leaves the page\'s origin', () => {
+  it.each([
+    ['//evil.example/', '/evil.example/'],
+    ['//evil.example//', '/evil.example/'],
+    ['///evil.example/', '/evil.example/'],
+    ['//evil.example/..%2F/', '/evil.example/..%2F/'],
+    ['/gym//evil.example/', '/gym/evil.example/'],
+    ['//', '/'],
+    ['///', '/'],
+    ['//index.html', '/'],
+    ['/\\evil.example/', '/evil.example/'],
+  ])('%s is the path %s on this origin', (pathname, base) => {
+    expect(at(pathname)).toBe(base)
+    expect(lands(at(pathname))).toBe(ORIGIN)
+  })
+
+  it.each([
+    ['/', '/'],
+    ['/gym/', '/gym/'],
+    ['/gym/index.html', '/gym/'],
+  ])('an ordinary %s is unchanged', (pathname, base) => {
+    expect(at(pathname)).toBe(base)
+    expect(lands(at(pathname))).toBe(ORIGIN)
+  })
+
+  it('a base the URL parser would still read as another host is refused, not used', () => {
+    // A real location never has a raw tab in its path (the parser drops it on the way in), which
+    // is exactly why the last word goes to the parser rather than to the slash rule alone.
+    expect(() => at('/\t/evil.example/')).toThrow(/another site/)
+  })
+})
+
+// The same pages through api() itself. Each is the real shell on the stock web image: "//",
+// "///" and "//index.html" because nginx merges the slashes, "//evil.example/..%2F/" because it
+// also resolves the encoded "..". Read as-is, the first three sent every call to https://api/...
+// and the last one to evil.example.
+describe('api() on a page whose path starts with two slashes', () => {
+  const home = location.href
+  afterEach(() => { vi.unstubAllGlobals(); window.happyDOM.setURL(home) })
+
+  it.each([
+    ['//', '/api/login/options'],
+    ['///', '/api/login/options'],
+    ['//index.html', '/api/login/options'],
+    ['//evil.example/..%2F/', '/evil.example/..%2F/api/login/options'],
+  ])('a page at %s still calls this origin, never the host its path names', async (path, expected) => {
+    window.happyDOM.setURL(ORIGIN + path)
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    await api('/api/login/options', { method: 'POST', body: '{}' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const url = fetchMock.mock.calls[0][0]
+    expect(new URL(url, location.href).origin).toBe(ORIGIN)
+    expect(url).toBe(expected)
   })
 })

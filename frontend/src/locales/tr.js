@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': '{0} kaydet',
   'Nothing logged yet. Log it every morning to see the trend.': 'Henüz kayıt yok. Eğilimi görmek için her sabah kaydet.',
   'That number looks too big. Check it and try again.': 'Bu sayı çok büyük görünüyor. Kontrol edip tekrar dene.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Bu uygulama geçiş anahtarıyla onaylayamaz. Kodu bu profille oturum açmış bir tarayıcıda oluştur ya da önce orada bir parola ekle.',
 }

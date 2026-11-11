@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': 'Zapisz: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Nic jeszcze nie zapisano. Zapisuj to każdego ranka, żeby zobaczyć trend.',
   'That number looks too big. Check it and try again.': 'Ta liczba wygląda na zbyt dużą. Sprawdź ją i spróbuj ponownie.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ta aplikacja nie może potwierdzić kluczem dostępu. Utwórz kod w przeglądarce zalogowanej na ten profil albo najpierw ustaw tam hasło.',
 }

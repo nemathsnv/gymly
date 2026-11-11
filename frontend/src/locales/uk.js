@@ -2335,4 +2335,5 @@ export default {
   'Log {0}': 'Записати: {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Ще нічого не записано. Записуйте щоранку, щоб бачити динаміку.',
   'That number looks too big. Check it and try again.': 'Це число виглядає завеликим. Перевірте його та спробуйте ще раз.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Цей застосунок не може підтвердити ключем доступу. Створіть код у браузері, де ви ввійшли в цей профіль, або спершу задайте там пароль.',
 }

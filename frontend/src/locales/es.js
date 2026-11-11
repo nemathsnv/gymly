@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': 'Registrar {0}',
   'Nothing logged yet. Log it every morning to see the trend.': 'Aún no hay nada registrado. Regístralo cada mañana para ver la tendencia.',
   'That number looks too big. Check it and try again.': 'Ese número parece demasiado grande. Revísalo e inténtalo de nuevo.',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Esta app no puede confirmar con una passkey. Crea el código en un navegador con este perfil abierto, o añade allí una contraseña primero.',
 }

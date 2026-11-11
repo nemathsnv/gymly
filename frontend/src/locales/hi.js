@@ -2338,4 +2338,5 @@ export default {
   'Log {0}': '{0} दर्ज करें',
   'Nothing logged yet. Log it every morning to see the trend.': 'अभी तक कुछ दर्ज नहीं है। रुझान देखने के लिए इसे हर सुबह दर्ज करें।',
   'That number looks too big. Check it and try again.': 'यह संख्या बहुत बड़ी लगती है। जाँचें और फिर से कोशिश करें।',
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'यह ऐप पासकी से पुष्टि नहीं कर सकता। इस प्रोफ़ाइल में साइन इन किए ब्राउज़र में कोड बनाएँ, या पहले वहाँ एक पासवर्ड जोड़ें।',
 }
