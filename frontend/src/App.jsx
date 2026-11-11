@@ -48,6 +48,7 @@ import Habits from './views/Habits.jsx'
 import HabitDetail from './views/HabitDetail.jsx'
 import CoachIntake from './views/CoachIntake.jsx'
 import CoachSetup from './views/CoachSetup.jsx'
+import OuraOverview from './views/OuraOverview.jsx'
 
 // last known scrollY per route, so back-navigation can put the page where it was
 const scrollPositions = new Map()
@@ -220,6 +221,8 @@ function Shell() {
               <Route path="/structural-balance" element={<StructuralBalance />} />
               <Route path="/progress-photos" element={<ProgressPhotos />} />
               <Route path="/measurements" element={<Measurements />} />
+              {/* Oura (views/OuraOverview.jsx): a server feature, so only for a signed-in browser. */}
+              {user && !MOBILE && <Route path="/oura" element={<OuraOverview />} />}
               {/* Daily habits — switched off in Settings, the route falls through to the redirect. */}
               {S.habitsOn !== false && <Route path="/habits" element={<Habits />} />}
               {S.habitsOn !== false && <Route path="/habits/:id" element={<HabitDetail />} />}

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Privacy Policy · Gymly</title>
-<meta name="description" content="How Gymly (gymly.churntech.com) collects, uses, stores, shares and deletes your personal data, including workout logs, body measurements and the planned Oura integration.">
+<meta name="description" content="How Gymly (gymly.churntech.com) collects, uses, stores, shares and deletes your personal data, including workout logs, body measurements and the optional Oura integration.">
 <link rel="canonical" href="https://gymly.churntech.com/privacy">
 <meta name="robots" content="index,follow">
 <meta property="og:type" content="website">
@@ -78,7 +78,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 <p class="meta">Last updated: <time datetime="2026-11-11">11 November 2026</time></p>
 
 <div class="card note">
-  <p><strong>In short:</strong> Gymly is a workout and body-weight tracker. We store what you log so you can use it across your devices. We do not sell your data. We do not show ads. We do not use tracking or analytics. You can export your data at any time, and you can ask us to delete your account. AI features only run if you turn them on. An Oura integration is <strong>planned but not available yet</strong>; <a href="#oura">section 8</a> explains how it will work.</p>
+  <p><strong>In short:</strong> Gymly is a workout and body-weight tracker. We store what you log so you can use it across your devices. We do not sell your data. We do not show ads. We do not use tracking or analytics. You can export your data at any time, and you can ask us to delete your account. AI features only run if you turn them on. Connecting Oura is optional and read-only; <a href="#oura">section 8</a> explains it.</p>
 </div>
 
 <nav class="card toc" aria-labelledby="toc-title">
@@ -91,7 +91,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
     <li><a href="#processors">Hosting and service providers</a></li>
     <li><a href="#ai">AI features</a></li>
     <li><a href="#integrations">Imports and other integrations</a></li>
-    <li><a href="#oura">Planned Oura integration</a></li>
+    <li><a href="#oura">Oura integration</a></li>
     <li><a href="#retention">How long we keep data</a></li>
     <li><a href="#rights">Your choices and rights</a></li>
     <li><a href="#security">Security</a></li>
@@ -162,6 +162,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
     <tr><td>Create and run your account, sign you in, and store and sync what you log across your devices</td><td>Performance of our agreement with you (Art. 6(1)(b) GDPR)</td></tr>
     <tr><td>Store and process data concerning health that you choose to record, to provide the features you use, such as progress charts, estimated one-rep maxes, strength levels, recovery views and progression suggestions</td><td>Your explicit consent (Art. 9(2)(a) GDPR), which you can withdraw at any time by deleting that data or your account</td></tr>
     <tr><td>Send rest-timer and reminder notifications</td><td>Your consent, given through your browser's or phone's notification permission (Art. 6(1)(a))</td></tr>
+    <tr><td>Read and show your Oura data, if you connect Oura</td><td>Your explicit consent (Art. 6(1)(a) and Art. 9(2)(a)), given on Oura's authorisation page; withdraw it by disconnecting</td></tr>
     <tr><td>Optional AI features (AI Coach, AI assistant connections)</td><td>Your consent (Art. 6(1)(a) and Art. 9(2)(a)), given when you turn the feature on</td></tr>
     <tr><td>Keep the service secure, prevent abuse, investigate problems, and keep encrypted backups so data can be restored after a failure</td><td>Our legitimate interest in a secure and reliable service (Art. 6(1)(f))</td></tr>
     <tr><td>Meet legal obligations, for example answering a lawful request</td><td>Legal obligation (Art. 6(1)(c))</td></tr>
@@ -220,41 +221,43 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 </section>
 
 <section id="oura" aria-labelledby="oura-h">
-<h2 id="oura-h">8. Planned Oura integration</h2>
+<h2 id="oura-h">8. Oura integration</h2>
 <div class="card note">
-  <p><strong>Status: not available yet.</strong> We plan to let you connect an Oura account to Gymly through the Oura API (version 2). We are registering Gymly as an application with Oura. Today Gymly cannot connect to Oura and receives no Oura data. Before the integration is launched, we will update this section if any detail below changes.</p>
+  <p><strong>Optional, and read-only.</strong> You can connect an Oura account to see your Oura sleep, recovery and activity next to your training in Gymly. It uses the Oura API (version 2). Connecting appears in Settings → Data &amp; backup when the service has it switched on. Nothing is read from Oura unless you connect.</p>
 </div>
-<h3>8.1 What it will do</h3>
-<p>Connecting Oura will be optional. If you connect, Gymly will import Oura data so you can see it next to your training, for example how you slept and recovered around your workouts. Only data types you authorise will be imported. We plan to request access to:</p>
+<h3>8.1 What Gymly reads</h3>
+<p>When you connect, Gymly asks Oura for read access to:</p>
 <ul>
-  <li>sleep (sleep periods and daily sleep summaries);</li>
-  <li>readiness (daily readiness summaries);</li>
-  <li>activity (daily activity summaries);</li>
-  <li>heart rate;</li>
-  <li>stress (daily stress summaries);</li>
-  <li>workouts recorded by Oura.</li>
+  <li>sleep (daily sleep score; for the main sleep of each night: duration, efficiency, average heart-rate variability (HRV), lowest and average heart rate);</li>
+  <li>readiness (daily readiness score, temperature deviation, HRV balance and resting heart rate contributors);</li>
+  <li>activity (daily activity score, steps, active calories);</li>
+  <li>stress (daily time in high stress and high recovery, and Oura's day summary);</li>
+  <li>SpO2 (average blood-oxygen during sleep, breathing disturbance index);</li>
+  <li>heart health (cardiovascular age and VO2 max);</li>
+  <li>heart rate (the last 7 days, reduced to each day's lowest, average and highest value);</li>
+  <li>workouts Oura recorded or detected (type, start and end time, calories, distance, intensity).</li>
 </ul>
-<p>We will request only the Oura permissions these features need. We do not plan to request your Oura email address or personal information (age, sex, height, weight).</p>
+<p>Gymly does not ask for your Oura email address or personal information (age, sex, height, weight). Detailed series such as sleep stages, 5-minute heart rate and movement data are not kept: Gymly reduces what it receives to the figures listed above.</p>
 <h3>8.2 Permission and your Oura credentials</h3>
 <ul>
-  <li>You connect on Oura's own authorisation page (OAuth 2.0). There you see which data types Gymly asks for and can allow or refuse each one. Gymly never sees your Oura password.</li>
-  <li>Oura gives Gymly an access token and a refresh token. These are kept only on Gymly's server. They are never shown in the app, sent to your browser, or shared with anyone. They are used only to fetch the data you authorised.</li>
+  <li>You connect on Oura's own authorisation page (OAuth 2.0 with PKCE). There you see which data types Gymly asks for and can allow or refuse each one. A type you refuse simply stays empty in Gymly. Gymly never sees your Oura password.</li>
+  <li>Oura gives Gymly an access token and a refresh token. They are stored only on Gymly's server, encrypted, with a key that is not kept with the data. They are never shown in the app, sent to your browser, or shared with anyone, and are used only to read the data you authorised.</li>
   <li>We will not ask for more Oura data than you authorised without asking you again first.</li>
 </ul>
-<h3>8.3 How Oura data will and will not be used</h3>
+<h3>8.3 How Oura data is used, stored and not used</h3>
 <ul>
-  <li>Oura data will be used only to show you your own information in Gymly. Like the rest of your data, the operator can access it on the server, but it will not be shown to other users.</li>
-  <li>Oura data <strong>will never be sent to an AI model or AI service</strong>. That includes Gymly's AI Coach, AI assistant connections such as ChatGPT or Claude, and any other model. It will never be used to train, fine-tune or evaluate AI.</li>
-  <li>Oura data will never be sold, rented or licensed. It will never be shared with or disclosed to third parties, except the hosting providers in <a href="#processors">section 5</a> that store and carry it for us. It will never be used for advertising, marketing or targeting. We will not use it to contact you.</li>
+  <li><strong>Only for you, and not stored.</strong> Gymly reads your Oura data when you open the recovery overview or tap "Sync now", and shows it to you. The figures are kept in the server's memory for up to 10 minutes so the screen loads quickly, and then discarded. They are never written to Gymly's database or files, never added to your Gymly workout log, and therefore not part of your synced data, exports or backups. Workouts recorded by Oura are shown beside your Gymly sessions; a session that appears in both is shown once.</li>
+  <li>Oura data <strong>is never sent to an AI model or AI service</strong>. That includes Gymly's AI Coach, AI assistant connections such as ChatGPT or Claude, and any other model. It is never used to train, fine-tune or evaluate AI.</li>
+  <li>Oura data is never sold, rented or licensed. It is not shared with or disclosed to third parties, except that it passes through the network provider in <a href="#processors">section 5</a> on its way to you. It is never used for advertising, marketing or targeting, and we do not use it to contact you. It is not shown to other users.</li>
 </ul>
 <h3>8.4 Disconnecting and deleting</h3>
 <ul>
-  <li>You will be able to disconnect Oura at any time in Gymly's Settings, and to revoke Gymly's access from your Oura account. Revoking takes effect immediately: Gymly stops fetching and processing your Oura data. When you disconnect in Gymly, we delete the tokens and ask Oura to revoke them.</li>
-  <li>When you ask us to delete your Oura data, or delete your Gymly account, we will delete all Oura data we imported for you within 72 hours, and we will not keep any of it afterwards. You can ask by disconnecting with the delete option or by emailing us.</li>
-  <li>While you stay connected, we will keep imported Oura data only as long as the features you use need it.</li>
+  <li>You can disconnect at any time in Settings → Data &amp; backup → Disconnect Oura. Gymly then asks Oura to revoke its access and immediately deletes the stored tokens and any Oura data held in memory. You can also revoke Gymly's access from your Oura account. Revoking takes effect immediately: Gymly stops reading your Oura data at once and removes the tokens it can no longer use.</li>
+  <li>Because Gymly does not store your Oura data, there is nothing left to delete after you disconnect. If you ask us to delete your Oura data or your Gymly account, the connection and its tokens are deleted the same way, immediately and in any case within 72 hours.</li>
+  <li>Encrypted backups of the server (<a href="#retention">section 9</a>) may contain the encrypted tokens of a connection that has since been removed. Those tokens cannot be decrypted with the backup alone, and they no longer work once revoked.</li>
 </ul>
 <h3>8.5 Oura is separate from Gymly</h3>
-<p>Oura processes your data under its own <a href="https://ouraring.com/privacy-policy">privacy policy</a>. Oura and Gymly are separate, independent controllers. For data held by Oura, contact Oura. For copies imported into Gymly, contact us: Oura cannot delete data that has already been shared with us. Gymly is not affiliated with, endorsed by or sponsored by Oura. "Oura" is a trademark of its owner.</p>
+<p>Oura processes your data under its own <a href="https://ouraring.com/privacy-policy">privacy policy</a>. Oura and Gymly are separate, independent controllers. For data held by Oura, contact Oura. For data held by Gymly, contact us: Oura cannot delete data that has already been shared with us. Gymly is not affiliated with, endorsed by or sponsored by Oura. "Oura" is a trademark of its owner.</p>
 </section>
 
 <section id="retention" aria-labelledby="retention-h">
@@ -267,6 +270,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
   <li><strong>Sign-in links, pairing codes and passkey challenges:</strong> expire within minutes.</li>
   <li><strong>Off-site backups:</strong> encrypted backups of the server's data are taken every six hours. We keep the last four, one per day for 30 days and one per week for 12 weeks, then delete them. So data you delete can stay in an encrypted backup for up to about 12 weeks. Backups are used only to restore the service after a failure.</li>
   <li><strong>Pre-update snapshots:</strong> before each software update, a snapshot of the server's data is saved on the same server so a failed update can be undone. These snapshots are readable only by the server's administrator account. They are not currently deleted on a fixed schedule; the operator removes them manually.</li>
+  <li><strong>Oura:</strong> Oura data is held in server memory for up to 10 minutes and never stored. The encrypted Oura tokens are kept while you stay connected and deleted when you disconnect (<a href="#oura">section 8</a>).</li>
   <li><strong>Data on your devices:</strong> stays until you clear it, sign out or uninstall the app.</li>
 </ul>
 </section>
@@ -278,7 +282,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
   <li><strong>Export:</strong> Settings → Data &amp; backup lets you download all your data as JSON, or as a ZIP that includes your photos and videos.</li>
   <li><strong>Correct:</strong> you can edit or delete any workout, measurement, weigh-in or note, and change your display name.</li>
   <li><strong>Erase content:</strong> "Reset everything" deletes your training data, photos and videos, and AI Coach data on the server. Your profile and passkeys stay.</li>
-  <li><strong>Control access:</strong> you can remove passkeys, sign out on every device, turn off notifications, and disconnect AI assistants or revoke their tokens.</li>
+  <li><strong>Control access:</strong> you can remove passkeys, sign out on every device, turn off notifications, disconnect AI assistants or revoke their tokens, and disconnect Oura.</li>
 </ul>
 <h3>10.2 Deleting your account</h3>
 <p>There is no button to delete your account yet. To delete it, email <!--email_off--><a href="mailto:nemathsnv@gmail.com">nemathsnv@gmail.com</a><!--/email_off-->. Include the Account ID shown in Settings → Account so we can find your profile. We may ask you to confirm the request from inside the app, to make sure it really comes from you. We will then delete your profile, passkeys, push subscriptions, training data, photos and videos, and AI connections. We will do this without undue delay and at the latest within one month. Copies in backups and logs are then removed on the schedule in <a href="#retention">section 9</a>.</p>
@@ -324,7 +328,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 
 <section id="changes" aria-labelledby="changes-h">
 <h2 id="changes-h">14. Changes to this policy</h2>
-<p>We will update this policy when Gymly changes how it handles personal data, including before the Oura integration launches. The date at the top shows the latest version. For significant changes, we will post a notice on this page before they take effect. Where the law requires it, we will ask for your consent again.</p>
+<p>We will update this policy when Gymly changes how it handles personal data, including the Oura integration. The date at the top shows the latest version. For significant changes, we will post a notice on this page before they take effect. Where the law requires it, we will ask for your consent again.</p>
 </section>
 
 <section id="contact" aria-labelledby="contact-h">

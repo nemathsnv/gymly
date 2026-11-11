@@ -97,8 +97,10 @@ describe.each(Object.keys(PAGES))('%s page', page => {
     expect(text(page)).not.toMatch(/\b(TODO|TBD|FIXME|lorem ipsum)\b|\[[A-Z ]+\]/i)
   })
 
-  it('says the Oura integration is planned, not live, and that Gymly is not affiliated with Oura', () => {
-    expect(text(page)).toMatch(/not available yet/i)
+  it('describes the Oura integration as optional and read-only, and Gymly as not affiliated with Oura', () => {
+    expect(text(page)).toMatch(/read-only/i)
+    expect(text(page)).toMatch(/optional/i)
+    expect(text(page)).not.toMatch(/not available yet|planned/i)
     expect(text(page)).toMatch(/not affiliated with, endorsed by or sponsored by Oura/)
   })
 })
@@ -134,19 +136,28 @@ describe('Oura API Agreement statements', () => {
   const terms = text('terms')
 
   it('privacy: Oura data never reaches an AI model, the Coach or an assistant (§4(d), §6(g))', () => {
-    expect(privacy).toMatch(/will never be sent to an AI model or AI service/)
-    expect(privacy).toMatch(/never be used to train, fine-tune or evaluate AI/)
+    expect(privacy).toMatch(/is never sent to an AI model or AI service/)
+    expect(privacy).toMatch(/never used to train, fine-tune or evaluate AI/)
   })
 
   it('privacy: no sale, sharing or advertising use of Oura data (§4(a)(vi)-(vii))', () => {
-    expect(privacy).toMatch(/never be sold, rented or licensed/)
-    expect(privacy).toMatch(/never be used for advertising, marketing or targeting/)
+    expect(privacy).toMatch(/never sold, rented or licensed/)
+    expect(privacy).toMatch(/never used for advertising, marketing or targeting/)
   })
 
   it('privacy: how to revoke, that revocation is immediate, and deletion within 72 hours (§5(a), §5(f))', () => {
     expect(privacy).toMatch(/revoke Gymly.s access from your Oura account/)
     expect(privacy).toMatch(/Revoking takes effect immediately/)
     expect(privacy).toMatch(/within 72 hours/)
+  })
+
+  it('privacy: Oura data is not stored — memory only, minutes, never in sync, exports or backups (§3(m), §4(c))', () => {
+    expect(privacy).toMatch(/kept in the server.s memory for up to 10 minutes/)
+    expect(privacy).toMatch(/never written to Gymly.s database or files/)
+    expect(privacy).toMatch(/not part of your synced data, exports or backups/)
+    // and every Oura scope the server asks for by default is named (api/oura/oauth.js DEFAULT_SCOPES)
+    for (const kind of ['sleep', 'readiness', 'activity', 'stress', 'SpO2', 'heart health', 'heart rate', 'workouts']) expect(privacy).toContain(kind)
+    expect(privacy).toMatch(/does not ask for your Oura email address or personal information/)
   })
 
   it('privacy: Oura and Gymly are independent controllers (§15(e))', () => {

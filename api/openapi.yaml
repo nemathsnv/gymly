@@ -184,6 +184,14 @@ tags:
       `INTEGRATIONS` (e.g. `INTEGRATIONS=webhook`); then a profile can add its own webhooks.
       Secrets are sealed at rest and shown once. See docs/INTEGRATIONS.md.
 
+      Oura (API v2, `/api/integrations/oura/*`), read-only. A profile connects its Oura account
+      through Oura's OAuth consent screen (authorization code + PKCE, exchanged server side);
+      tokens are stored encrypted on the server and never reach the browser. Oura health data
+      is summarised and held in server memory for a few minutes only — never written to disk,
+      never in the synced state, exports, webhooks, MCP or the Coach. Every Oura route but
+      `status` answers 503 `off` until the instance sets `OURA_CLIENT_ID` and
+      `OURA_CLIENT_SECRET`.
+
 security:
   - cookieAuth: []
   - bearerAuth: []
@@ -248,6 +256,9 @@ paths:
         `media` is there unless the instance runs with `MEDIA_UPLOADS=0`, for everybody: the
         caps are not a secret, and its absence is how the app knows this server does not
         store photos and videos at all.
+
+        `oura: true` is there only when the instance has Oura app credentials
+        (`OURA_CLIENT_ID`, `OURA_CLIENT_SECRET`); the credentials themselves never are.
 
         A caller with a valid session also gets a `coach` key: the block when the
         instance has the AI Coach switched on **and** a provider connected, and `null`
@@ -3699,6 +3710,119 @@ paths:
               example: { error: "unknown provider" }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/integrations/oura/status:
+    get:
+      tags: [integrations]
+      operationId: getOuraStatus
+      summary: Whether Oura is set up here and connected for this profile
+      description: |
+        Connection facts only, no health data. `stale` is a stored connection that can no
+        longer be used (credentials changed); Disconnect removes it.
+      responses:
+        '200':
+          description: The connection status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured: { type: boolean }
+                  connected: { type: boolean }
+                  stale: { type: boolean }
+                  connectedAt: { type: [integer, 'null'] }
+                  lastSync: { type: [integer, 'null'] }
+                  scopes: { type: [array, 'null'], items: { type: string } }
+                  requestedScopes: { type: [array, 'null'], items: { type: string } }
+                  redirectUri: { type: [string, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/integrations/oura/connect:
+    post:
+      tags: [integrations]
+      operationId: postOuraConnect
+      summary: Start connecting — the address of Oura's consent screen
+      description: |
+        Makes a PKCE verifier and a single-use `state` (10 minutes) tied to this profile, and
+        answers the authorize URL to send the browser to.
+      responses:
+        '200':
+          description: Where to send the browser.
+          content:
+            application/json:
+              schema: { type: object, properties: { url: { type: string } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { description: Oura is not set up on this server (`code` `off`). }
+
+  /api/integrations/oura/callback:
+    get:
+      tags: [integrations]
+      operationId: getOuraCallback
+      summary: Oura's redirect back (the registered redirect URI)
+      description: |
+        Checks the `state` (single use, must belong to the signed-in profile), exchanges the
+        `code` with the PKCE verifier and stores the tokens encrypted. Always answers with a
+        redirect to Settings → Data & backup, `?oura=` one of `connected`, `denied`,
+        `expired`, `mismatch`, `config`, `error`, `off`.
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '302': { description: Back to the app's Settings. }
+
+  /api/integrations/oura/overview:
+    get:
+      tags: [integrations]
+      operationId: getOuraOverview
+      summary: Recovery overview from Oura for the last `days` days
+      description: |
+        Per day: readiness, sleep (score, duration, efficiency, HRV, heart rate), activity,
+        stress, SpO2, cardiovascular age, VO2 max and the day's heart-rate range (last 7 days);
+        plus Oura's workouts. `available` says per data type whether it was read, not shared
+        (`not-shared`, a scope switched off on Oura's screen) or failed. Held in memory for
+        10 minutes.
+      parameters:
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 14 } }
+      responses:
+        '200': { description: The overview. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: The connection is gone (`code` `reauth`); connect again. }
+        '429': { description: Oura is rate limiting (`code` `rate`). }
+        '502': { description: Oura could not be reached or answered an error. }
+        '503': { description: Oura is not set up on this server (`code` `off`). }
+
+  /api/integrations/oura/sync:
+    post:
+      tags: [integrations]
+      operationId: postOuraSync
+      summary: Fetch the overview from Oura now
+      description: Same answer as the overview, read fresh. A second call within 30 seconds gets the first one's result.
+      parameters:
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 14 } }
+      responses:
+        '200': { description: The overview. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: The connection is gone (`code` `reauth`). }
+        '429': { description: Oura is rate limiting (`code` `rate`). }
+        '502': { description: Oura could not be reached or answered an error. }
+        '503': { description: Oura is not set up on this server (`code` `off`). }
+
+  /api/integrations/oura/disconnect:
+    post:
+      tags: [integrations]
+      operationId: postOuraDisconnect
+      summary: Disconnect Oura and delete everything held for it
+      description: |
+        Revokes the token at Oura (best effort; `revoked` says whether Oura confirmed),
+        deletes the stored tokens and drops the overview held in memory, at once.
+      responses:
+        '200':
+          description: Disconnected.
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean }, revoked: { type: boolean } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
 components:
   securitySchemes:
