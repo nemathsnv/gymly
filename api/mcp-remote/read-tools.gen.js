@@ -2,7 +2,7 @@
    SPDX-License-Identifier: AGPL-3.0-or-later */
 import { z } from "zod";
 
-//#region mcp/src/private-keys.js
+// mcp/src/private-keys.js
 const PRIVATE_KEYS = Object.freeze(["habitLog"]);
 function dropPrivate(S) {
 	if (!S || typeof S !== "object" || Array.isArray(S)) return S;
@@ -11,8 +11,7 @@ function dropPrivate(S) {
 	return out;
 }
 
-//#endregion
-//#region mcp/src/hosted-state.js
+// mcp/src/hosted-state.js
 let _current = null;
 function defaultsShape() {
 	return {
@@ -63,8 +62,7 @@ function current() {
 }
 const getState = () => current().state;
 
-//#endregion
-//#region frontend/src/lib/workout-model.js
+// frontend/src/lib/workout-model.js
 const MODES = [
 	"reps",
 	"time",
@@ -270,8 +268,7 @@ function modeForEntry(entry, fallback = null) {
 	return fallback == null ? modeForSet(source, target) : normalizeMode(fallback);
 }
 
-//#endregion
-//#region frontend/src/lib/exercises-data.js
+// frontend/src/lib/exercises-data.js
 const EXDB = [
 	{
 		"id": "5965",
@@ -84793,8 +84790,7 @@ const EXALIAS = {
 	"0941": "4511"
 };
 
-//#endregion
-//#region frontend/src/lib/exercise-muscle-map.json
+// frontend/src/lib/exercise-muscle-map.json
 var exercise_muscle_map_default = {
 	"1010": {
 		"bp": "upper legs",
@@ -87434,8 +87430,7 @@ var exercise_muscle_map_default = {
 	}
 };
 
-//#endregion
-//#region frontend/src/lib/catalogue-v13-ids.json
+// frontend/src/lib/catalogue-v13-ids.json
 var catalogue_v13_ids_default = [
 	"0001",
 	"0002",
@@ -88763,8 +88758,7 @@ var catalogue_v13_ids_default = [
 	"5201"
 ];
 
-//#endregion
-//#region frontend/src/lib/i18n-core.js
+// frontend/src/lib/i18n-core.js
 const DATE_LOCALES = {
 	en: "en-GB",
 	de: "de-DE",
@@ -88814,8 +88808,7 @@ const exerciseNameSearchText = (ex) => {
 	return translated ? `${translated} ${ex.n}` : ex?.n || "";
 };
 
-//#endregion
-//#region frontend/src/lib/exercises.js
+// frontend/src/lib/exercises.js
 const catalogueExercise = (ex) => {
 	const metadata = exercise_muscle_map_default[ex?.id];
 	if (!metadata) return ex;
@@ -89196,8 +89189,7 @@ function rankByRelevance(found, tokens) {
 	return scored.map((x) => x.e);
 }
 
-//#endregion
-//#region frontend/src/lib/format.js
+// frontend/src/lib/format.js
 const todayISO = () => {
 	const d = /* @__PURE__ */ new Date();
 	return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -89214,8 +89206,7 @@ const fmtNum = (n) => {
 };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-//#endregion
-//#region frontend/src/lib/queue.js
+// frontend/src/lib/queue.js
 const routineIdsOf = (w) => Array.isArray(w.routineIds) ? w.routineIds : w.routineId ? [w.routineId] : [];
 const nameParts = (w) => String(w.name || "").split(" + ");
 const queueOf = (S) => {
@@ -89288,8 +89279,7 @@ function queueView(S, today) {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/superset-meta.js
+// frontend/src/lib/superset-meta.js
 const SG_NAME_MAX = 40;
 function setSupersetMeta(ex, sg, { name = "", rest = 0 } = {}) {
 	const clean = String(name || "").trim().slice(0, 40);
@@ -89325,8 +89315,7 @@ function syncSupersetMeta(ex) {
 	return ex;
 }
 
-//#endregion
-//#region frontend/src/lib/speed.js
+// frontend/src/lib/speed.js
 const KMH_PER_MPH = 1.609344;
 const speedLabel = (unit) => unit === "mph" ? "mph" : "km/h";
 function toSpeed(kmh, unit) {
@@ -89335,13 +89324,11 @@ function toSpeed(kmh, unit) {
 }
 const fmtSpeed = (kmh, unit) => `${fmtNum(toSpeed(Number(kmh) || 0, unit))} ${speedLabel(unit)}`;
 
-//#endregion
-//#region frontend/src/lib/incline.js
+// frontend/src/lib/incline.js
 const hasIncline = (s) => Number(s?.incline) > 0;
 const inclineFrom = (s) => hasIncline(s) ? { incline: Number(s.incline) } : {};
 
-//#endregion
-//#region frontend/src/lib/machine-level.js
+// frontend/src/lib/machine-level.js
 const LEVELLED = /stepmill|step ?mill|stair ?master|stair ?climb|stair ?mill|\bstepper\b|stair machine/i;
 const LEVELLED_EQ = /* @__PURE__ */ new Set(["stepmill machine"]);
 function levelFits(ex) {
@@ -89352,8 +89339,7 @@ function levelFits(ex) {
 const hasLevel = (s) => Number(s?.level) > 0;
 const levelFrom = (s) => hasLevel(s) ? { level: Number(s.level) } : {};
 
-//#endregion
-//#region frontend/src/lib/bar.js
+// frontend/src/lib/bar.js
 const BAR_EQ = /* @__PURE__ */ new Set([
 	"barbell",
 	"olympic barbell",
@@ -89387,8 +89373,7 @@ function barWeightFor(S, exOrId) {
 	return defaultBarWeight(ex.eq, S?.unit);
 }
 
-//#endregion
-//#region frontend/src/lib/backoff.js
+// frontend/src/lib/backoff.js
 const round1$2 = (v) => Math.round(v * 10) / 10;
 function isBackoff(cfg) {
 	return !!cfg && cfg.backoff === true && (cfg.mode || "reps") === "reps" && !(Array.isArray(cfg.pyramid) && cfg.pyramid.length) && cfg.intensifier?.type !== "restpause";
@@ -89436,8 +89421,7 @@ function applyBackoff(rows, step) {
 	});
 }
 
-//#endregion
-//#region frontend/src/lib/dumbbells.js
+// frontend/src/lib/dumbbells.js
 const exOf$1 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -89561,8 +89545,7 @@ function ownedAround(ideal, ws, max, strict) {
 	return [...new Set([low, high].filter((x) => x != null))].sort((a, b) => a - b);
 }
 
-//#endregion
-//#region frontend/src/lib/pyramid.js
+// frontend/src/lib/pyramid.js
 const PYRAMID_MAX = "max";
 function isPyramid(cfg) {
 	return !!cfg && Array.isArray(cfg.pyramid) && cfg.pyramid.length > 0 && (cfg.mode || "reps") === "reps";
@@ -89578,8 +89561,7 @@ function pyramidWeightAt(cfg, i) {
 	return Math.max(0, Number(pyramidTargetAt(cfg.pyramidWeight, i)) || 0);
 }
 
-//#endregion
-//#region frontend/src/lib/history.js
+// frontend/src/lib/history.js
 const objectOf = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
 const workRowsForMode = (entry = {}, mode = "reps") => {
 	const source = objectOf(entry);
@@ -90046,8 +90028,7 @@ function bestWeightForEntry(entry = {}) {
 	return best;
 }
 
-//#endregion
-//#region frontend/src/lib/muscles.js
+// frontend/src/lib/muscles.js
 const MUSCLES = [
 	"trapezius",
 	"deltoids",
@@ -90318,8 +90299,7 @@ function rankOf(load) {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/rep-range.js
+// frontend/src/lib/rep-range.js
 function normalizeRepRange(reps, repsMin, stride = 1) {
 	const step = Number.isInteger(stride) && stride > 0 ? stride : 1;
 	const upper = align(positiveInt(reps, 10), step);
@@ -90340,8 +90320,7 @@ function positiveInt(value, fallback) {
 	return Number.isFinite(n) && n > 0 ? Math.max(1, Math.round(n)) : fallback;
 }
 
-//#endregion
-//#region frontend/src/lib/progression.js
+// frontend/src/lib/progression.js
 const POLICIES_FOR = {
 	reps: [
 		"off",
@@ -91117,8 +91096,7 @@ function applyPrescription(sets, p, step = 2.5, floor = 0) {
 	return rerampWarmups(out, step, floor);
 }
 
-//#endregion
-//#region mcp/src/labels.js
+// mcp/src/labels.js
 function fmt(template, args) {
 	let v = template;
 	for (let i = 0; i < (args || []).length; i++) v = v.replaceAll("{" + i + "}", String(args[i]));
@@ -91150,8 +91128,7 @@ function muscleOrder() {
 	return MUSCLES.slice();
 }
 
-//#endregion
-//#region frontend/src/lib/onerm.js
+// frontend/src/lib/onerm.js
 const REP_CAP = 12;
 const WEIGHTED_REP_CAP = 15;
 const FORMULAS = {
@@ -91308,8 +91285,7 @@ function best1RM(S, exId, formula = formulaOf(S), as) {
 	return best;
 }
 
-//#endregion
-//#region frontend/src/lib/plates.js
+// frontend/src/lib/plates.js
 const PLATE_SIZES = {
 	kg: [
 		25,
@@ -91480,8 +91456,7 @@ function dropGrid(S, cfg) {
 	return weightIncrement(cfg, S?.unit === "lb" ? "lb" : "kg");
 }
 
-//#endregion
-//#region frontend/src/lib/session-start.js
+// frontend/src/lib/session-start.js
 const startsFromLast = (st) => st?.startFrom === "last";
 function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
 	const meaning = dbLoadFor(stored, cfg);
@@ -91534,8 +91509,7 @@ function buildSessionEntries(st, r) {
 	});
 }
 
-//#endregion
-//#region mcp/src/tools.js
+// mcp/src/tools.js
 const localIso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const todayIso = () => localIso(/* @__PURE__ */ new Date());
 const isoDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD").refine((v) => {
@@ -92175,8 +92149,7 @@ function noState$1() {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/routines.js
+// frontend/src/lib/routines.js
 function deleteRoutine(s, id) {
 	s.routines = s.routines.filter((r) => r.id !== id);
 	Object.keys(s.week || {}).forEach((d) => {
@@ -92196,8 +92169,7 @@ function deleteRoutine(s, id) {
 	return dropped;
 }
 
-//#endregion
-//#region frontend/src/lib/sync-merge.js
+// frontend/src/lib/sync-merge.js
 const STAMPED_MAPS = [
 	"balanceOverrides",
 	"loadKind",
@@ -92214,8 +92186,7 @@ const RESET_MAPS = [
 	...STAMPED_MAPS
 ];
 
-//#endregion
-//#region frontend/src/lib/backfill.js
+// frontend/src/lib/backfill.js
 function insertChronological(workouts, w) {
 	const key = (x) => [x.d || "", x.start || 0];
 	const [d, s] = key(w);
@@ -92232,8 +92203,7 @@ function insertChronological(workouts, w) {
 	];
 }
 
-//#endregion
-//#region frontend/src/lib/finish-workout.js
+// frontend/src/lib/finish-workout.js
 function finishedRow(set) {
 	if (!set) return set;
 	const sideMarked = isSideSet(set) && (set.sides.L.weightOrigin != null || set.sides.R.weightOrigin != null);
@@ -92293,8 +92263,7 @@ function buildCompletedWorkout(active, { end = Date.now(), prs = [], snapshotFor
 	};
 }
 
-//#endregion
-//#region mcp/src/hosted.js
+// mcp/src/hosted.js
 function todayFor(S, now = /* @__PURE__ */ new Date()) {
 	const tz = S?.reminder?.tz;
 	if (typeof tz === "string" && tz) try {
@@ -92500,5 +92469,4 @@ const helpers = {
 	setsDone: (w) => setsDone(w)
 };
 
-//#endregion
 export { READ_TOOLS, helpers, runReadTool, searchExercisesTool, todayFor, trainingProgress };
