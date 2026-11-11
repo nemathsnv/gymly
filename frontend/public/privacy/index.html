@@ -234,7 +234,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
   <li>stress (daily time in high stress and high recovery, and Oura's day summary);</li>
   <li>SpO2 (average blood-oxygen during sleep, breathing disturbance index);</li>
   <li>heart health (cardiovascular age and VO2 max);</li>
-  <li>heart rate (the last 7 days, reduced to each day's lowest, average and highest value);</li>
+  <li>heart rate (the last 7 days, reduced to each day's lowest, average and highest value, on the days of the time zone your device reports);</li>
   <li>workouts Oura recorded or detected (type, start and end time, calories, distance, intensity).</li>
 </ul>
 <p>Gymly does not ask for your Oura email address or personal information (age, sex, height, weight). Detailed series such as sleep stages, 5-minute heart rate and movement data are not kept: Gymly reduces what it receives to the figures listed above.</p>
@@ -246,7 +246,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 </ul>
 <h3>8.3 How Oura data is used, stored and not used</h3>
 <ul>
-  <li><strong>Only for you, and not stored.</strong> Gymly reads your Oura data when you open the recovery overview or tap "Sync now", and shows it to you. The figures are kept in the server's memory for up to 10 minutes so the screen loads quickly, and then discarded. They are never written to Gymly's database or files, never added to your Gymly workout log, and therefore not part of your synced data, exports or backups. Workouts recorded by Oura are shown beside your Gymly sessions; a session that appears in both is shown once.</li>
+  <li><strong>Only for you, and never saved.</strong> Gymly shows your Oura data on the Training &amp; recovery screen, next to your own training. To do that, the reduced figures listed in 8.1 are kept in the server's memory only: for the last 90 days at most (heart rate: 7 days), and only while you use the screen. While you do, Gymly refreshes them from Oura automatically every few hours, and when you tap "Sync now". If you do not open the screen for 14 days, they are discarded and automatic syncing stops; they are also discarded when you disconnect and whenever the server restarts. They are never written to Gymly's database or files, never added to your Gymly workout log, and therefore not part of your synced data, exports, webhooks or backups. Workouts recorded by Oura are shown beside your Gymly sessions; a session that appears in both is shown once, and Gymly's own record of it is never replaced.</li>
   <li>Oura data <strong>is never sent to an AI model or AI service</strong>. That includes Gymly's AI Coach, AI assistant connections such as ChatGPT or Claude, and any other model. It is never used to train, fine-tune or evaluate AI.</li>
   <li>Oura data is never sold, rented or licensed. It is not shared with or disclosed to third parties, except that it passes through the network provider in <a href="#processors">section 5</a> on its way to you. It is never used for advertising, marketing or targeting, and we do not use it to contact you. It is not shown to other users.</li>
 </ul>
@@ -270,7 +270,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
   <li><strong>Sign-in links, pairing codes and passkey challenges:</strong> expire within minutes.</li>
   <li><strong>Off-site backups:</strong> encrypted backups of the server's data are taken every six hours. We keep the last four, one per day for 30 days and one per week for 12 weeks, then delete them. So data you delete can stay in an encrypted backup for up to about 12 weeks. Backups are used only to restore the service after a failure.</li>
   <li><strong>Pre-update snapshots:</strong> before each software update, a snapshot of the server's data is saved on the same server so a failed update can be undone. These snapshots are readable only by the server's administrator account. They are not currently deleted on a fixed schedule; the operator removes them manually.</li>
-  <li><strong>Oura:</strong> Oura data is held in server memory for up to 10 minutes and never stored. The encrypted Oura tokens are kept while you stay connected and deleted when you disconnect (<a href="#oura">section 8</a>).</li>
+  <li><strong>Oura:</strong> Oura data is never stored. Its reduced figures are held in server memory for at most 90 days back, only while you use Training &amp; recovery, and discarded after 14 days without use, on disconnect or on a server restart. The encrypted Oura tokens, the time of the last sync, the last sync error's type and your device's time-zone name are kept while you stay connected and deleted when you disconnect (<a href="#oura">section 8</a>).</li>
   <li><strong>Data on your devices:</strong> stays until you clear it, sign out or uninstall the app.</li>
 </ul>
 </section>

@@ -30,7 +30,7 @@ function harness(t, { env = { OURA_CLIENT_ID: 'cid', OURA_CLIENT_SECRET: 'csecre
     json: (res, code, obj, headers) => { res.status = code; res.body = obj; res.headers = headers || {}; },
     readSession: req => users[req.uid] || null,
     audit: (req, ev, f) => audits.push({ ev, uid: f.user?.id, ok: f.ok !== false, msg: f.msg }),
-    env, origin: 'https://gym.example', dataDir, instanceSecret: 'instance-secret', version: 'test', fetchImpl: (...a) => oura.fetch(...a),
+    env, origin: 'https://gym.example', dataDir, instanceSecret: 'instance-secret', version: 'test', fetchImpl: (...a) => oura.fetch(...a), autoSync: false, sleep: async () => {},
   });
   const call = async (key, { uid = 'u1', url } = {}) => {
     const res = { status: 0, body: null, headers: {}, writeHead(code, h) { this.status = code; this.headers = h; }, end() {} };
@@ -101,20 +101,42 @@ test('the full flow: connect, consent, callback, overview, sync, disconnect', as
   assert.deepEqual(st.body.scopes, ['daily', 'heartrate', 'workout', 'spo2', 'heart_health']);
   assert.equal(st.body.lastSync, null);
 
-  const ov = await h.call('GET /api/integrations/oura/overview', { url: '/api/integrations/oura/overview?days=7' });
+  const ov = await h.call('GET /api/integrations/oura/overview', { url: '/api/integrations/oura/overview?days=7&tz=Europe/Berlin' });
   assert.equal(ov.status, 200);
-  assert.equal(ov.body.cached, false);
   assert.equal(ov.body.days[0].readiness.score, 82);
   assert.equal(ov.body.workouts.length, 2);
+  assert.equal(ov.body.tz, 'Europe/Berlin');
+  assert.ok(ov.body.lastSync > 0);
   const apiCalls = h.oura.calls.length;
-  // Held in memory: a second look within the TTL does not go back to Oura.
+  // Held in memory: a second look within the hour does not go back to Oura.
   const again = await h.call('GET /api/integrations/oura/overview', { url: '/api/integrations/oura/overview?days=7' });
-  assert.equal(again.body.cached, true);
+  assert.equal(again.body.days[0].readiness.score, 82);
   assert.equal(h.oura.calls.length, apiCalls);
-  // Sync Now within 30 s gets the same; the status shows when it last synced.
-  assert.equal((await h.call('POST /api/integrations/oura/sync')).body.cached, false, 'a longer window than held is fetched');
+  // Sync Now within 30 s gets what was just fetched; the status shows when it last synced.
   assert.equal((await h.call('POST /api/integrations/oura/sync')).body.cached, true);
-  assert.ok((await h.call('GET /api/integrations/oura/status')).body.lastSync > 0);
+  assert.equal(h.oura.calls.length, apiCalls);
+  const st2 = (await h.call('GET /api/integrations/oura/status')).body;
+  assert.ok(st2.lastSync > 0);
+  assert.equal(st2.lastError, null);
+  assert.deepEqual(st2.autoSync, { active: true, retryAt: null });
+
+  // Diagnostics: per type shared-or-not and records-or-not — not one value.
+  const dg = (await h.call('GET /api/integrations/oura/diagnostics', { url: '/api/integrations/oura/diagnostics?refresh=1' })).body;
+  assert.equal(dg.refresh, 'ok', 'a token refresh was spent and worked');
+  assert.equal(dg.syncError, null);
+  assert.deepEqual(dg.types.daily_readiness, { status: 'ok', records: true });
+  assert.deepEqual(Object.keys(dg.types).sort(), ['daily_activity', 'daily_cardiovascular_age', 'daily_readiness', 'daily_sleep', 'daily_spo2', 'daily_stress', 'heartrate', 'sleep', 'vO2_max', 'workout']);
+  // The whole answer, structurally: nothing in it could be a measurement.
+  assert.deepEqual(Object.keys(dg).sort(), ['connected', 'grantedScopes', 'lastSync', 'refresh', 'syncError', 'token', 'types']);
+  for (const v of Object.values(dg.types)) {
+    assert.deepEqual(Object.keys(v).sort(), ['records', 'status']);
+    assert.ok(['ok', 'not-shared', 'rate-limited', 'error'].includes(v.status));
+    assert.equal(typeof v.records, 'boolean');
+  }
+  assert.deepEqual(Object.keys(dg.token), ['expiresInMin']);
+  assert.ok(dg.token.expiresInMin > 0);
+  const dgText = JSON.stringify(dg);
+  for (const v of ['strength_training', 'running', '97.2', 'acc-', 'ref-', 'csecret']) assert.ok(!dgText.includes(v), 'diagnostics leaks ' + v);
 
   // Nothing Oura measured is on disk: only the encrypted token file exists.
   const files = fs.readdirSync(h.dataDir, { recursive: true }).map(String);
@@ -122,7 +144,7 @@ test('the full flow: connect, consent, callback, overview, sync, disconnect', as
   const disk = fs.readFileSync(path.join(h.dataDir, 'oura', 'u1.json'), 'utf8');
   for (const v of ['strength_training', '9120', '27000', 'readiness', 'acc-', 'ref-']) assert.ok(!disk.includes(v), v);
 
-  const access = [...h.oura.access][0];
+  const access = [...h.oura.access].at(-1);          // the current one (diagnostics refreshed it)
   const d = await h.call('POST /api/integrations/oura/disconnect');
   assert.deepEqual(d.body, { ok: true, revoked: true });
   assert.ok(h.oura.revoked.has(access), 'the token was revoked at Oura');
