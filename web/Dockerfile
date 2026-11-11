@@ -7,7 +7,7 @@
 # QEMU — and QEMU-emulated npm installs are known to corrupt esbuild/rollup's platform-
 # specific native binaries, which is what breaks `vite build` with unrelated-looking
 # module-resolution errors.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS build
 # The frontend sits at /app/frontend, not /app: the Coach's runtime-neutral core lives in
 # api/coach/core and is imported from frontend/src as ../../../api/coach/core/*, so the two
 # have to keep the same relative position they have in the repository. Copying frontend/ alone
@@ -15,7 +15,7 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 # --ignore-scripts: the web image only needs `vite build`; the one heavy postinstall in this tree
-# (@capacitor/assets -> sharp, a libvips download from GitHub) is for drawing app icons and has
+# (@capacitor/assets -> sharp, a libvips download from GitHub, now run with npx) drew app icons and
 # timed out on the shared runners — a lockfile-ignoring `npm install` fallback is no answer to that.
 RUN npm ci --ignore-scripts
 COPY api/coach/core/ /app/api/coach/core/
@@ -26,7 +26,7 @@ COPY frontend/ ./
 ARG APP_BUILD=""
 RUN APP_BUILD="$APP_BUILD" npm run build
 
-FROM nginxinc/nginx-unprivileged:alpine
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 # Same reason as in api/Dockerfile: alpine fixes land faster than the nginx image is rebuilt.
 # The base's last instruction is USER 101, and apk then exits 99 — it cannot open its log as
 # that user. Upgrade as root, then switch back. 101 has to be the last USER in this file so
@@ -101,6 +101,13 @@ ENV BASE_PATH=""
 # Above the API's own video cap (MEDIA_VIDEO_MAX_MB, 40 by default) so the API, which says why,
 # is the one that refuses a file — raise both together.
 ENV MEDIA_UPLOAD_MAX=48m
+# Sent on every page and file. Scripts run only from this origin, plus the one inline script in
+# frontend/index.html by its hash (src/lib/csp.test.js keeps the two in step). connect-src stays
+# open to any https: and http: address: the Coach on a device talks to the provider the person
+# chose, an Ollama on their LAN included, and the update check asks GitHub. Behind a proxy that
+# injects a script of its own (analytics), set this to a policy that allows it, or to
+# "frame-ancestors 'none'" for the old header.
+ENV CONTENT_SECURITY_POLICY="default-src 'self'; script-src 'self' 'sha256-z/iOLe5i8fD4VNlIXz/4hEayGLTQzoTc52dIY51OjYc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: http:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 # Probe the port nginx was actually told to listen on (NGINX_PORT is configurable, so a
 # hardcoded http://localhost/ breaks on any instance that changed it), and address it as

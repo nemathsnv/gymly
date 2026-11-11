@@ -11,6 +11,16 @@
   one is hidden from your lists, and searching for its name finds the one you merged it into. Undo
   on the toast puts everything back. Another device that still logged against the old one is
   brought in line when it syncs, and the MCP bridge (local, remote and hosted) reads it the same way.
+- **Custom measurements get their own unit** (from openGym #699, #718). Body measurements →
+  Fields: a custom measurement can be in **%** (muscle ratio), **kg** or **lb** (lean mass),
+  **cm** or **in** (a calf), or have **No unit** at all (a visceral fat score). The chart, the
+  history, backups and sync keep it, a percentage stays between 0 and 100, and 0 counts as a
+  reading for a percentage or a score. Your existing custom fields stay in cm/in like before.
+  Once a field has values its unit can switch within its kind (cm ↔ in, kg ↔ lb) without changing
+  them; another kind needs a new field. A measurement pinned to Home keeps its unit on the card
+  and in the quick log, whose ± buttons and checks follow it (no inches for a kg field), and
+  Settings → On Home lists it as "Lean mass (kg)". Importing an openGym body CSV now brings its
+  measurements in too, custom fields with their units, not just the weigh-ins.
 - **Weight step: + and − add what your equipment really has.** Every exercise can have its own
   step for the weight buttons — 0.5, 1, 1.25, 2.5, 5 kg (1, 2.5, 5, 10 lb) or any other you type —
   from the workout's ⋯ menu → **Weight step**, an exercise's details, or its settings in a routine.

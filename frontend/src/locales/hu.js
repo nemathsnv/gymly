@@ -2350,4 +2350,12 @@ export default {
   'Merge': 'Összevonás',
   'Merged into “{0}”': 'Összevonva ezzel: „{0}”',
   'Pick a different exercise.': 'Válassz egy másik gyakorlatot.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Mértékegység",
+  "Logged values keep their type. Add a new measurement to use a different type.": "A rögzített értékek típusa megmarad. Más típushoz adj hozzá új mérést.",
+  "{0} must be between 0 and 100%.": "{0} értékének 0 és 100% között kell lennie.",
+  "No unit": "Nincs mértékegység",
+  "{0} measurement check-in imported": "{0} méretfelvétel importálva",
+  "{0} measurement check-ins imported": "{0} méretfelvétel importálva",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Ez az app nem tud jelszókulccsal megerősíteni. Készítsd el a kódot egy böngészőben, ahol ebbe a profilba vagy bejelentkezve, vagy előbb adj meg ott egy jelszót.',
 }

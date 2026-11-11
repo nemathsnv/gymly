@@ -2351,4 +2351,12 @@ export default {
   'Merge': 'Объединить',
   'Merged into “{0}”': 'Объединено с «{0}»',
   'Pick a different exercise.': 'Выберите другое упражнение.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Единица измерения",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Тип записанных значений сохраняется. Для другого типа добавьте новое измерение.",
+  "{0} must be between 0 and 100%.": "Значение «{0}» должно быть от 0 до 100%.",
+  "No unit": "Без единицы",
+  "{0} measurement check-in imported": "Импортирован {0} замер",
+  "{0} measurement check-ins imported": {"one":"Импортирован {0} замер","few":"Импортировано {0} замера","many":"Импортировано {0} замеров","other":"Импортировано {0} замера"},
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Это приложение не может подтвердить ключом доступа. Создайте код в браузере, где вы вошли в этот профиль, или сначала задайте там пароль.',
 }

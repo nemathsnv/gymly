@@ -2347,4 +2347,12 @@ export default {
   'Merge': '합치기',
   'Merged into “{0}”': '“{0}”(으)로 합쳤어요',
   'Pick a different exercise.': '다른 운동을 골라 주세요.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "측정 단위",
+  "Logged values keep their type. Add a new measurement to use a different type.": "기록된 값의 유형은 유지됩니다. 다른 유형을 사용하려면 새 측정 항목을 추가하세요.",
+  "{0} must be between 0 and 100%.": "{0} 값은 0~100% 사이여야 합니다.",
+  "No unit": "단위 없음",
+  "{0} measurement check-in imported": "측정 기록 {0}개를 가져왔습니다",
+  "{0} measurement check-ins imported": "측정 기록 {0}개를 가져왔습니다",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': '이 앱에서는 패스키로 확인할 수 없어요. 이 프로필로 로그인한 브라우저에서 코드를 만들거나, 먼저 그곳에서 비밀번호를 추가하세요.',
 }

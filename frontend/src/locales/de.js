@@ -2367,4 +2367,12 @@ export default {
   'Merge': 'Zusammenführen',
   'Merged into “{0}”': 'Mit „{0}“ zusammengeführt',
   'Pick a different exercise.': 'Wähl eine andere Übung.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Maßeinheit",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Erfasste Werte behalten ihren Typ. Für einen anderen Typ füge ein neues Maß hinzu.",
+  "{0} must be between 0 and 100%.": "{0} muss zwischen 0 und 100 % liegen.",
+  "No unit": "Ohne Einheit",
+  "{0} measurement check-in imported": "{0} Messung importiert",
+  "{0} measurement check-ins imported": "{0} Messungen importiert",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Diese App kann nicht mit einem Passkey bestätigen. Erstell den Code in einem Browser, der mit diesem Profil angemeldet ist, oder leg dort zuerst ein Passwort fest.',
 }

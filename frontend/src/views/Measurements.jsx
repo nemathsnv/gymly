@@ -7,6 +7,8 @@ import {
   fromMeasurementDisplay, latestMeasurement, measurementEntryHasValues,
   measurementSeries, measurementUnit, measurementValue, normalizeMeasurementEntry,
   toMeasurementDisplay, normalizeMeasurementsState, homeMeasurementField, setMeasurementValue,
+  CUSTOM_MEASUREMENT_UNITS, customMeasurementUnits,
+  measurementUnitLabel, zeroIsReading, measurementKind,
 } from '../lib/measurements.js'
 import { fmtDate, fmtNum, todayISO, uid } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
@@ -19,11 +21,14 @@ import { confirmSheet } from '../sheets.jsx'
 const update = (fn, ...rest) => useStore.getState().update(s => { fn(s); normalizeMeasurementsState(s) }, ...rest)
 const toast = message => useUI.getState().toast(message)
 
-const fieldUnit = (field, profileUnit) => field.key === 'bodyFat' ? '%' : measurementUnit(profileUnit)
+// The label after a number: empty for a unitless field (#718).
+const fieldUnit = (field, profileUnit) => measurementUnitLabel(measurementUnit(profileUnit, field))
+const unitOptions = units => units.map(value => ({ value, label: value === 'none' ? t('No unit') : value }))
+const withUnit = (value, unit) => unit ? fmtNum(value) + ' ' + unit : fmtNum(value)
 const shownValue = (entry, field, profileUnit) => {
   const value = measurementValue(entry, field.key)
   if (value == null) return null
-  return field.key === 'bodyFat' ? value : toMeasurementDisplay(value, profileUnit)
+  return toMeasurementDisplay(value, profileUnit, field)
 }
 
 function MeasurementLog({ sourceDate, close }) {
@@ -38,7 +43,7 @@ function MeasurementLog({ sourceDate, close }) {
     }
     for (const o of source.other || []) {
       if (o.value != null && !fields.some(x => x.key === 'other:' + o.id)) {
-        fields.push({ key: 'other:' + o.id, label: o.name, custom: true, group: 'Other' })
+        fields.push({ key: 'other:' + o.id, label: o.name, unit: o.unit, custom: true, group: 'Other' })
       }
     }
   }
@@ -55,11 +60,18 @@ function MeasurementLog({ sourceDate, close }) {
     base.t = source && date === source.d ? source.t : (date === todayISO() ? Date.now() : new Date(date + 'T12:00:00').getTime())
     for (const field of fields) {
       const raw = values[field.key]
-      const value = raw == null || raw === 0 ? null : Math.round(+raw * 10) / 10
-      if (field.key === 'bodyFat' && value > 100) { toast(t('Body fat must be between 0 and 100%.')); return }
+      const shown = measurementUnit(S.unit, field)
+      const percent = shown === '%'
+      const value = raw == null || (raw === 0 && !zeroIsReading(shown)) ? null : Math.round(+raw * 10) / 10
+      if (percent && value != null && (value < 0 || value > 100)) {
+        toast(field.key === 'bodyFat' ? t('Body fat must be between 0 and 100%.') : t('{0} must be between 0 and 100%.', field.label)); return
+      }
       if (field.custom) {
         const item = base.other.find(o => o.id === field.key.slice(6))
-        if (item) item.value = value == null ? null : fromMeasurementDisplay(value, S.unit)
+        if (item) {
+          item.value = fromMeasurementDisplay(value, S.unit, field)
+          if (field.unit) item.unit = field.unit
+        }
       } else if (field.key === 'bodyFat') base.bodyFat = value
       else base[field.key] = value == null ? null : fromMeasurementDisplay(value, S.unit)
     }
@@ -103,37 +115,46 @@ export function measurementLogSheet(sourceDate = null) {
 }
 
 // A circumference past this is a typo (a misplaced decimal), not a person: 9200 cm would draw
-// the whole curve flat. Generous on purpose; body fat has its own 100% ceiling.
-const MAX_CM = 400
+// the whole curve flat. Generous on purpose, and the same for a custom mass field (lean or
+// muscle mass can't pass a body weight, lib/import-csv.js MAX_BODY_KG). Percentages have their
+// own 0–100 range; a unitless score or count has no ceiling we could know.
+const MAX_STORED = { length: 400, mass: 650 }
 
 // One measurement, logged for today in a tap: the sheet behind the Home card's Log button. It
 // writes that single field into today's check-in (setMeasurementValue), so a morning belly
-// reading and a full check-in later the same day end up as one entry, not two.
+// reading and a full check-in later the same day end up as one entry, not two. A custom field
+// is shown, nudged and checked in its own unit (#699): a kg field never turns into inches.
 function QuickMeasurementLog({ fieldKey, close }) {
   const S = useStore(s => s.S)
   const field = homeMeasurementField({ ...S, homeMeasurement: fieldKey })
   const today = todayISO()
-  const todays = S.measurements.find(e => e.d === today)
-  const percent = fieldKey === 'bodyFat'
-  const shown = entry => {
-    const v = measurementValue(entry, fieldKey)
-    return v == null ? null : percent ? v : toMeasurementDisplay(v, S.unit)
-  }
+  const shownUnit = measurementUnit(S.unit, field)
+  const kind = measurementKind(field)
+  const unit = measurementUnitLabel(shownUnit)
+  // The series is already in the field's display unit, and leaves out a reading of another
+  // kind (a backup's kg value under a field since made a %).
+  const all = measurementSeries(S, fieldKey)
   // Today's reading if there is one (to correct it), else the last one, so the usual morning
   // change is a nudge of the ± buttons rather than typing the whole number again.
-  const [value, setValue] = useState(() => shown(todays) ?? shown(latestMeasurement(S, fieldKey)?.entry))
-  const unit = percent ? '%' : measurementUnit(S.unit)
-  const nudge = d => setValue(v => (v == null ? v : Math.max(0, Math.round((+v + d) * 10) / 10)))
-  const recent = measurementSeries(S, fieldKey).slice(-3).reverse()
+  const [value, setValue] = useState(() => (all.find(p => p.d === today) ?? all.at(-1))?.y ?? null)
+  const nudge = d => setValue(v => {
+    if (v == null) return v
+    const next = Math.max(0, Math.round((+v + d) * 10) / 10)
+    return kind === 'percent' ? Math.min(100, next) : next
+  })
+  const recent = all.slice(-3).reverse()
   if (!field) return null
 
   const save = () => {
-    const n = value == null ? null : Math.round(+value * 10) / 10
-    if (!(n > 0)) { toast(t('Enter at least one measurement')); return }
-    if (percent ? n > 100 : fromMeasurementDisplay(n, S.unit) > MAX_CM) {
-      toast(percent ? t('Body fat must be between 0 and 100%.') : t('That number looks too big. Check it and try again.')); return
+    const n = value == null || value === '' ? null : Math.round(+value * 10) / 10
+    if (n == null || !Number.isFinite(n) || (n === 0 && !zeroIsReading(shownUnit))) { toast(t('Enter at least one measurement')); return }
+    if (kind === 'percent' && (n < 0 || n > 100)) {
+      toast(field.key === 'bodyFat' ? t('Body fat must be between 0 and 100%.') : t('{0} must be between 0 and 100%.', field.label)); return
     }
-    update(state => { setMeasurementValue(state, today, fieldKey, percent ? n : fromMeasurementDisplay(n, S.unit)) })
+    const stored = fromMeasurementDisplay(n, S.unit, field)
+    if (stored == null) { toast(t('Enter at least one measurement')); return }
+    if (stored > (MAX_STORED[kind] ?? Infinity)) { toast(t('That number looks too big. Check it and try again.')); return }
+    update(state => { setMeasurementValue(state, today, fieldKey, stored) })
     close()
     toast(t('Measurements saved'))
   }
@@ -149,7 +170,7 @@ function QuickMeasurementLog({ fieldKey, close }) {
         <NumberField fit nullable value={value} onChange={setValue} aria-label={t(field.label)} enterKeyHint="done"
           onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
           {...(value == null ? { placeholder: '0', autoFocus: true, style: { width: '3ch' } } : {})} />
-        <span className="u"> {unit}</span>
+        {unit && <span className="u"> {unit}</span>}
       </label>
       <button className="bw-pm" onClick={() => nudge(0.1)} aria-label={t('Increase by {0}', fmtNum(0.1))}><Icon name="plus" /></button>
     </div>
@@ -166,7 +187,7 @@ function QuickMeasurementLog({ fieldKey, close }) {
       <div className="list" style={{ gap: 0 }}>
         {recent.map(p => <div className="lrow" key={p.d}>
           <span className="lrow-m"><span className="lrow-t">{fmtDate(p.d, true)}</span></span>
-          <b>{fmtNum(p.y)} {unit}</b>
+          <b>{withUnit(p.y, unit)}</b>
         </div>)}
       </div>
     </>}
@@ -183,8 +204,8 @@ export function quickMeasurementSheet(fieldKey) {
 export function HomeMeasurementCard({ S, onOpen }) {
   const field = homeMeasurementField(S)
   if (!field) return null
-  const percent = field.key === 'bodyFat'
-  const unit = percent ? '%' : measurementUnit(S.unit)
+  // In the field's own unit (#699): a custom kg, % or unitless field keeps it on any profile.
+  const unit = fieldUnit(field, S.unit)
   const all = measurementSeries(S, field.key)
   const latest = all.at(-1)
   const previous = all.at(-2)
@@ -196,7 +217,7 @@ export function HomeMeasurementCard({ S, onOpen }) {
     </div>
     {latest ? <>
       <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
-        <div className="big">{fmtNum(latest.y)} <span className="muted" style={{ fontSize: '1rem' }}>{unit}</span></div>
+        <div className="big">{fmtNum(latest.y)}{unit && <> <span className="muted" style={{ fontSize: '1rem' }}>{unit}</span></>}</div>
         {/* Neutral, not red/green: whether a smaller number is good depends on what is measured. */}
         {!!delta && <span className="small row" style={{ gap: 2, fontWeight: 500, color: 'var(--label-2)' }}>
           <Icon name={delta > 0 ? 'arrowUp' : 'arrowDown'} style={{ fontSize: 12 }} />
@@ -215,6 +236,7 @@ export function HomeMeasurementCard({ S, onOpen }) {
 function ManageMeasurements({ close }) {
   const S = useStore(s => s.S)
   const [name, setName] = useState('')
+  const [unit, setUnit] = useState(() => measurementUnit(S.unit))
   const groups = [...new Set(MEASUREMENT_FIELDS.map(f => f.group))]
   const toggleBuiltin = (key, on) => update(state => {
     const set = new Set(state.measurementEnabled || [])
@@ -225,6 +247,10 @@ function ManageMeasurements({ close }) {
     const item = state.customMeasurements.find(c => c.id === id)
     if (item) item.enabled = on
   })
+  const setCustomUnit = (id, value) => update(state => {
+    const item = state.customMeasurements.find(c => c.id === id)
+    if (item && customMeasurementUnits(item, state.measurements).includes(value)) item.unit = value
+  })
   const add = () => {
     const clean = name.trim()
     if (!clean) return
@@ -232,7 +258,7 @@ function ManageMeasurements({ close }) {
       MEASUREMENT_FIELDS.some(f => f.label.toLowerCase() === clean.toLowerCase())) {
       toast(t('A custom measurement with that name already exists.')); return
     }
-    update(state => { state.customMeasurements.push({ id: uid(), name: clean.slice(0, 60), enabled: true }) })
+    update(state => { state.customMeasurements.push({ id: uid(), name: clean.slice(0, 60), enabled: true, unit }) })
     setName('')
   }
   return <>
@@ -243,11 +269,22 @@ function ManageMeasurements({ close }) {
         <span className="lrow-m"><span className="lrow-t">{t(field.label)}</span></span>
         <Switch checked={(S.measurementEnabled || []).includes(field.key)} onChange={on => toggleBuiltin(field.key, on)} />
       </div>)}
-      {group === 'Other' && S.customMeasurements.map(field => <div className="lrow" key={field.id}>
-        <span className="lrow-m"><span className="lrow-t">{field.name}</span><span className="lrow-s">{t('Custom')}</span></span>
-        <Switch checked={field.enabled !== false} onChange={on => toggleCustom(field.id, on)} />
+      {group === 'Other' && S.customMeasurements.map(field => <div key={field.id}>
+        <div className="lrow">
+          <span className="lrow-m"><span className="lrow-t">{field.name}</span><span className="lrow-s">{t('Custom')}</span></span>
+          <Switch checked={field.enabled !== false} onChange={on => toggleCustom(field.id, on)} />
+        </div>
+        <SelectRow title={t('Measurement unit')} value={measurementUnit(S.unit, field)}
+          options={unitOptions(customMeasurementUnits(field, S.measurements))}
+          onChange={value => setCustomUnit(field.id, value)} />
       </div>)}
     </Section>)}
+    <div className="muted small" style={{ marginBottom: 12 }}>{t('Logged values keep their type. Add a new measurement to use a different type.')}</div>
+    <h4 className="sec">{t('Custom measurement')}</h4>
+    <div className="sect-b">
+      <SelectRow title={t('Measurement unit')} value={unit} onChange={setUnit}
+        options={unitOptions(CUSTOM_MEASUREMENT_UNITS)} />
+    </div>
     <div className="row" style={{ gap: 8, alignItems: 'stretch' }}>
       <TextField value={name} maxLength={60} placeholder={t('Custom measurement')} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} />
       <Button icon="plus" onClick={add} disabled={!name.trim()}>{t('Add')}</Button>
@@ -272,7 +309,7 @@ export default function Measurements() {
     }
     for (const custom of S.customMeasurements || []) {
       const key = 'other:' + custom.id
-      if (latestMeasurement(S, key) && !out.some(f => f.key === key)) out.push({ key, label: custom.name, custom: true, group: 'Other' })
+      if (latestMeasurement(S, key) && !out.some(f => f.key === key)) out.push({ key, label: custom.name, unit: custom.unit, custom: true, group: 'Other' })
     }
     return out
   }, [S])
@@ -282,7 +319,7 @@ export default function Measurements() {
   const key = available.some(f => f.key === selected) ? selected : fallback
   const field = available.find(f => f.key === key)
   const points = key ? measurementSeries(S, key, range) : []
-  const unit = key === 'bodyFat' ? '%' : measurementUnit(S.unit)
+  const unit = fieldUnit(field, S.unit)
   const all = key ? measurementSeries(S, key) : []
   const latest = all.at(-1)
   const previous = all.at(-2)
@@ -308,7 +345,7 @@ export default function Measurements() {
         <div>
           <div className="muted small">{field ? t(field.label) : t('Body measurements')}</div>
           <div className="big" style={{ marginTop: 3 }}>{latest ? <>{fmtNum(latest.y)} <span className="muted" style={{ fontSize: '1rem' }}>{unit}</span></> : '–'}</div>
-          {delta != null && delta !== 0 && <div className="small" style={{ marginTop: 3, color: 'var(--label-2)' }}>{delta > 0 ? '+' : ''}{fmtNum(delta)} {unit} {t('since previous')}</div>}
+          {delta != null && delta !== 0 && <div className="small" style={{ marginTop: 3, color: 'var(--label-2)' }}>{delta > 0 ? '+' : ''}{withUnit(delta, unit)} {t('since previous')}</div>}
         </div>
         <Button size="sm" icon="plus" onClick={() => measurementLogSheet()}>{t('Log')}</Button>
       </div>
@@ -341,7 +378,7 @@ export default function Measurements() {
             <button className="iconbtn" style={{ color: 'var(--red)' }} onClick={() => remove(entry)} aria-label={t('Delete')}><Icon name="trash" /></button>
           </div>
         </div>
-        {previewFields.length > 0 && <div className="measure-preview">{previewFields.map(({ field: f, value }) => <span key={f.key}>{t(f.label)} <b>{fmtNum(value)} {fieldUnit(f, S.unit)}</b></span>)}</div>}
+        {previewFields.length > 0 && <div className="measure-preview">{previewFields.map(({ field: f, value }) => <span key={f.key}>{t(f.label)} <b>{withUnit(value, fieldUnit(f, S.unit))}</b></span>)}</div>}
       </div>
     })}</div> : <div className="empty small">{t('No measurements yet')}</div>}
   </div>

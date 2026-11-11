@@ -2426,4 +2426,12 @@ export default {
   'Merge': 'মেলান',
   'Merged into “{0}”': '“{0}”-এর সাথে মেলানো হয়েছে',
   'Pick a different exercise.': 'অন্য একটা ব্যায়াম বেছে নিন।',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "পরিমাপের একক",
+  "Logged values keep their type. Add a new measurement to use a different type.": "লগ করা মানের ধরন অপরিবর্তিত থাকে। অন্য ধরন ব্যবহার করতে নতুন পরিমাপ যোগ করুন।",
+  "{0} must be between 0 and 100%.": "{0} অবশ্যই ০ থেকে ১০০%-এর মধ্যে হতে হবে।",
+  "No unit": "কোনো একক নেই",
+  "{0} measurement check-in imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
+  "{0} measurement check-ins imported": "{0}টি মাপের রেকর্ড ইমপোর্ট হয়েছে",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'এই অ্যাপ পাসকি দিয়ে নিশ্চিত করতে পারে না। এই প্রোফাইলে সাইন ইন করা ব্রাউজারে কোডটি বানান, অথবা আগে সেখানে একটি পাসওয়ার্ড যোগ করুন।',
 }

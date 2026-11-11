@@ -2358,4 +2358,12 @@ export default {
   'Merge': 'รวม',
   'Merged into “{0}”': 'รวมเข้ากับ “{0}” แล้ว',
   'Pick a different exercise.': 'เลือกท่าอื่น',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "หน่วยวัด",
+  "Logged values keep their type. Add a new measurement to use a different type.": "ค่าที่บันทึกไว้จะคงประเภทเดิม หากต้องการประเภทอื่น ให้เพิ่มรายการวัดใหม่",
+  "{0} must be between 0 and 100%.": "{0} ต้องอยู่ระหว่าง 0 ถึง 100%",
+  "No unit": "ไม่มีหน่วย",
+  "{0} measurement check-in imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
+  "{0} measurement check-ins imported": "นำเข้าบันทึกสัดส่วน {0} รายการแล้ว",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'แอปนี้ยืนยันด้วยพาสคีย์ไม่ได้ สร้างรหัสในเบราว์เซอร์ที่ลงชื่อเข้าใช้โปรไฟล์นี้ หรือเพิ่มรหัสผ่านที่นั่นก่อน',
 }

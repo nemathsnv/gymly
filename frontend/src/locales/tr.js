@@ -2347,4 +2347,12 @@ export default {
   'Merge': 'Birleştir',
   'Merged into “{0}”': '“{0}” ile birleştirildi',
   'Pick a different exercise.': 'Başka bir egzersiz seç.',
+  // --- custom measurement units, unitless fields, measurements from a body CSV (#699, #718) ---
+  "Measurement unit": "Ölçü birimi",
+  "Logged values keep their type. Add a new measurement to use a different type.": "Kaydedilen değerler türlerini korur. Farklı bir tür için yeni bir ölçüm ekle.",
+  "{0} must be between 0 and 100%.": "{0}, %0 ile %100 arasında olmalı.",
+  "No unit": "Birimsiz",
+  "{0} measurement check-in imported": "{0} ölçüm kaydı içe aktarıldı",
+  "{0} measurement check-ins imported": "{0} ölçüm kaydı içe aktarıldı",
+  'This app can’t confirm with a passkey. Make the code in a browser signed in to this profile, or add a password there first.': 'Bu uygulama geçiş anahtarıyla onaylayamaz. Kodu bu profille oturum açmış bir tarayıcıda oluştur ya da önce orada bir parola ekle.',
 }

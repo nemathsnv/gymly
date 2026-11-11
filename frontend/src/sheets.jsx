@@ -424,17 +424,21 @@ const effortLine = (effort, n, scale) => effort === 'none'
 function ImportSummary({ parsed, close }) {
   const st = useStore(s => s.S)
   const isBW = parsed.kind === 'bodyweight'
-  const have = isBW
+  // An openGym body CSV brings measurement check-ins along (#718); a day that has one keeps it.
+  const checkIns = isBW ? parsed.measurements || [] : []
+  const haveM = checkIns.filter(m => (st.measurements || []).some(x => x.d === m.d)).length
+  const have = (isBW
     ? parsed.bodyweight.filter(b => st.bodyweight.some(x => x.d === b.d)).length
-    : parsed.workouts.filter(w => st.workouts.some(x => x.d === w.d)).length
-  const fresh = (isBW ? parsed.bodyweight.length : parsed.workouts.length) - have
+    : parsed.workouts.filter(w => st.workouts.some(x => x.d === w.d)).length) + haveM
+  const fresh = (isBW ? parsed.bodyweight.length + checkIns.length : parsed.workouts.length) - have
 
   const doImport = () => {
     let res
     update(s => { res = mergeImport(s, parsed) })
     close()
+    const measured = res.measurements ? tn('{0} measurement check-in imported', '{0} measurement check-ins imported', res.measurements) : ''
     toast(isBW
-      ? tn('{0} weigh-in imported', '{0} weigh-ins imported', res.added)
+      ? (res.added || !measured ? tn('{0} weigh-in imported', '{0} weigh-ins imported', res.added) + (measured ? ' · ' + measured : '') : measured)
       : tn('{0} workout imported', '{0} workouts imported', res.added))
   }
 
@@ -447,6 +451,7 @@ function ImportSummary({ parsed, close }) {
     <div className="tiles" style={{ textAlign: 'start' }}>
       {isBW ? <>
         <div className="tile"><div className="l">{t('Weigh-ins')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{parsed.bodyweight.length}</div></div>
+        {checkIns.length > 0 && <div className="tile"><div className="l">{t('Body measurements')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{checkIns.length}</div></div>}
         <div className="tile"><div className="l">{t('New')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fresh}</div></div>
       </> : <>
         <div className="tile"><div className="l">{t('Workouts')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{parsed.workouts.length}</div></div>
@@ -502,7 +507,7 @@ export function importFromApp(file, onDone) {
     catch (e) { toast(t('Could not read that file')); return }
     if (parsed.error === 'empty') { toast(t('That file is empty')); return }
     if (parsed.error) { toast(t("We don't recognise that file's columns. Check the docs for supported apps.")); return }
-    if (parsed.kind === 'bodyweight' ? !parsed.bodyweight.length : !parsed.workouts.length) {
+    if (parsed.kind === 'bodyweight' ? !parsed.bodyweight.length && !parsed.measurements?.length : !parsed.workouts.length) {
       toast(t('Nothing to import from that file')); return
     }
     ui().openSheet(close => <ImportSummary parsed={parsed} close={close} />)
