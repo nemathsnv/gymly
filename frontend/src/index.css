@@ -2238,11 +2238,7 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .habit-icon.on{color:#000;box-shadow:inset 0 0 0 2px var(--label)}
 
 /* ------------------------------------------- weekly sets per muscle -- */
-/* Status inks: the green and orange as words or a thin bar. The system colours in the dark
-   theme; in the light one #34c759 and #ff9500 are about 2:1 on white, so a darker shade of the
-   same hue. Fills and tints elsewhere keep --green / --orange. */
-:root{--green-ink:var(--green);--orange-ink:var(--orange)}
-:root[data-theme="light"]{--green-ink:#1a7f37;--orange-ink:#a85200}
+/* Status inks (--green-ink, --orange-ink) are defined once, with the set-vs-last arrows above. */
 
 /* Stats card (components/WeeklySets.jsx): one muscle per row, the range a band on the bar and the
    week's sets its fill. Grey for room left, green in range, orange past it, each with its words
