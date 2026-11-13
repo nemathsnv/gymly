@@ -285,9 +285,9 @@ function ManageMeasurements({ close }) {
       <SelectRow title={t('Measurement unit')} value={unit} onChange={setUnit}
         options={unitOptions(CUSTOM_MEASUREMENT_UNITS)} />
     </div>
-    <div className="row" style={{ gap: 8, alignItems: 'stretch' }}>
+    <div className="row measure-add">
       <TextField value={name} maxLength={60} placeholder={t('Custom measurement')} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} />
-      <Button icon="plus" onClick={add} disabled={!name.trim()}>{t('Add')}</Button>
+      <Button variant="tinted" icon="plus" onClick={add} disabled={!name.trim()}>{t('Add')}</Button>
     </div>
     <div style={{ height: 14 }} />
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
