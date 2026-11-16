@@ -3800,7 +3800,7 @@ paths:
       tags: [integrations]
       operationId: postOuraSync
       summary: Sync from Oura now
-      description: An incremental sync (the last few days, plus anything new), then the overview's answer. A second call within 30 seconds gets the first one's result (`cached: true`).
+      description: "An incremental sync (the last few days, plus anything new), then the overview's answer. A second call within 30 seconds gets the first one's result (`cached: true`)."
       parameters:
         - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 90, default: 14 } }
         - { name: tz, in: query, schema: { type: string }, description: IANA time zone of the device }
