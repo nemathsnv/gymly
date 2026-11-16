@@ -124,13 +124,31 @@ anywhere else:
 
 - the read-only MCP token view (`MCP_WITHHELD` in `api/mcp-access.js`, `WITHHELD` in
   `mcp/src/remote.js`) leaves it out;
-- the local-mode and hosted MCP states drop it on load (`mcp/src/private-keys.js`), so no tool can
-  return it by accident; hosted writes and undo leave it untouched;
+- the local-mode and hosted MCP states drop it on load (`mcp/src/private-keys.js`), so no other
+  tool can return it by accident; hosted writes and undo leave it untouched;
 - the Coach builds its payload from an explicit list of categories, none of which is habits
   (`api/test/payload.test.js`).
 
-Opening habit data to an assistant needs its own design and consent (what it may read, whether it
-may write, how it is shown in the connection screen). It is deliberately not part of this feature.
+### Assistants: read-only, opt-in, no notes (decided 2026-11-16)
+
+One path opens the log to an assistant, on the hosted MCP endpoint only:
+
+- **Consent.** A separate OAuth scope, `gymly:habits:read`. Never in the default grant (a request
+  naming no scope gets `gymly:read gymly:write`), never added by a refresh, so no existing
+  connection gains it. A client must ask for it by name; the consent screen then shows its own
+  line, **Also read your habits**, unticked (`api/mcp-remote/consent.js`, `oauth.js` `decide`).
+- **What it reads.** `list_habits` and `get_habit_log` (`mcp/src/hosted.js` `HABIT_TOOLS`, bundled
+  into `api/mcp-remote/read-tools.gen.js`): habit id, name, kind, archived, the two answers,
+  whether it counts, icon, colour, created; per logged day the status, good/bad and the count.
+  A range of at most 92 days (default 14 ending today). Read through `habits.js`
+  (`habitList`, `readEntry`), then copied field by field, so a field added to a habit or a day
+  later is not exposed until it is added there on purpose.
+- **What it never reads.** A day's note, the writing device's `tz`, `_ts`, a day with only a note,
+  a habit whose definition was cleared, another profile's log. No write: an assistant cannot log,
+  change or archive a habit.
+- The stdio bridge and the V1 token are unchanged: they never carry the log. Tests:
+  `api/test/server-mcp-hosted.test.js` (habits), `api/test/mcp-oauth.test.js`,
+  `api/test/mcp-consent.test.js`, `mcp/test/hosted.test.js`.
 
 ## Known limits
 

@@ -1660,10 +1660,20 @@ paths:
         Tools: the V1 read tools plus `search_exercises`, `get_training_progress` and
         `list_recent_changes` (scope `gymly:read`); `preview_routine_changes`, `create_routine`,
         `apply_routine_changes`, `apply_destructive_routine_changes`, `preview_workout_log`,
-        `log_workout` and `undo_change` (scope `gymly:write`). Changes are validated by the AI
+        `log_workout` and `undo_change` (scope `gymly:write`); `list_habits` and `get_habit_log`
+        (scope `gymly:habits:read`, read-only). Changes are validated by the AI
         Coach's validator, applied only by preview id, refused when the plan moved since the
         preview, idempotent, journalled for undo and committed like a device's sync. A missing
-        scope is a tool error with `_meta["mcp/www_authenticate"]`.
+        scope is a tool error with `_meta["mcp/www_authenticate"]`; for `gymly:habits:read` its
+        challenge names that scope on top of the connection's own.
+
+        The habit tools answer from the daily habit log: `list_habits` gives each habit's id,
+        name, kind (`do`/`avoid`), archived flag, its two answers, whether a bad day carries a
+        count, icon, colour and creation date; `get_habit_log` (`from`, `to` as YYYY-MM-DD,
+        default the 14 days ending today, at most 92; optional `habit_id`) gives one entry per
+        logged habit and day: `habit_id`, `date`, `status`, `result` (`good`/`bad`) and `count`.
+        Fields are copied one by one: a day's note, the device's time zone and sync stamps are
+        never part of an answer. Every other tool leaves the habit log out.
 
         Refused: an `Origin` other than ORIGIN (or `MCP_ALLOWED_ORIGINS`) with 403, a body over
         256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a
@@ -1736,7 +1746,9 @@ paths:
         Without a session it shows Gymly's passkey sign-in; for a profile not in
         `MCP_OAUTH_USERS` a 403 page; otherwise the consent screen, naming the client (marked
         unverified unless its metadata document is on a known host), where the answer goes, and
-        an opt-out for write access. HTML, `no-store`, its own CSP with `frame-ancestors 'none'`.
+        an opt-out for write access. A request naming no `scope` asks for `gymly:read
+        gymly:write`; `gymly:habits:read` is only offered when named, as its own opt-in box
+        that starts unticked. HTML, `no-store`, its own CSP with `frame-ancestors 'none'`.
       parameters:
         - { name: response_type, in: query, required: true, schema: { type: string, enum: [code] } }
         - { name: client_id, in: query, required: true, schema: { type: string } }
@@ -1744,7 +1756,7 @@ paths:
         - { name: code_challenge, in: query, required: true, schema: { type: string } }
         - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
         - { name: state, in: query, required: false, schema: { type: string } }
-        - { name: scope, in: query, required: false, schema: { type: string, example: 'gymly:read gymly:write' } }
+        - { name: scope, in: query, required: false, description: 'Space-separated; default `gymly:read gymly:write`. `gymly:habits:read` is never part of the default.', schema: { type: string, example: 'gymly:read gymly:write gymly:habits:read' } }
         - { name: resource, in: query, required: false, schema: { type: string } }
       responses:
         '200':
@@ -1764,7 +1776,9 @@ paths:
       operationId: oauthDecide
       summary: The consent screen's answer
       description: |
-        Form post from the consent screen (`request_id`, `decision=allow|deny`, `allow_write=1`).
+        Form post from the consent screen (`request_id`, `decision=allow|deny`, `allow_write=1`,
+        `allow_habits=1`). Each scope beyond `gymly:read` is granted only when the client asked
+        for it and its box was ticked.
         Needs the session of the profile the screen was shown to — the request id is bound to it
         and single-use — and passes the same-origin check of every state-changing browser request.
         Answers 303 to the client's redirect URI with `code` (five minutes, single use, bound to
@@ -1782,6 +1796,7 @@ paths:
                 request_id: { type: string }
                 decision: { type: string, enum: [allow, deny] }
                 allow_write: { type: string, enum: ['1'] }
+                allow_habits: { type: string, enum: ['1'] }
       responses:
         '303':
           description: Back to the client.
@@ -3880,6 +3895,7 @@ components:
           scopes:
             'gymly:read': Read routines, the week plan, workouts, body weight and progress
             'gymly:write': Change routines and the week plan, log workouts, undo those changes
+            'gymly:habits:read': Read the daily habit log (habit names, each day's status and count; never notes). Opt-in, never granted by default
     mcpToken:
       type: http
       scheme: bearer
