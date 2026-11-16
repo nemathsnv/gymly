@@ -2244,6 +2244,7 @@ export default {
   'Copy address': 'Копировать адрес',
   'Can read and change your plan': 'Может читать и менять ваш план',
   'Can read your data': 'Может читать ваши данные',
+  'Can read your habits': 'Может читать ваши привычки',
   'Disconnect this assistant?': 'Отключить этого ассистента?',
   'It loses access immediately.': 'Он сразу потеряет доступ.',
   'Disconnected': 'Отключено',

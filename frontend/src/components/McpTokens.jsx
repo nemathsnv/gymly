@@ -62,7 +62,7 @@ function Connections({ onShown }) {
     {d.connections.length > 0
       ? <div className="sect-b">
         {d.connections.map(c => <Row key={c.id} icon="link" iconTint="var(--indigo)" title={c.client}
-          subtitle={[c.scopes.includes('gymly:write') ? t('Can read and change your plan') : t('Can read your data'), t('Added {0}', when(c.created)), c.lastUsed && t('Last used {0}', when(c.lastUsed))].filter(Boolean).join(' · ')}
+          subtitle={[c.scopes.includes('gymly:write') ? t('Can read and change your plan') : t('Can read your data'), c.scopes.includes('gymly:habits:read') && t('Can read your habits'), t('Added {0}', when(c.created)), c.lastUsed && t('Last used {0}', when(c.lastUsed))].filter(Boolean).join(' · ')}
           accessory="chevron" onClick={() => disconnect(c)} />)}
       </div>
       : <div className="dim small">{t('No assistants connected yet.')}</div>}

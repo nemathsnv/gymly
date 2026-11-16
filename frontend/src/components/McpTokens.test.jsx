@@ -48,6 +48,8 @@ describe('McpTokensSheet — connected assistants', () => {
     expect(host.textContent).toContain('https://gym.example/api/mcp')
     expect(host.textContent).toContain('ChatGPT')
     expect(host.textContent).toContain('Can read and change your plan')
+    // Habits only for a connection the owner opened them to (gymly:habits:read).
+    expect(host.textContent).not.toContain('Can read your habits')
     expect(host.textContent).toContain('Read-only tokens')
     const row = [...host.querySelectorAll('.lrow')].find(r => r.textContent.includes('ChatGPT'))
     await act(async () => { row.click() })
@@ -55,5 +57,11 @@ describe('McpTokensSheet — connected assistants', () => {
     await act(async () => { await m.confirm.onConfirm() })
     expect(m.calls).toContainEqual(['DELETE', '/api/account/mcp-connections?id=g1'])
     expect(host.textContent).toContain('No assistants connected yet.')
+  })
+
+  it('says when a connection may read your habits', async () => {
+    m.conn = { enabled: true, endpoint: 'https://gym.example/api/mcp', connections: [{ id: 'g2', client: 'Claude', scopes: ['gymly:read', 'gymly:habits:read'], created: Date.now(), lastUsed: null }] }
+    await mount()
+    expect(host.textContent).toContain('Can read your data · Can read your habits')
   })
 })

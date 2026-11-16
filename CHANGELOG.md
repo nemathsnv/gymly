@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Let an assistant read your habits, if you say so.** An AI assistant connected to Gymly's
+  hosted MCP endpoint can now read your habit log, but only when it asks for it and you tick
+  **Also read your habits** on the consent screen; the box starts unticked, nothing asks for it
+  by default, and an assistant you already connected does not gain it. With it, the assistant
+  sees your habits' names and, for each day you logged, done or not (for Alcohol, the drinks):
+  "how many alcohol-free days did I have this month?". It never reads the notes you write on a
+  day and cannot change a habit. Every other tool, and the local bridge, still leave habits out.
+  For clients: scope `gymly:habits:read`, tools `list_habits` and `get_habit_log` (docs/MCP.md).
 - **Spoken cues** (from openGym). Settings → Timer alerts → **Spoken cues** (off until you want
   it) gives the timer a voice, so the phone can stay on the bench: it says your next set as the
   rest starts ("Set 3, 80 kilos, 8 reps", with the exercise's name when it changes, and a

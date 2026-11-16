@@ -61,6 +61,9 @@ export function consentPage({ id, request, user, nonce }) {
   const name = c.verified ? `<b>${esc(c.client_name)}</b>` : `<b>“${esc(c.client_name)}”</b> <span class="warn">(unverified)</span>`;
   const intro = c.verified ? `${name} wants to connect to your Gymly profile.` : `An app calling itself ${name} wants to connect to your Gymly profile. Gymly cannot confirm who made it.`;
   const writeAsked = request.scopes.includes('gymly:write');
+  // The habit log is never part of the default: its box is only there when the client asked for
+  // gymly:habits:read by name, and it starts unticked, so leaving the screen as it is never grants it.
+  const habitsAsked = request.scopes.includes('gymly:habits:read');
   const body = `<h1>Connect an assistant</h1>
 <p>${intro}</p>
 <p class="dim">Signed in as <b>${esc(user.name)}</b>. After you answer, you go back to <b>${esc(describeRedirect(request.redirectUri))}</b>.</p>
@@ -70,7 +73,8 @@ export function consentPage({ id, request, user, nonce }) {
 <p><b>It will be able to:</b></p>
 <ul><li>Read your routines, week plan, workouts, body weight and progress.</li></ul>
 ${writeAsked ? `<label><input type="checkbox" name="allow_write" value="1" checked><span>Change your routines and log workouts.<br><span class="dim">Every change is shown to you in the chat before it is made, and can be undone. Removing exercises or routines asks for a stronger confirmation.</span></span></label>` : ''}
-<p class="dim">It will never see your passkeys, password, gym cards or AI Coach settings, and cannot sign in as you. You can disconnect it at any time in Settings → AI assistant access, and “Sign out everywhere” disconnects it too.</p>
+${habitsAsked ? `<label><input type="checkbox" name="allow_habits" value="1"><span>Also read your habits: their names, and for each day whether you logged it as done or not (for alcohol, the drinks you counted).<br><span class="dim">Off unless you tick it. The notes you write on a day are never shared, and it can never change your habits.</span></span></label>` : ''}
+<p class="dim">It will never see your passkeys, password, gym cards${habitsAsked ? ' or AI Coach settings' : ', AI Coach settings or habits'}, and cannot sign in as you. You can disconnect it at any time in Settings → AI assistant access, and “Sign out everywhere” disconnects it too.</p>
 <div class="row"><button type="submit" name="decision" value="deny">Cancel</button><button class="primary" type="submit" name="decision" value="allow">Allow</button></div>
 </form>`;
   return shell('Connect an assistant · Gymly', body, nonce);

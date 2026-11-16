@@ -223,7 +223,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <a class="side-link" href="#activity"><b>Activity</b><span>Live presence</span></a>
   <a class="side-link" href="#media"><b>Media</b><span>Photos &amp; videos of your exercises &amp; workouts</span></a>
   <a class="side-link" href="#coach"><b>AI Coach</b><span>Plans, reviews, debriefs</span></a>
-  <a class="side-link" href="#integrations"><b>Integrations</b><span>Webhooks (INTEGRATIONS)</span></a>
+  <a class="side-link" href="#integrations"><b>Integrations</b><span>Webhooks (INTEGRATIONS) &amp; Oura</span></a>
   <a class="side-link" href="#admin"><b>Admin</b><span>Users, invites, audit log, Coach</span></a>
   <a class="side-link" href="#schemas"><b>Schemas</b><span>The state blob, the error shape &amp; co.</span></a>
   <p class="side-label">More</p>
@@ -247,7 +247,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>90 endpoints</span>
+    <span>97 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -336,6 +336,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="ep-body">
 <p>The flags the login screen needs before anyone is signed in. Both reflect environment variables on the server (<code>INVITE_ONLY</code>, <code>ALLOW_GUEST</code>), and so does <code>password_login</code>, which is there only when <code>PASSWORD_LOGIN=1</code>, and <code>default_lang</code>, which is there only when <code>DEFAULT_LANG</code> is set.</p>
 <p><code>media</code> is there unless the instance runs with <code>MEDIA_UPLOADS=0</code>, for everybody: the caps are not a secret, and its absence is how the app knows this server does not store photos and videos at all.</p>
+<p><code>oura: true</code> is there only when the instance has Oura app credentials (<code>OURA_CLIENT_ID</code>, <code>OURA_CLIENT_SECRET</code>); the credentials themselves never are.</p>
 <p>A caller with a valid session also gets a <code>coach</code> key: the block when the instance has the AI Coach switched on <b>and</b> a provider connected, and <code>null</code> when it has not. A caller with no session gets no key at all. The block names the provider this instance talks to, which is the same fact <code>GET /api/coach/disclosure</code> will not hand out unauthenticated.</p>
 <p>The key is always present for a session, <code>null</code> included, so a client that caches this answer can tell &quot;no Coach on this instance&quot; from &quot;you were not signed in when you asked&quot; and knows whether asking again would change it.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
@@ -1758,8 +1759,9 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </summary>
   <div class="ep-body">
 <p>The remote MCP server: one JSON-RPC message per request, answered in JSON (stateless Streamable HTTP, protocol 2025-11-25; no session id, no SSE). Off — a plain 404 — unless the instance sets <code>MCP_OAUTH_USERS</code>. Takes only an OAuth access token (<code>mcpOAuth</code>) for <code>https://&lt;ORIGIN&gt;/api/mcp</code>; a session, a V1 MCP token or a token for another resource is refused with 401 and a <code>WWW-Authenticate</code> challenge naming <code>/.well-known/oauth-protected-resource/api/mcp</code> (RFC 9728), which is how an MCP client finds the authorization server. Discovery lives outside <code>/api</code>: <code>GET /.well-known/oauth-protected-resource[/api/mcp]</code> and <code>GET /.well-known/oauth-authorization-server</code> (RFC 8414).</p>
-<p>Tools: the V1 read tools plus <code>search_exercises</code>, <code>get_training_progress</code> and <code>list_recent_changes</code> (scope <code>gymly:read</code>); <code>preview_routine_changes</code>, <code>create_routine</code>, <code>apply_routine_changes</code>, <code>apply_destructive_routine_changes</code>, <code>preview_workout_log</code>, <code>log_workout</code> and <code>undo_change</code> (scope <code>gymly:write</code>). Changes are validated by the AI Coach's validator, applied only by preview id, refused when the plan moved since the preview, idempotent, journalled for undo and committed like a device's sync. A missing scope is a tool error with <code>_meta[&quot;mcp/www_authenticate&quot;]</code>.</p>
-<p>Refused: an <code>Origin</code> other than ORIGIN (or <code>MCP_ALLOWED_ORIGINS</code>) with 403, a body over 256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a minute per connection with 429. Writes: 30 per 10 minutes per profile.</p>
+<p>Tools: the V1 read tools plus <code>search_exercises</code>, <code>get_training_progress</code> and <code>list_recent_changes</code> (scope <code>gymly:read</code>); <code>preview_routine_changes</code>, <code>create_routine</code>, <code>apply_routine_changes</code>, <code>apply_destructive_routine_changes</code>, <code>preview_workout_log</code>, <code>log_workout</code> and <code>undo_change</code> (scope <code>gymly:write</code>); <code>list_habits</code> and <code>get_habit_log</code> (scope <code>gymly:habits:read</code>, read-only). Changes are validated by the AI Coach's validator, applied only by preview id, refused when the plan moved since the preview, idempotent, journalled for undo and committed like a device's sync. A missing scope is a tool error with <code>_meta[&quot;mcp/www_authenticate&quot;]</code>; for <code>gymly:habits:read</code> its challenge names that scope on top of the connection's own.</p>
+<p>The habit tools answer from the daily habit log: <code>list_habits</code> gives each habit's id, name, kind (<code>do</code>/<code>avoid</code>), archived flag, its two answers, whether a bad day carries a count, icon, colour and creation date; <code>get_habit_log</code> (<code>from</code>, <code>to</code> as YYYY-MM-DD, default the 14 days ending today, at most 92; optional <code>habit_id</code>) gives one entry per logged habit and day: <code>habit_id</code>, <code>date</code>, <code>status</code>, <code>result</code> (<code>good</code>/<code>bad</code>) and <code>count</code>. Fields are copied one by one: a day's note, the device's time zone and sync stamps are never part of an answer. Every other tool leaves the habit log out.</p>
+<p>Refused: an <code>Origin</code> other than ORIGIN (or <code>MCP_ALLOWED_ORIGINS</code>) with 403, a body over 256 KB with 413, a JSON-RPC batch or unparseable body with 400, more than 120 requests a minute per connection with 429. Writes: 30 per 10 minutes per profile, and of those at most 20 logged workouts (<code>log_workout</code>) in any hour; over either, the tool answers <code>rate_limited</code> with <code>retry_after</code> seconds. <code>preview_workout_log</code> takes exercises by name or id and answers <code>needs_choice</code> with candidates for a name that is ambiguous or unknown, and <code>already_logged</code> for a session the history already has.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 <p class="ep-h">Request body <span class="p-hint">(JSON)</span></p>
@@ -1854,7 +1856,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </summary>
   <div class="ep-body">
 <p>Authorization code flow with PKCE (S256 only). Checks <code>client_id</code> (a registered client, or an https Client ID Metadata Document URL), <code>redirect_uri</code> (exact, or a loopback http one on any port), <code>response_type=code</code>, <code>code_challenge</code>, <code>state</code> and <code>resource</code> (this server's <code>/api/mcp</code>, optional). An unknown client or redirect URI is shown as an error page and never redirected; other errors redirect with <code>error</code>, <code>state</code> and <code>iss</code>.</p>
-<p>Without a session it shows Gymly's passkey sign-in; for a profile not in <code>MCP_OAUTH_USERS</code> a 403 page; otherwise the consent screen, naming the client (marked unverified unless its metadata document is on a known host), where the answer goes, and an opt-out for write access. HTML, <code>no-store</code>, its own CSP with <code>frame-ancestors 'none'</code>.</p>
+<p>Without a session it shows Gymly's passkey sign-in; for a profile not in <code>MCP_OAUTH_USERS</code> a 403 page; otherwise the consent screen, naming the client (marked unverified unless its metadata document is on a known host), where the answer goes, and an opt-out for write access. A request naming no <code>scope</code> asks for <code>gymly:read gymly:write</code>; <code>gymly:habits:read</code> is only offered when named, as its own opt-in box that starts unticked. HTML, <code>no-store</code>, its own CSP with <code>frame-ancestors 'none'</code>.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 <p class="ep-h">Query parameters</p><div class="ptab">
   <div class="prow">
@@ -1890,7 +1892,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow">
     <span class="p-name">scope</span>
     <span class="p-type">string</span>
-    <span class="p-desc"></span>
+    <span class="p-desc">Space-separated; default <code>gymly:read gymly:write</code>. <code>gymly:habits:read</code> is never part of the default.</span>
   </div>
   <div class="prow">
     <span class="p-name">resource</span>
@@ -1933,7 +1935,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">The consent screen's answer</span>
   </summary>
   <div class="ep-body">
-<p>Form post from the consent screen (<code>request_id</code>, <code>decision=allow|deny</code>, <code>allow_write=1</code>). Needs the session of the profile the screen was shown to — the request id is bound to it and single-use — and passes the same-origin check of every state-changing browser request. Answers 303 to the client's redirect URI with <code>code</code> (five minutes, single use, bound to the PKCE challenge, client, redirect URI and resource) or <code>error=access_denied</code>, plus <code>state</code> and <code>iss</code> (RFC 9207). Audited as <code>auth.mcp.consent</code> / <code>auth.mcp.declined</code>.</p>
+<p>Form post from the consent screen (<code>request_id</code>, <code>decision=allow|deny</code>, <code>allow_write=1</code>, <code>allow_habits=1</code>). Each scope beyond <code>gymly:read</code> is granted only when the client asked for it and its box was ticked. Needs the session of the profile the screen was shown to — the request id is bound to it and single-use — and passes the same-origin check of every state-changing browser request. Answers 303 to the client's redirect URI with <code>code</code> (five minutes, single use, bound to the PKCE challenge, client, redirect URI and resource) or <code>error=access_denied</code>, plus <code>state</code> and <code>iss</code> (RFC 9207). Audited as <code>auth.mcp.consent</code> / <code>auth.mcp.declined</code>.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 
@@ -3034,7 +3036,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 
 <section class="api-sec" id="integrations">
   <h2>Integrations</h2>
-  <p class="sub">Outbound webhooks (Settings → Account → Webhooks). Off unless the server runs with <code>INTEGRATIONS</code> (e.g. <code>INTEGRATIONS=webhook</code>); then a profile can add its own webhooks. Secrets are sealed at rest and shown once. See docs/INTEGRATIONS.md.</p>
+  <p class="sub">Outbound webhooks (Settings → Account → Webhooks). Off unless the server runs with <code>INTEGRATIONS</code> (e.g. <code>INTEGRATIONS=webhook</code>); then a profile can add its own webhooks. Secrets are sealed at rest and shown once. See docs/INTEGRATIONS.md. Oura (API v2, <code>/api/integrations/oura/*</code>), read-only. A profile connects its Oura account through Oura's OAuth consent screen (authorization code + PKCE, exchanged server side); tokens are stored encrypted on the server and never reach the browser. Oura health data is summarised and held in server memory for a few minutes only — never written to disk, never in the synced state, exports, webhooks, MCP or the Coach. Every Oura route but <code>status</code> answers 503 <code>off</code> until the instance sets <code>OURA_CLIENT_ID</code> and <code>OURA_CLIENT_SECRET</code>.</p>
   <div class="eps">
 
 <details class="ep" id="op-listIntegrations">
@@ -3333,6 +3335,277 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">404</span>
     <span class="p-desc"><code>code</code> <code>off</code>: the server runs without <code>INTEGRATIONS</code> (the default). <code>code</code> <code>missing</code>: no such connection on this profile (another profile's id is the same answer).<span class="r-sig"><code>{&quot;error&quot;:&quot;integrations are off on this server&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getOuraStatus">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/oura/status</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Whether Oura is set up here and connected for this profile</span>
+  </summary>
+  <div class="ep-body">
+<p>Connection facts only, no health data. <code>stale</code> is a stored connection that can no longer be used (credentials changed); Disconnect removes it.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The connection status.<span class="r-sig">{ configured: boolean, connected: boolean, stale: boolean, connectedAt: integer | null, lastSync: integer | null, scopes: array | null, requestedScopes: array | null, redirectUri: string | null }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-postOuraConnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/oura/connect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Start connecting — the address of Oura's consent screen</span>
+  </summary>
+  <div class="ep-body">
+<p>Makes a PKCE verifier and a single-use <code>state</code> (10 minutes) tied to this profile, and answers the authorize URL to send the browser to.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Where to send the browser.<span class="r-sig">{ url: string }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Oura is not set up on this server (<code>code</code> <code>off</code>).</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getOuraCallback">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/oura/callback</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Oura's redirect back (the registered redirect URI)</span>
+  </summary>
+  <div class="ep-body">
+<p>Checks the <code>state</code> (single use, must belong to the signed-in profile), exchanges the <code>code</code> with the PKCE verifier and stores the tokens encrypted. Always answers with a redirect to Settings → Data &amp; backup, <code>?oura=</code> one of <code>connected</code>, <code>denied</code>, <code>expired</code>, <code>mismatch</code>, <code>config</code>, <code>error</code>, <code>off</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">code</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">state</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">error</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s3">302</span>
+    <span class="p-desc">Back to the app's Settings.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getOuraOverview">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/oura/overview</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Recovery overview from Oura for the last <code>days</code> days</span>
+  </summary>
+  <div class="ep-body">
+<p>Per day: readiness, sleep (score, duration, efficiency, HRV, heart rate), activity, stress, SpO2, cardiovascular age, VO2 max and the day's heart-rate range (last 7 days); plus Oura's workouts. <code>available</code> says per data type whether it was read, not shared (<code>not-shared</code>, a scope switched off on Oura's screen) or failed. Answered from what the server holds in memory (at most 90 days, kept current by automatic sync while the overview is in use); the first look backfills, a look after an hour syncs first. <code>lastSync</code>, <code>lastError</code>, <code>retryAt</code> say how current it is.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">days</span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;90, default 14)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">tz</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">IANA time zone of the device</span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The overview.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">The connection is gone (<code>code</code> <code>reauth</code>); connect again.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Oura is rate limiting (<code>code</code> <code>rate</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Oura could not be reached or answered an error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Oura is not set up on this server (<code>code</code> <code>off</code>).</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-postOuraSync">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/oura/sync</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Sync from Oura now</span>
+  </summary>
+  <div class="ep-body">
+<p>An incremental sync (the last few days, plus anything new), then the overview's answer. A second call within 30 seconds gets the first one's result (<code>cached: true</code>).</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">days</span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;90, default 14)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">tz</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">IANA time zone of the device</span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The overview.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">The connection is gone (<code>code</code> <code>reauth</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Oura is rate limiting (<code>code</code> <code>rate</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Oura could not be reached or answered an error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Oura is not set up on this server (<code>code</code> <code>off</code>).</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-getOuraDiagnostics">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/oura/diagnostics</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Check the connection per data type, without any values</span>
+  </summary>
+  <div class="ep-body">
+<p>Runs a sync, then answers per data type only whether Oura shared it (<code>status</code>: <code>ok</code>, <code>not-shared</code>, <code>rate-limited</code>, <code>error</code>) and whether any records are held in the window (<code>records</code>: boolean) — never a measurement. With <code>refresh=1</code> it also spends a refresh token to prove refresh works (<code>refresh</code>: <code>ok</code>, or the error code); the new pair is stored as usual. Made for checking the integration without reading health data.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">refresh</span>
+    <span class="p-type">&quot;1&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">tz</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">IANA time zone of the device</span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Per-type availability</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">Not connected (<code>code</code> <code>reauth</code>).</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Oura is not set up on this server (<code>code</code> <code>off</code>).</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-postOuraDisconnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/oura/disconnect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Disconnect Oura and delete everything held for it</span>
+  </summary>
+  <div class="ep-body">
+<p>Revokes the token at Oura (best effort; <code>revoked</code> says whether Oura confirmed), deletes the stored tokens and drops the overview held in memory, at once.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Disconnected.<span class="r-sig">{ ok: boolean, revoked: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
   </div>
     </div>
   </div>

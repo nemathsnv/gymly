@@ -42,8 +42,13 @@ edited elsewhere is refused, not forced (edits to other routines do not get in t
 undo never throws away a later edit of the same routine. Routines are templates: changing "tomorrow's bench press"
 changes that routine from tomorrow on, and the assistant says so.
 
-It cannot see or change your passkeys, password, gym cards, habit log, AI Coach settings or account, and
-cannot delete logged workouts (other than one it logged itself, by undo).
+Your habits (`gymly:habits:read`, only if you tick "Also read your habits" when you connect; see
+[Your habits](#your-habits-opt-in)): the habits you track and, for each day, whether you logged it
+as done or not and the drinks you counted. Never the notes you write on a day.
+
+It cannot see or change your passkeys, password, gym cards, AI Coach settings or account, cannot
+read your habits unless you allowed it, cannot change your habits at all, and cannot delete logged
+workouts (other than one it logged itself, by undo).
 
 ### Log a workout by telling your assistant
 
@@ -74,6 +79,32 @@ in the app.
 - It cannot make a new exercise: create it in the app first, then log it by name.
 
 This is available on the hosted endpoint only. The local bridge stays read-only (below).
+
+### Your habits (opt-in)
+
+The daily habit log (Alcohol and your own habits) is yours alone unless you open it to an
+assistant, separately from everything else:
+
+- **Its own permission.** The scope is `gymly:habits:read`. It is never part of the default: a
+  client that asks for nothing in particular gets `gymly:read gymly:write`, as before. Only when
+  a client asks for `gymly:habits:read` by name does the consent screen show the line **Also read
+  your habits**, and it starts unticked; leave it so and the connection gets no habits. An
+  assistant connected before (or without it) does not gain it later; to allow it, disconnect and
+  connect again with the box ticked.
+- **What it reads.** `list_habits`: each habit's id, name, kind (to build, or to avoid), whether
+  it is archived, its two answers and whether a bad day carries a count. `get_habit_log`: for a
+  range of days (14 ending today unless asked; at most 92 at a time), one entry per habit and day
+  you logged, with the answer and, for Alcohol, the drinks. A day you did not log has no entry,
+  and the assistant is told it is not a good day.
+- **What it never reads.** The notes you write on a day, which device or time zone a day was
+  logged from, and anything about your habits on another profile. Both tools are read-only: no
+  assistant can log, change or archive a habit.
+- Every other tool still leaves the habit log out, whatever the connection was allowed.
+
+For a client: request `scope=gymly:read gymly:write gymly:habits:read` (or `gymly:read
+gymly:habits:read`) on `/api/oauth/authorize`. A habit tool called without the scope answers
+`insufficient_scope` with a challenge naming `gymly:habits:read` on top of the connection's own
+scopes, which some clients turn into a "reconnect with more access" prompt.
 
 ### Connect ChatGPT
 
@@ -132,7 +163,8 @@ not been used for 30 days, and at most 180 days; then you approve it again.
 - Access tokens last an hour; refresh tokens rotate on every use, and a stolen one used again
   ends the whole connection. Tokens are random, stored only as hashes, and never logged.
 - Every tool checks the scope it needs and acts on your profile only; no tool takes a profile or
-  user id. Writes go through the AI Coach's validator, a preview id bound to the connection, a
+  user id. The habit tools need `gymly:habits:read`, which only the owner's own tick on the
+  consent screen grants, and copy out named fields only (never a note). Writes go through the AI Coach's validator, a preview id bound to the connection, a
   stale-plan check, idempotent apply, an undo journal and the normal sync path.
 - The server's activity log records connections, disconnections, refused tokens and each write
   (with a count, never content).
@@ -149,7 +181,7 @@ Discovery for clients: `/.well-known/oauth-protected-resource/api/mcp` and
 | The assistant says a change is "stale" | The plan changed since its preview (you edited it on a device). Ask it to preview again. |
 | "rate_limited" when logging workouts | 20 workouts were logged through assistants in the last hour. Wait, or log the rest in the app. |
 | The assistant asks which exercise you meant | The name matches several exercises (or none). Pick one; it previews again with that exercise. |
-| "insufficient_scope" | You connected read-only. Disconnect it in Settings and connect again with changes allowed. |
+| "insufficient_scope" | You connected read-only (or, for the habit tools, without "Also read your habits"). Disconnect it in Settings and connect again with that box ticked. |
 | The connection stopped working | It was disconnected, or you signed out everywhere. Connect again. |
 | ChatGPT has no "Add custom MCP server" | Your ChatGPT plan or workspace does not allow custom MCP servers. |
 | Cloudflare challenges the assistant | Skip bot checks for `/api/mcp`, `/api/oauth/*` and `/.well-known/oauth-*` (the consent page itself is a normal browser page). |

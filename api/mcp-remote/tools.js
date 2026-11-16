@@ -6,7 +6,10 @@
  * as a tool error carrying the OAuth challenge (ChatGPT reads `mcp/www_authenticate` to offer a
  * reconnect with more access).
  *
- * Reads are V1's tools (read-tools.gen.js), answered from the profile's stored document.
+ * Reads are V1's tools (read-tools.gen.js), answered from the profile's stored document. The
+ * habit tools (list_habits, get_habit_log) need gymly:habits:read, a scope only granted when the
+ * client asked for it and the owner ticked it on the consent screen (oauth.js); they answer with
+ * the habits and each day's status and count, copied field by field, never a day's note.
  * Writes follow the preview → confirm pattern: a preview tool validates the change, stores it for
  * 15 minutes under an id bound to this connection and returns exactly what would change; an apply
  * tool takes only that id, so what is applied is what the person was shown. Applying checks that
@@ -30,12 +33,12 @@
 import crypto from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { READ_TOOLS, runReadTool, helpers } from './read-tools.gen.js';
+import { READ_TOOLS, runReadTool, HABIT_TOOLS, runHabitTool, helpers } from './read-tools.gen.js';
 import {
   previewPlan, applyPlan, undoPlan, previewWorkout, applyWorkout, undoWorkout, StaleError, POLICIES,
   MAX_OPS, MAX_LOG_ENTRIES, MAX_LOG_SETS
 } from './plan-ops.js';
-import { bearerChallenge } from './oauth.js';
+import { bearerChallenge, DEFAULT_SCOPES, HABITS_SCOPE } from './oauth.js';
 import { LOG_WORKOUT_LIMIT } from './log-budget.js';
 
 export const SERVER_INFO = { name: 'gymly', title: 'Gymly', version: '1.0.0' };
@@ -208,8 +211,12 @@ const LOG_INPUT = z.object({
 export function buildServer(actor, deps) {
   const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS, capabilities: { tools: {} } });
   const has = scope => actor.scopes.includes(scope);
-  const scopeFail = scope => fail('insufficient_scope', `this connection was not given ${scope}; reconnect Gymly and allow ${scope === 'gymly:write' ? 'changes' : 'reading'}`, { required_scope: scope },
-    { 'mcp/www_authenticate': [bearerChallenge(deps.config, 'insufficient_scope', `${scope} is required`)] });
+  // The habit scope's challenge names it on top of what the connection already has, so a client
+  // that reconnects asks for it without dropping the rest; the others keep the default list.
+  const challengeScopes = scope => (DEFAULT_SCOPES.includes(scope) ? DEFAULT_SCOPES : [...new Set([...actor.scopes, scope])]);
+  const allowWhat = { 'gymly:write': 'changes', [HABITS_SCOPE]: 'reading your habits' };
+  const scopeFail = scope => fail('insufficient_scope', `this connection was not given ${scope}; reconnect Gymly and allow ${allowWhat[scope] || 'reading'}`, { required_scope: scope },
+    { 'mcp/www_authenticate': [bearerChallenge(deps.config, 'insufficient_scope', `${scope} is required`, challengeScopes(scope))] });
   const client = actor.grant.clientName;
 
   const register = (name, cfg, scope, handler) => {
@@ -238,6 +245,15 @@ export function buildServer(actor, deps) {
   for (const t of READ_TOOLS) {
     register(t.name, { description: t.description, inputSchema: z.object(t.schema), annotations: READ_ANN }, 'gymly:read', args => {
       const data = runReadTool(t.name, args, state(), userView);
+      return ok(`${t.name} for ${actor.user.name}`, data);
+    });
+  }
+  // The habit log, for a connection the owner opened it to. The document goes in whole (the log is
+  // in it); what comes out is runHabitTool's explicit projection, notes never among it.
+  for (const t of HABIT_TOOLS) {
+    register(t.name, { description: t.description, inputSchema: z.object(t.schema), annotations: READ_ANN }, HABITS_SCOPE, args => {
+      const data = runHabitTool(t.name, args, state());
+      if (data && data.error) return fail(data.error, data.message);
       return ok(`${t.name} for ${actor.user.name}`, data);
     });
   }

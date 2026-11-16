@@ -6,8 +6,12 @@
 
    habitLog — the daily habit log (frontend/src/lib/habits.js): Alcohol and the user's own habits,
    their names and definitions (`habit|def`), every day and the notes beside them. Health and
-   personal data the owner logged for themselves, not training data. Opening any of it to an assistant
-   is a decision of its own, with its own consent, and has not been made.
+   personal data the owner logged for themselves, not training data. No tool that reads the profile
+   through here sees any of it. The one consented path is separate: on the hosted endpoint, a
+   connection whose owner ticked "Also read your habits" on the consent screen (OAuth scope
+   gymly:habits:read, never granted by default) can call list_habits and get_habit_log
+   (hosted.js HABIT_TOOLS), which copy out habit names, kinds and each day's status and count, field
+   by field, and never a note. The stdio bridge and the V1 token have no such path.
 
    sex, birthYear — About you (frontend/src/components/StrengthLevel.jsx): read only by the
    strength levels on the device, and promised there never to reach the Coach or an assistant. */

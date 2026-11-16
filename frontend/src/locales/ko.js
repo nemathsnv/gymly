@@ -2240,6 +2240,7 @@ export default {
   'Copy address': '주소 복사',
   'Can read and change your plan': '플랜을 읽고 변경할 수 있음',
   'Can read your data': '데이터를 읽을 수 있음',
+  'Can read your habits': '습관을 읽을 수 있음',
   'Disconnect this assistant?': '이 어시스턴트의 연결을 해제할까요?',
   'It loses access immediately.': '즉시 접근 권한을 잃습니다.',
   'Disconnected': '연결 해제됨',

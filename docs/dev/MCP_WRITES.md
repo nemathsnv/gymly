@@ -11,8 +11,9 @@ reasoning behind it.
   (`POST /api/mcp`, stateless Streamable HTTP) with its own OAuth 2.1 authorization server
   (PKCE S256, CIMD and dynamic registration, resource-bound opaque tokens, rotating refresh
   tokens with replay detection, consent on Gymly's own page with the owner's passkey session).
-  Scopes `gymly:read` and `gymly:write`; only profiles in `MCP_OAUTH_USERS` can connect. V1 is
-  unchanged.
+  Scopes `gymly:read` and `gymly:write`, plus the opt-in `gymly:habits:read` for the habit log
+  (never in the default grant; docs/dev/HABITS.md); only profiles in `MCP_OAUTH_USERS` can
+  connect. V1 is unchanged.
 - **The boundary is the Coach's**, as designed: operations become the closed list of change
   types and pass `validateReview` against the plan as it stands; `weight` (the routine's target
   weight) is the one addition, validated per unit. Nothing else in the document is writable;

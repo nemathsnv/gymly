@@ -2243,6 +2243,7 @@ export default {
   'Copy address': 'Cím másolása',
   'Can read and change your plan': 'Olvashatja és módosíthatja a tervedet',
   'Can read your data': 'Olvashatja az adataidat',
+  'Can read your habits': 'Olvashatja a szokásaidat',
   'Disconnect this assistant?': 'Leválasztod ezt az asszisztenst?',
   'It loses access immediately.': 'Azonnal elveszíti a hozzáférést.',
   'Disconnected': 'Leválasztva',

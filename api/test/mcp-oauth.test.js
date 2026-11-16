@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {
-  createOAuth, validRedirectUri, redirectUriMatches, validMetadataUrl, cleanText, bearerChallenge,
+  createOAuth, validRedirectUri, redirectUriMatches, validMetadataUrl, cleanText, bearerChallenge, protectedResourceMetadata,
   ACCESS_TTL_S, CODE_TTL_MS, REUSE_GRACE_MS, DCR_UNUSED_MS, MAX_GRANT_DAYS
 } from '../mcp-remote/oauth.js';
 
@@ -30,12 +30,12 @@ function setup({ docs = {} } = {}) {
   });
   const pkce = () => { const v = crypto.randomBytes(32).toString('base64url'); return { v, c: crypto.createHash('sha256').update(v).digest('base64url') }; };
   const q = obj => new URLSearchParams(obj);
-  async function code(clientId, { user = db.users[0], scope = 'gymly:read gymly:write', write = true, redirect = REDIRECT } = {}) {
+  async function code(clientId, { user = db.users[0], scope = 'gymly:read gymly:write', write = true, habits, redirect = REDIRECT } = {}) {
     const p = pkce();
     const chk = await o.checkAuthorize(q({ response_type: 'code', client_id: clientId, redirect_uri: redirect, code_challenge: p.c, code_challenge_method: 'S256', scope, resource: RESOURCE, state: 's' }));
     assert.ok(chk.ok, JSON.stringify(chk));
     const id = o.openRequest(user, chk.client, chk.params);
-    const d = o.decide(user, id, { allow: true, allowWrite: write });
+    const d = o.decide(user, id, { allow: true, allowWrite: write, allowHabits: habits });
     return { code: new URL(d.redirect).searchParams.get('code'), p, redirect: d.redirect };
   }
   async function connect(clientId, opts = {}) {
@@ -172,6 +172,35 @@ test('a refresh cannot widen scopes; a read-only consent never yields write', as
   assert.equal(tok.scope, 'gymly:read');
   const wider = await s.o.token(s.q({ grant_type: 'refresh_token', refresh_token: tok.refresh_token, client_id: cl.client_id, scope: 'gymly:read gymly:write' }));
   assert.equal(wider.body.error, 'invalid_scope');
+});
+
+// gymly:habits:read (the habit log, never its notes) is opt-in on both sides: the client asks for it
+// by name and the owner ticks its box. Nothing gets it by default, by leaving the screen as it is,
+// or by refreshing a connection made without it.
+test('the habit scope is granted only when asked for by name and allowed by the owner', async () => {
+  const s = setup();
+  const cl = s.o.register({ client_name: 'C', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'none' }).body;
+  // A request naming no scope gets what it always got: read and write, not habits.
+  const p = { response_type: 'code', client_id: cl.client_id, redirect_uri: REDIRECT, code_challenge: 'c'.repeat(43), code_challenge_method: 'S256', resource: RESOURCE };
+  assert.deepEqual((await s.o.checkAuthorize(s.q(p))).params.scopes, ['gymly:read', 'gymly:write']);
+  assert.deepEqual((await s.o.checkAuthorize(s.q({ ...p, scope: 'gymly:read gymly:habits:read gymly:nonsense' }))).params.scopes, ['gymly:read', 'gymly:habits:read']);
+  // Asked for, but the owner's box left as it was (allowHabits absent, or anything but true).
+  assert.equal((await s.connect(cl.client_id, { scope: 'gymly:read gymly:write gymly:habits:read' })).scope, 'gymly:read gymly:write');
+  assert.equal((await s.connect(cl.client_id, { scope: 'gymly:read gymly:write gymly:habits:read', habits: '1' })).scope, 'gymly:read gymly:write');
+  // Allowed, but never asked for: still not granted.
+  const plain = await s.connect(cl.client_id, { scope: 'gymly:read gymly:write', habits: true });
+  assert.equal(plain.scope, 'gymly:read gymly:write');
+  // Asked for and allowed: granted, alone with read too (reading is always part of a connection).
+  assert.equal((await s.connect(cl.client_id, { scope: 'gymly:read gymly:write gymly:habits:read', habits: true })).scope, 'gymly:read gymly:write gymly:habits:read');
+  assert.equal((await s.connect(cl.client_id, { scope: 'gymly:habits:read', write: false, habits: true })).scope, 'gymly:read gymly:habits:read');
+  // A connection made without it cannot gain it by refreshing.
+  const wider = await s.o.token(s.q({ grant_type: 'refresh_token', refresh_token: plain.refresh_token, client_id: cl.client_id, scope: 'gymly:read gymly:write gymly:habits:read' }));
+  assert.equal(wider.body.error, 'invalid_scope');
+  const same = await s.o.token(s.q({ grant_type: 'refresh_token', refresh_token: plain.refresh_token, client_id: cl.client_id }));
+  assert.equal(same.body.scope, 'gymly:read gymly:write');
+  // Discovery names it, so a client can ask for it; the 401 challenge does not suggest it.
+  assert.ok(protectedResourceMetadata({ issuer: ISSUER, resource: RESOURCE }).scopes_supported.includes('gymly:habits:read'));
+  assert.doesNotMatch(bearerChallenge({ issuer: ISSUER, resource: RESOURCE }), /habits/);
 });
 
 test('off the list, signed out everywhere, disabled or deleted: the connection is refused and cleared', async () => {

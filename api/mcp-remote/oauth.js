@@ -5,8 +5,12 @@
  * password or a session. What it gets is narrower than a session on every axis, like the V1 MCP
  * token (mcp-access.js):
  *
- *   - two scopes, `gymly:read` and `gymly:write`; only /api/mcp honours them, and sessionOf()
- *     refuses every token minted here, so /api/data, the account and admin routes stay shut;
+ *   - three scopes, `gymly:read`, `gymly:write` and `gymly:habits:read`; only /api/mcp honours
+ *     them, and sessionOf() refuses every token minted here, so /api/data, the account and admin
+ *     routes stay shut. `gymly:habits:read` (the daily habit log, never its notes) is opt-in twice
+ *     over: a client has to ask for it by name — a request naming no scope gets DEFAULT_SCOPES, as
+ *     before it existed — and the owner has to tick its own box on the consent screen, which starts
+ *     unticked. A refresh never adds a scope, so no connection made before gains it;
  *   - one profile and one resource: the token names its grant, the grant its user, and both are
  *     bound to https://<origin>/api/mcp (RFC 8707) — a token is refused anywhere else;
  *   - opaque random values, stored only as SHA-256 hashes: a copy of db.json opens nothing;
@@ -29,7 +33,11 @@
  * HTML and the audit log are server.js's and consent.js's. */
 import crypto from 'node:crypto';
 
-export const SCOPES = Object.freeze(['gymly:read', 'gymly:write']);
+export const SCOPES = Object.freeze(['gymly:read', 'gymly:write', 'gymly:habits:read']);
+// What a request that names no scope asks for, and what the 401 challenge suggests: everything but
+// the habit log, which a client only gets by asking for it and the owner by agreeing to it.
+export const DEFAULT_SCOPES = Object.freeze(['gymly:read', 'gymly:write']);
+export const HABITS_SCOPE = 'gymly:habits:read';
 export const ACCESS_TTL_S = 3600;
 export const REFRESH_TTL_MS = 30 * 86400000;
 export const MAX_GRANT_DAYS = 180;
@@ -261,7 +269,7 @@ export function createOAuth(deps) {
   }
   function parseScopes(raw) {
     const asked = String(raw || '').split(/\s+/).filter(Boolean).filter(s => SCOPES.includes(s));
-    return asked.length ? [...new Set(asked)] : [...SCOPES];
+    return asked.length ? [...new Set(asked)] : [...DEFAULT_SCOPES];
   }
 
   /**
@@ -317,13 +325,14 @@ export function createOAuth(deps) {
    * The answer to a consent screen. → { redirect } or { page: reason }.
    * Only the user who was shown the screen can answer it, and only once.
    */
-  function decide(user, id, { allow, allowWrite }) {
+  function decide(user, id, { allow, allowWrite, allowHabits }) {
     const r = peekRequest(id, user);
     if (!r) return { page: 'expired' };
     if (!deps.allowed(user)) return { page: 'not_available' };
     requests.delete(id);
     if (!allow) return { redirect: errorRedirect(r.redirectUri, r.state, 'access_denied', 'The user declined'), denied: true, request: r };
-    const scopes = r.scopes.filter(s => s === 'gymly:read' || (s === 'gymly:write' && allowWrite));
+    // Each scope beyond reading needs both the client's request and its own box ticked.
+    const scopes = r.scopes.filter(s => s === 'gymly:read' || (s === 'gymly:write' && allowWrite) || (s === HABITS_SCOPE && allowHabits === true));
     if (!scopes.includes('gymly:read')) scopes.unshift('gymly:read');
     const code = mint('code');
     codes.set(sha(code), { userId: user.id, sv: deps.sessionVersion(user), clientId: r.clientId, clientName: r.client.client_name, redirectUri: r.redirectUri, challenge: r.challenge, scopes, resource, exp: now() + CODE_TTL_MS });
@@ -579,9 +588,10 @@ export function authorizationServerMetadata({ issuer }) {
 
 export const protectedResourceMetadataUrl = ({ issuer }) => issuer + '/.well-known/oauth-protected-resource/api/mcp';
 
-/** The WWW-Authenticate challenge of a 401 (or 403) from /api/mcp (RFC 6750, RFC 9728). */
-export function bearerChallenge(cfg, error, description) {
-  const parts = [`resource_metadata="${protectedResourceMetadataUrl(cfg)}"`, `scope="${SCOPES.join(' ')}"`];
+/** The WWW-Authenticate challenge of a 401 (or 403) from /api/mcp (RFC 6750, RFC 9728). `scopes`
+ *  is what the client is told to ask for: DEFAULT_SCOPES, unless a tool needs one beyond them. */
+export function bearerChallenge(cfg, error, description, scopes = DEFAULT_SCOPES) {
+  const parts = [`resource_metadata="${protectedResourceMetadataUrl(cfg)}"`, `scope="${scopes.join(' ')}"`];
   if (error) parts.push(`error="${error}"`);
   if (description) parts.push(`error_description="${String(description).replace(/["\\]/g, '')}"`);
   return 'Bearer ' + parts.join(', ');

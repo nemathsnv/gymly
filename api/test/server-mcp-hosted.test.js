@@ -50,10 +50,17 @@ const STATE_ONE = {
     'alcohol|2026-10-01': { s: 'drank', n: 3, note: 'HABIT-PRIVATE', tz: 'Europe/Lisbon', _ts: 5 },
     // a habit of the user's own: its name is as private as its days
     'hsecret|def': { name: 'HABIT-SECRET-NAME', icon: 'note', color: 'blue', kind: 'avoid', at: 4, _ts: 4 },
-    'hsecret|2026-10-01': { s: 'bad', note: 'HABIT-PRIVATE-2', tz: 'Europe/Lisbon', _ts: 6 }
+    'hsecret|2026-10-01': { s: 'bad', note: 'HABIT-PRIVATE-2', tz: 'Europe/Lisbon', _ts: 6 },
+    // a field a later app may add to a day: not part of what the owner agreed to share
+    'hsecret|2026-10-02': { s: 'good', mood: 'HABIT-FUTURE-FIELD', tz: 'Europe/Lisbon', _ts: 7 },
+    // a note on a day logged as nothing: nothing to tell
+    'alcohol|2026-10-03': { note: 'HABIT-PRIVATE-3', tz: 'Europe/Lisbon', _ts: 8 }
   }
 };
-const STATE_TWO = { unit: 'lb', _rev: 1, routines: [{ id: 'rz', name: 'TWO-SECRET-ROUTINE', ex: [] }], workouts: [] };
+const STATE_TWO = {
+  unit: 'lb', _rev: 1, routines: [{ id: 'rz', name: 'TWO-SECRET-ROUTINE', ex: [] }], workouts: [],
+  habitLog: { 'htwo|def': { name: 'TWO-SECRET-HABIT', kind: 'do', at: 2, _ts: 2 }, 'htwo|2026-10-01': { s: 'good', _ts: 3 } }
+};
 
 async function startServer(t, env = { MCP_OAUTH_USERS: 'u_one,u_two' }) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gym-mcph-'));
@@ -106,26 +113,26 @@ async function register(h, extra = {}) {
 }
 
 /** The whole browser leg: authorize → consent screen → decision. Returns the redirect URL. */
-async function consent(h, client, { uid = 'u_one', scope = 'gymly:read gymly:write', allowWrite = true, decision = 'allow', p = pkce(), state = 'st-1' } = {}) {
+async function consent(h, client, { uid = 'u_one', scope = 'gymly:read gymly:write', allowWrite = true, allowHabits = false, decision = 'allow', p = pkce(), state = 'st-1' } = {}) {
   const q = new URLSearchParams({ response_type: 'code', client_id: client.client_id, redirect_uri: REDIRECT, code_challenge: p.challenge, code_challenge_method: 'S256', state, scope, resource: RESOURCE });
   const page = await h.fetch('/api/oauth/authorize?' + q, { headers: cookie(uid) });
   const html = await page.text();
   assert.equal(page.status, 200, html);
   const reqId = /name="request_id" value="([^"]+)"/.exec(html)?.[1];
   assert.ok(reqId, 'consent screen with a request id');
-  const r = await h.form('/api/oauth/authorize', { request_id: reqId, decision, ...(allowWrite ? { allow_write: '1' } : {}) }, { ...cookie(uid), 'Sec-Fetch-Site': 'same-origin' });
+  const r = await h.form('/api/oauth/authorize', { request_id: reqId, decision, ...(allowWrite ? { allow_write: '1' } : {}), ...(allowHabits ? { allow_habits: '1' } : {}) }, { ...cookie(uid), 'Sec-Fetch-Site': 'same-origin' });
   assert.equal(r.status, 303, await r.clone().text());
   return { location: new URL(r.headers.get('location')), p, html };
 }
 
 async function connect(h, opts = {}) {
   const client = opts.client || await register(h);
-  const { location, p } = await consent(h, client, opts);
+  const { location, p, html } = await consent(h, client, opts);
   const code = location.searchParams.get('code');
   assert.ok(code, location.toString());
   const r = await h.form('/api/oauth/token', { grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id: client.client_id, code_verifier: p.verifier, resource: RESOURCE });
   assert.equal(r.status, 200, await r.clone().text());
-  return { client, tokens: await r.json() };
+  return { client, tokens: await r.json(), html };
 }
 
 test('off by default: no MCP_OAUTH_USERS, every hosted route is a 404', async t => {
@@ -144,7 +151,7 @@ test('discovery documents and the 401 challenge that starts an MCP client\'s OAu
   const prm = await (await h.fetch('/.well-known/oauth-protected-resource/api/mcp')).json();
   assert.deepEqual(prm.authorization_servers, [ORIGIN]);
   assert.equal(prm.resource, RESOURCE);
-  assert.deepEqual(prm.scopes_supported, ['gymly:read', 'gymly:write']);
+  assert.deepEqual(prm.scopes_supported, ['gymly:read', 'gymly:write', 'gymly:habits:read']);
   assert.deepEqual(await (await h.fetch('/.well-known/oauth-protected-resource')).json(), prm);
   const as = await (await h.fetch('/.well-known/oauth-authorization-server')).json();
   assert.equal(as.issuer, ORIGIN);
@@ -673,4 +680,106 @@ test('log_workout takes 20 workouts an hour per profile; duplicates and previews
   const two = await connect(h, { uid: 'u_two' });
   const pv2 = await h.call(two.tokens.access_token, 'preview_workout_log', { date: daysAgo(3), exercises: [{ exercise: 'bench press', sets: [{ reps: 5, weight: 135 }] }] });
   assert.equal((await h.call(two.tokens.access_token, 'log_workout', { preview_id: pv2.structuredContent.preview_id })).structuredContent.logged, true);
+});
+
+/* gymly:habits:read: the habit log for a connection whose owner opened it, and for no other. Asked
+   for by name, ticked on the consent screen (unticked by default), checked by each habit tool;
+   the answer is names, statuses and counts, never a note, a zone, a sync stamp or another profile. */
+test('habits: an opt-in scope, checked by both habit tools, and never a note', async t => {
+  const h = await startServer(t);
+  const HABIT_TOOLS = ['list_habits', 'get_habit_log'];
+  // (As keys: "note" is also an icon's name.)
+  const NEVER = /HABIT-PRIVATE|HABIT-FUTURE-FIELD|Europe\/Lisbon|"_ts":|"note":|"tz":|"mood":|TWO-SECRET|"sex":|birthYear/;
+
+  // Without the scope — a connection asking for the default, or for read and write by name, or
+  // asking for habits but leaving the box unticked — both tools answer insufficient_scope.
+  const plain = await connect(h);
+  assert.doesNotMatch(plain.html, /allow_habits/, 'no habit line unless the client asks for it');
+  const unticked = await connect(h, { scope: 'gymly:read gymly:write gymly:habits:read' });
+  assert.match(unticked.html, /<input type="checkbox" name="allow_habits" value="1">/, 'its own line, unticked');
+  const readOnly = await connect(h, { scope: 'gymly:read', allowWrite: false, allowHabits: true });
+  for (const [c, scope] of [[plain, 'gymly:read gymly:write'], [unticked, 'gymly:read gymly:write'], [readOnly, 'gymly:read']]) {
+    assert.equal(c.tokens.scope, scope);
+    for (const name of HABIT_TOOLS) {
+      const r = await h.call(c.tokens.access_token, name);
+      assert.equal(r.isError, true, name);
+      assert.equal(r.structuredContent.error, 'insufficient_scope');
+      assert.equal(r.structuredContent.required_scope, 'gymly:habits:read');
+      // The challenge asks for the habit scope on top of what the connection has, not instead of it.
+      assert.match(r._meta['mcp/www_authenticate'][0], new RegExp(`scope="${scope} gymly:habits:read", error="insufficient_scope"`));
+      assert.doesNotMatch(JSON.stringify(r), /HABIT-SECRET|hsecret|drank/);
+    }
+  }
+
+  // Granted: read, write and habits; and habits with read alone.
+  const full = await connect(h, { scope: 'gymly:read gymly:write gymly:habits:read', allowHabits: true });
+  assert.equal(full.tokens.scope, 'gymly:read gymly:write gymly:habits:read');
+  const at = full.tokens.access_token;
+
+  const list = await h.rpc(at, 'tools/list');
+  for (const name of HABIT_TOOLS) {
+    const tool = list.body.result.tools.find(x => x.name === name);
+    assert.ok(tool, name);
+    assert.equal(tool.annotations.readOnlyHint, true, name);
+    assert.equal(tool.annotations.destructiveHint, false, name);
+    assert.deepEqual(tool._meta.securitySchemes, [{ type: 'oauth2', scopes: ['gymly:habits:read'] }]);
+  }
+
+  const habits = await h.call(at, 'list_habits');
+  assert.ok(!habits.isError, JSON.stringify(habits));
+  assert.deepEqual(habits.structuredContent.habits.map(x => [x.id, x.name, x.builtin, x.kind, x.archived, x.counts]), [
+    ['alcohol', 'Alcohol', true, 'avoid', false, true],
+    ['hsecret', 'HABIT-SECRET-NAME', false, 'avoid', false, false]
+  ]);
+  assert.deepEqual(Object.keys(habits.structuredContent.habits[1]).sort(), ['answers', 'archived', 'builtin', 'color', 'counts', 'created', 'icon', 'id', 'kind', 'name']);
+
+  const log = await h.call(at, 'get_habit_log', { from: '2026-09-28', to: '2026-10-05' });
+  assert.ok(!log.isError, JSON.stringify(log));
+  assert.equal(log.structuredContent.days, 8);
+  assert.deepEqual(log.structuredContent.entries, [
+    { habit_id: 'alcohol', date: '2026-10-01', status: 'drank', result: 'bad', count: 3 },
+    { habit_id: 'hsecret', date: '2026-10-01', status: 'bad', result: 'bad', count: null },
+    { habit_id: 'hsecret', date: '2026-10-02', status: 'good', result: 'good', count: null }
+  ]);
+  const one = await h.call(at, 'get_habit_log', { from: '2026-10-01', to: '2026-10-03', habit_id: 'alcohol' });
+  assert.deepEqual(one.structuredContent.entries.map(e => e.date), ['2026-10-01']);
+  assert.deepEqual(one.structuredContent.habits.map(x => x.id), ['alcohol']);
+  // Notes, the device's zone, sync stamps, a later app's fields, About you, another profile: never.
+  for (const r of [habits, log, one]) assert.doesNotMatch(JSON.stringify(r), NEVER);
+
+  // Bounded and validated ranges: a default of 14 days, at most 92, real dates in order.
+  const recent = await h.call(at, 'get_habit_log');
+  assert.equal(recent.structuredContent.days, 14);
+  assert.equal(recent.structuredContent.to, recent.structuredContent.today);
+  assert.equal((await h.call(at, 'get_habit_log', { from: '2026-07-02', to: '2026-10-01' })).structuredContent.days, 92);
+  const long = await h.call(at, 'get_habit_log', { from: '2026-07-01', to: '2026-10-01' });
+  assert.equal(long.isError, true);
+  assert.equal(long.structuredContent.error, 'invalid_range');
+  assert.equal((await h.call(at, 'get_habit_log', { from: '2026-10-05', to: '2026-10-01' })).structuredContent.error, 'invalid_range');
+  for (const bad of [{ from: '2026-02-30' }, { to: '01/10/2026' }, { habit_id: '' }]) {
+    assert.equal((await h.call(at, 'get_habit_log', bad)).isError, true, JSON.stringify(bad));
+  }
+  for (const bad of ['nope', '__proto__', 'hsecret|def']) {
+    assert.equal((await h.call(at, 'get_habit_log', { habit_id: bad })).structuredContent.error, 'not_found', bad);
+  }
+
+  // The habit scope opens these two tools only: every other answer still leaves the log out.
+  const others = [];
+  for (const [name, args] of [['list_routines', {}], ['get_workout', { workout_id: 'w1' }], ['list_workouts', {}], ['get_week_plan', {}],
+    ['get_training_progress', { weeks: 52 }], ['get_bodyweight', {}], ['list_recent_changes', {}]]) others.push(await h.call(at, name, args));
+  assert.doesNotMatch(JSON.stringify(others), /HABIT-|hsecret|habitLog|alcohol|drank/i);
+
+  // Another profile's connection with the scope sees its own habits only, and this one none of them.
+  const two = await connect(h, { uid: 'u_two', scope: 'gymly:read gymly:habits:read', allowWrite: false, allowHabits: true });
+  const twoHabits = await h.call(two.tokens.access_token, 'list_habits');
+  assert.deepEqual(twoHabits.structuredContent.habits.map(x => x.name), ['Alcohol', 'TWO-SECRET-HABIT']);
+  const twoLog = await h.call(two.tokens.access_token, 'get_habit_log', { from: '2026-09-28', to: '2026-10-05' });
+  assert.deepEqual(twoLog.structuredContent.entries, [{ habit_id: 'htwo', date: '2026-10-01', status: 'good', result: 'good', count: null }]);
+  assert.doesNotMatch(JSON.stringify([twoHabits, twoLog]), /HABIT-SECRET-NAME|hsecret|HABIT-PRIVATE/);
+  assert.equal((await h.call(two.tokens.access_token, 'get_habit_log', { habit_id: 'hsecret' })).structuredContent.error, 'not_found');
+
+  // Reading changes nothing, and a device's own view of its log is untouched.
+  assert.equal(h.state('u_one')._rev, 3);
+  assert.deepEqual(h.state('u_one').habitLog, STATE_ONE.habitLog);
+  assert.match(h.files(), /auth\.mcp\.consent.*gymly:habits:read/);
 });
