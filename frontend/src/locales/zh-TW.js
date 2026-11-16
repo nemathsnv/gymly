@@ -2233,6 +2233,7 @@ export default {
   'Copy address': '複製網址',
   'Can read and change your plan': '可以讀取和變更你的計畫',
   'Can read your data': '可以讀取你的資料',
+  'Can read your habits': '可以讀取你的習慣',
   'Disconnect this assistant?': '中斷這個助理的連線？',
   'It loses access immediately.': '它會立即失去存取權。',
   'Disconnected': '已中斷連線',

@@ -2240,6 +2240,7 @@ export default {
   'Copy address': 'Adresi kopyala',
   'Can read and change your plan': 'Planını okuyabilir ve değiştirebilir',
   'Can read your data': 'Verilerini okuyabilir',
+  'Can read your habits': 'Alışkanlıklarını okuyabilir',
   'Disconnect this assistant?': 'Bu asistanın bağlantısı kesilsin mi?',
   'It loses access immediately.': 'Erişimini hemen kaybeder.',
   'Disconnected': 'Bağlantı kesildi',

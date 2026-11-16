@@ -2240,6 +2240,7 @@ export default {
   'Copy address': '复制地址',
   'Can read and change your plan': '可以读取和更改你的计划',
   'Can read your data': '可以读取你的数据',
+  'Can read your habits': '可以读取你的习惯',
   'Disconnect this assistant?': '断开这个助手？',
   'It loses access immediately.': '它会立即失去访问权限。',
   'Disconnected': '已断开',

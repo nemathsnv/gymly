@@ -1401,6 +1401,7 @@ export const PT_BR_OVERRIDES = {
   'Copy address': 'Copiar endereço',
   'Can read and change your plan': 'Pode ler e alterar seu plano',
   'Can read your data': 'Pode ler seus dados',
+  'Can read your habits': 'Pode ler seus hábitos',
   'Disconnect this assistant?': 'Desconectar este assistente?',
   'It loses access immediately.': 'Ele perde o acesso imediatamente.',
   'Disconnected': 'Desconectado',

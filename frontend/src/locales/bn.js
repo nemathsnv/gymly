@@ -2319,6 +2319,7 @@ export default {
   'Copy address': 'ঠিকানা কপি করুন',
   'Can read and change your plan': 'আপনার পরিকল্পনা পড়তে ও বদলাতে পারে',
   'Can read your data': 'আপনার ডেটা পড়তে পারে',
+  'Can read your habits': 'আপনার অভ্যাসগুলো পড়তে পারে',
   'Disconnect this assistant?': 'এই সহকারীর সংযোগ বিচ্ছিন্ন করবেন?',
   'It loses access immediately.': 'এটি সঙ্গে সঙ্গে অ্যাক্সেস হারাবে।',
   'Disconnected': 'সংযোগ বিচ্ছিন্ন',

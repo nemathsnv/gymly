@@ -2240,6 +2240,7 @@ export default {
   'Copy address': 'Copia indirizzo',
   'Can read and change your plan': 'Può leggere e modificare il tuo piano',
   'Can read your data': 'Può leggere i tuoi dati',
+  'Can read your habits': 'Può leggere le tue abitudini',
   'Disconnect this assistant?': 'Scollegare questo assistente?',
   'It loses access immediately.': 'Perde subito l’accesso.',
   'Disconnected': 'Scollegato',

@@ -2295,6 +2295,7 @@ export default {
   'Copy address': 'نسخ العنوان',
   'Can read and change your plan': 'يمكنه قراءة خطتك وتغييرها',
   'Can read your data': 'يمكنه قراءة بياناتك',
+  'Can read your habits': 'يمكنه قراءة عاداتك',
   'Disconnect this assistant?': 'فصل هذا المساعد؟',
   'It loses access immediately.': 'يفقد الوصول فورًا.',
   'Disconnected': 'تم الفصل',

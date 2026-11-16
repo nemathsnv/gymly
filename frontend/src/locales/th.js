@@ -2251,6 +2251,7 @@ export default {
   'Copy address': 'คัดลอกที่อยู่',
   'Can read and change your plan': 'อ่านและเปลี่ยนแผนของคุณได้',
   'Can read your data': 'อ่านข้อมูลของคุณได้',
+  'Can read your habits': 'อ่านนิสัยของคุณได้',
   'Disconnect this assistant?': 'ยกเลิกการเชื่อมต่อผู้ช่วยนี้?',
   'It loses access immediately.': 'จะเสียสิทธิ์เข้าถึงทันที',
   'Disconnected': 'ยกเลิกการเชื่อมต่อแล้ว',

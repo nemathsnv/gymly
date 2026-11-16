@@ -2240,6 +2240,7 @@ export default {
   'Copy address': 'पता कॉपी करें',
   'Can read and change your plan': 'आपका प्लान पढ़ और बदल सकता है',
   'Can read your data': 'आपका डेटा पढ़ सकता है',
+  'Can read your habits': 'आपकी आदतें पढ़ सकता है',
   'Disconnect this assistant?': 'इस असिस्टेंट को डिस्कनेक्ट करें?',
   'It loses access immediately.': 'इसकी पहुँच तुरंत खत्म हो जाएगी।',
   'Disconnected': 'डिस्कनेक्ट हो गया',
