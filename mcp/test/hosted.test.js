@@ -2,9 +2,10 @@
 // the two read tools it adds, and the helpers the API's write side borrows. In the API this file
 // runs bundled with hosted-state.js in place of state.js; here the same swap is made with a mock.
 import { describe, it, expect, vi } from 'vitest'
+import { z } from 'zod'
 
 vi.mock('../src/state.js', async () => import('../src/hosted-state.js'))
-const { READ_TOOLS, runReadTool, helpers, todayFor } = await import('../src/hosted.js')
+const { READ_TOOLS, runReadTool, helpers, todayFor, HABIT_TOOLS, runHabitTool, HABIT_LOG_MAX_DAYS, HABIT_LOG_DEFAULT_DAYS } = await import('../src/hosted.js')
 const { withState } = await import('../src/hosted-state.js')
 
 const today = todayFor({})
@@ -102,5 +103,91 @@ describe('object keys are not exercises', () => {
       expect(helpers.isKnownExercise(id, ONE), id).toBe(false)
       expect(helpers.exerciseName(id, ONE), id).toBe(null)
     }
+  })
+})
+
+// The habit tools (gymly:habits:read on the hosted endpoint): the only way any of the habit log
+// leaves the server. They copy named fields out of it; notes, zones, stamps and anything a later
+// app adds stay behind.
+describe('hosted habit tools', () => {
+  const NOW = new Date('2026-10-10T12:00:00Z')
+  const doc = {
+    unit: 'kg', sex: 'female', birthYear: 1966,
+    habitLog: {
+      'alcohol|def': { name: 'Wine', future: 'DEF-FUTURE', _ts: 1 },
+      'alcohol|2026-10-01': { s: 'drank', n: 2, note: 'NOTE-SENTINEL', tz: 'Europe/Lisbon', _ts: 5 },
+      'alcohol|2026-10-02': { s: 'free', mood: 'DAY-FUTURE', tz: 'Europe/Lisbon', _ts: 6 },
+      'alcohol|2026-10-03': { note: 'NOTE-ONLY-SENTINEL', tz: 'Europe/Lisbon', _ts: 7 },
+      'alcohol|2026-10-04': { _ts: 8 },
+      'hread|def': { name: 'Read', kind: 'do', icon: 'note', color: 'blue', at: Date.UTC(2026, 8, 1), _ts: 2 },
+      'hread|2026-10-02': { s: 'good', note: 'NOTE-SENTINEL-2', tz: 'Europe/Lisbon', _ts: 9 },
+      'hold|def': { name: 'Old one', kind: 'avoid', archived: true, at: 3, _ts: 3 },
+      'hold|2026-10-01': { s: 'bad', n: 7, _ts: 4 },
+      // a day of a habit whose definition was cleared: the app no longer shows it, nor do these tools
+      'hgone|2026-10-01': { s: 'good', _ts: 4 },
+      'junk': 'x', 'hread|not-a-day': { s: 'good' }
+    }
+  }
+  const NEVER = /NOTE-|FUTURE|Europe\/Lisbon|"_ts":|"note":|"tz":|"mood":|hgone|female|1966/
+
+  it('are list_habits and get_habit_log, with a bounded range', () => {
+    expect(HABIT_TOOLS.map(t => t.name)).toEqual(['list_habits', 'get_habit_log'])
+    expect(HABIT_LOG_MAX_DAYS).toBe(92)
+    expect(HABIT_LOG_DEFAULT_DAYS).toBe(14)
+  })
+
+  it('list_habits names each habit with an explicit set of fields', () => {
+    const out = runHabitTool('list_habits', {}, doc, NOW)
+    expect(out.habits.map(h => [h.id, h.name, h.kind, h.archived])).toEqual([
+      ['alcohol', 'Wine', 'avoid', false], ['hold', 'Old one', 'avoid', true], ['hread', 'Read', 'do', false]
+    ])
+    expect(out.habits[2]).toEqual({ id: 'hread', name: 'Read', builtin: false, kind: 'do', archived: false, answers: { good: 'good', bad: 'bad' }, counts: false, icon: 'note', color: 'blue', created: '2026-09-01' })
+    expect(runHabitTool('list_habits', { include_archived: false }, doc, NOW).habits.map(h => h.id)).toEqual(['alcohol', 'hread'])
+    expect(JSON.stringify(out)).not.toMatch(NEVER)
+  })
+
+  it('get_habit_log gives status and count per logged day, never a note, and a note-only or cleared day not at all', () => {
+    const out = runHabitTool('get_habit_log', { from: '2026-09-30', to: '2026-10-05' }, doc, NOW)
+    expect(out.entries).toEqual([
+      { habit_id: 'alcohol', date: '2026-10-01', status: 'drank', result: 'bad', count: 2 },
+      // a count on a habit that takes none is not one
+      { habit_id: 'hold', date: '2026-10-01', status: 'bad', result: 'bad', count: null },
+      { habit_id: 'alcohol', date: '2026-10-02', status: 'free', result: 'good', count: null },
+      { habit_id: 'hread', date: '2026-10-02', status: 'good', result: 'good', count: null }
+    ])
+    expect(out.entries.every(e => Object.keys(e).join() === 'habit_id,date,status,result,count')).toBe(true)
+    expect(JSON.stringify(out)).not.toMatch(NEVER)
+    // The document it read from is left as it was.
+    expect(doc.habitLog['alcohol|2026-10-01'].note).toBe('NOTE-SENTINEL')
+  })
+
+  it('bounds the range: 14 days ending today by default, at most 92, in order', () => {
+    const def = runHabitTool('get_habit_log', {}, doc, NOW)
+    // "today" is the profile's date, here the zone of the device that last wrote a day
+    expect([def.from, def.to, def.days, def.today]).toEqual(['2026-09-27', '2026-10-10', 14, '2026-10-10'])
+    expect(runHabitTool('get_habit_log', { from: '2026-10-01' }, doc, NOW)).toMatchObject({ from: '2026-10-01', to: '2026-10-10', days: 10 })
+    expect(runHabitTool('get_habit_log', { to: '2026-10-02' }, doc, NOW)).toMatchObject({ from: '2026-09-19', to: '2026-10-02', days: 14 })
+    expect(runHabitTool('get_habit_log', { from: '2026-07-02', to: '2026-10-01' }, doc, NOW).days).toBe(92)
+    expect(runHabitTool('get_habit_log', { from: '2026-07-01', to: '2026-10-01' }, doc, NOW).error).toBe('invalid_range')
+    expect(runHabitTool('get_habit_log', { from: '2026-10-05', to: '2026-10-01' }, doc, NOW).error).toBe('invalid_range')
+    const schema = z.object(HABIT_TOOLS[1].schema)
+    for (const bad of [{ from: '2026-02-30' }, { to: '2026-1-01' }, { from: 'yesterday' }]) expect(schema.safeParse(bad).success).toBe(false)
+  })
+
+  it('habit_id narrows to one habit, and an id that is not one of this profile\'s is not found', () => {
+    expect(runHabitTool('get_habit_log', { from: '2026-10-01', to: '2026-10-02', habit_id: 'hread' }, doc, NOW).entries.map(e => e.habit_id)).toEqual(['hread'])
+    for (const id of ['hgone', 'nope', '__proto__', 'hread|def']) expect(runHabitTool('get_habit_log', { habit_id: id }, doc, NOW).error).toBe('not_found')
+  })
+
+  it('a profile without a log has Alcohol and no days; one never synced reads the same', () => {
+    for (const S of [{ unit: 'kg' }, null]) {
+      expect(runHabitTool('list_habits', {}, S, NOW).habits.map(h => h.name)).toEqual(['Alcohol'])
+      expect(runHabitTool('get_habit_log', {}, S, NOW).entries).toEqual([])
+    }
+  })
+
+  it('every other read tool still never sees the log', () => {
+    const out = runReadTool('list_routines', {}, doc, { id: 'u1', name: 'One' })
+    expect(JSON.stringify(out)).not.toMatch(/Wine|hread|NOTE-/)
   })
 })

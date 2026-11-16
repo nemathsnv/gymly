@@ -89433,10 +89433,10 @@ function applyBackoff(rows, step) {
 // frontend/src/lib/dumbbells.js
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
-const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$4 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const tidy$1 = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
-	const m = isMap$3(value) ? value.mode : value;
+	const m = isMap$4(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
 }
 function dbLoadFor(S, cfgOrId) {
@@ -89469,14 +89469,14 @@ function meaningFactor(from, to, cfg) {
 	return from === "each" ? n : 1 / n;
 }
 const scaleRow = (row, f) => {
-	if (!isMap$3(row)) return row;
+	if (!isMap$4(row)) return row;
 	const out = { ...row };
 	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy$1(Number(row.w) * f);
-	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$3(d) ? {
+	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$4(d) ? {
 		...d,
 		w: tidy$1((Number(d.w) || 0) * f)
 	} : d);
-	if (isMap$3(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
+	if (isMap$4(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
 };
 function entryAs(entry, to) {
@@ -89546,8 +89546,8 @@ function ownedKindFor(S, cfg) {
 	return stackOf(S, cfg?.id).length ? "stack" : "dumbbells";
 }
 function stackOf(S, exId) {
-	const e = isMap$3(S?.stackWeights) ? S.stackWeights[exId] : null;
-	if (!isMap$3(e)) return [];
+	const e = isMap$4(S?.stackWeights) ? S.stackWeights[exId] : null;
+	if (!isMap$4(e)) return [];
 	const ws = cleanWeights(e.weights);
 	const from = e.unit === "lb" ? "lb" : "kg", to = unitOf$1(S);
 	if (from === to) return ws;
@@ -90416,7 +90416,7 @@ function rankOf(load) {
 }
 
 // frontend/src/lib/exercise-merge.js
-const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const list$1 = (v) => Array.isArray(v) ? v : [];
 const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
 const MOVE_MAPS = [
@@ -90437,7 +90437,7 @@ const RESTORE = [
 ];
 const mergedInto = (S, id) => mergedTarget(S?.exMerged, id);
 function mergedAway(S) {
-	const m = isMap$2(S?.exMerged) ? S.exMerged : null;
+	const m = isMap$3(S?.exMerged) ? S.exMerged : null;
 	if (!m) return null;
 	const out = /* @__PURE__ */ new Set();
 	for (const [k, v] of Object.entries(m)) if (v && v.into) out.add(k);
@@ -92062,7 +92062,7 @@ const DAILY_MODES = [
 	"last"
 ];
 const LEGACY_ID = "0";
-const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const num$1 = (v) => Number(v) || 0;
 const p2 = (n) => String(n).padStart(2, "0");
 const dailyModeOf = (S) => DAILY_MODES.includes(S?.bwDaily) ? S.bwDaily : "first";
@@ -92084,7 +92084,7 @@ const byTime = (a, b) => {
 	return x < y ? -1 : x > y ? 1 : num$1(a.t) - num$1(b.t);
 };
 function cleanReading(r) {
-	if (!isMap$1(r) || r.id == null || !(Number(r.w) > 0)) return null;
+	if (!isMap$2(r) || r.id == null || !(Number(r.w) > 0)) return null;
 	const out = {
 		...r,
 		id: String(r.id),
@@ -92095,7 +92095,7 @@ function cleanReading(r) {
 	return out;
 }
 function readingsOf(e) {
-	if (!isMap$1(e)) return [];
+	if (!isMap$2(e)) return [];
 	if (Array.isArray(e.ins)) return e.ins.map(cleanReading).filter(Boolean).sort(byTime);
 	if (!(Number(e.w) > 0)) return [];
 	const t = num$1(e.t);
@@ -93300,7 +93300,7 @@ const LOG_LIMITS = {
 	maxBodyweightKg: 700
 };
 const MIN_ROOM_MS = 3e5;
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const ISO$1 = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const localIso = (t) => {
 	const d = new Date(t);
@@ -93314,7 +93314,7 @@ const realDate = (iso) => {
 const nameKey = (n) => String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
 const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
 const list = (v) => Array.isArray(v) ? v : [];
-const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const inCatalogue$1 = (id) => typeof id === "string" && Object.hasOwn(EXIDX, id);
 const customsOf = (S) => list(S?.customEx).filter((c) => c && typeof c.id === "string" && c.id);
 const exerciseOf$1 = (S, id) => customsOf(S).find((c) => c.id === id) || (inCatalogue$1(id) ? EXIDX[id] : null);
@@ -93333,7 +93333,7 @@ function resolveExercise(S, ref) {
 	const text = String(ref ?? "").trim();
 	if (!text) return { problem: "no exercise named" };
 	const customs = customsOf(S);
-	const merges = isMap(S?.exMerged) ? S.exMerged : {};
+	const merges = isMap$1(S?.exMerged) ? S.exMerged : {};
 	const land = (id, from) => {
 		const to = followMerge(S, id);
 		const ex = exerciseOf$1(S, to);
@@ -93438,7 +93438,7 @@ function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt }
 	const problems = [];
 	const day = today || localIso(now);
 	const date = input?.date;
-	if (typeof date !== "string" || !ISO.test(date) || !realDate(date)) problems.push({
+	if (typeof date !== "string" || !ISO$1.test(date) || !realDate(date)) problems.push({
 		field: "date",
 		problem: "must be a real YYYY-MM-DD date"
 	});
@@ -93469,7 +93469,7 @@ function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt }
 		toKg: (w) => unit === "lb" ? w * LB_TO_KG : w,
 		convert: (w) => unit === profileUnit ? w : Math.round((unit === "lb" ? w * LB_TO_KG : w / LB_TO_KG) * 100) / 100
 	};
-	const routines = list(S.routines).filter(isMap);
+	const routines = list(S.routines).filter(isMap$1);
 	const routine = input?.routineId != null ? routines.find((r) => r.id === input.routineId) || null : null;
 	if (input?.routineId != null && !routine) problems.push({
 		field: "routineId",
@@ -93715,7 +93715,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 	const w = JSON.parse(JSON.stringify(built.workout));
 	S.workouts = list(S.workouts).filter(Boolean);
 	const prsBefore = new Map(S.workouts.filter((x) => x.id != null).map((x) => [x.id, list(x.prs).slice()]));
-	const weightsBefore = isMap(S.exWeights) ? JSON.parse(JSON.stringify(S.exWeights)) : {};
+	const weightsBefore = isMap$1(S.exWeights) ? JSON.parse(JSON.stringify(S.exWeights)) : {};
 	const later = S.workouts.some((x) => x.d > w.d || x.d === w.d && (Number(x.start) || 0) > w.start);
 	if (built.past || later) {
 		stampWorkout(w, now);
@@ -93732,7 +93732,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 			const mx = loads.length ? loads.reduce((a, b) => betterWeight(e.id, a, b)) : 0;
 			if (beatsWeight(e.id, mx, bestWeightFor(H, e.id, entryDbLoad(e)))) w.prs.push(e.id);
 		});
-		S.exWeights = isMap(S.exWeights) ? S.exWeights : {};
+		S.exWeights = isMap$1(S.exWeights) ? S.exWeights : {};
 		w.entries.forEach((e) => {
 			const mx = bestWeightForEntry(e);
 			if (mx > 0 && beatsWeight(e.id, mx, (S.exWeights[e.id] || {}).w || 0)) S.exWeights[e.id] = {
@@ -93743,7 +93743,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 		S.workouts = insertChronological(S.workouts, w);
 	}
 	const exWeights = {};
-	for (const k of /* @__PURE__ */ new Set([...Object.keys(weightsBefore), ...Object.keys(isMap(S.exWeights) ? S.exWeights : {})])) {
+	for (const k of /* @__PURE__ */ new Set([...Object.keys(weightsBefore), ...Object.keys(isMap$1(S.exWeights) ? S.exWeights : {})])) {
 		const a = weightsBefore[k] ?? null, b = S.exWeights?.[k] ?? null;
 		if (JSON.stringify(a) !== JSON.stringify(b)) exWeights[k] = {
 			before: a,
@@ -93775,7 +93775,7 @@ function removeLoggedWorkout(S, undo) {
 	next.workouts = next.workouts.filter((w) => !(w && w.id === undo.workoutId));
 	const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 	for (const [k, { before, after }] of Object.entries(undo.exWeights || {})) {
-		if (!isMap(next.exWeights) || !same(next.exWeights[k], after)) continue;
+		if (!isMap$1(next.exWeights) || !same(next.exWeights[k], after)) continue;
 		if (before == null) delete next.exWeights[k];
 		else next.exWeights[k] = before;
 	}
@@ -93784,6 +93784,144 @@ function removeLoggedWorkout(S, undo) {
 		if (w && same(list(w.prs), after)) w.prs = before;
 	}
 	return { next };
+}
+
+// frontend/src/lib/habits.js
+const ALCOHOL = Object.freeze({
+	id: "alcohol",
+	builtin: true,
+	kind: "avoid",
+	good: "free",
+	bad: "drank",
+	count: true,
+	icon: "heart",
+	color: "teal"
+});
+const CUSTOM = Object.freeze({
+	builtin: false,
+	good: "good",
+	bad: "bad",
+	count: false
+});
+const KINDS = Object.freeze(["do", "avoid"]);
+const HABIT_ICONS = Object.freeze([
+	"heart",
+	"star",
+	"flame",
+	"bolt",
+	"target",
+	"trophy",
+	"moon",
+	"sun",
+	"sunrise",
+	"figureRun",
+	"steps",
+	"stretch",
+	"bike",
+	"swim",
+	"dumbbell",
+	"note",
+	"lightbulb",
+	"clock",
+	"bell",
+	"shield",
+	"phoneScreen",
+	"sparkles"
+]);
+const HABIT_COLORS = Object.freeze([
+	"teal",
+	"green",
+	"blue",
+	"purple",
+	"pink",
+	"red",
+	"orange",
+	"yellow"
+]);
+const NAME_MAX = 40;
+const COUNT_MAX = 99;
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DAY_MS = 864e5;
+function isDay(iso) {
+	const m = ISO.exec(typeof iso === "string" ? iso : "");
+	if (!m) return false;
+	const [y, mo, d] = [
+		+m[1],
+		+m[2],
+		+m[3]
+	];
+	const at = new Date(Date.UTC(y, mo - 1, d));
+	return at.getUTCFullYear() === y && at.getUTCMonth() === mo - 1 && at.getUTCDate() === d;
+}
+const dayMs = (iso) => {
+	const [y, m, d] = iso.split("-").map(Number);
+	return Date.UTC(y, m - 1, d);
+};
+const pad = (n, w = 2) => String(n).padStart(w, "0");
+function addDays$1(iso, n) {
+	const at = new Date(dayMs(iso) + n * DAY_MS);
+	return pad(at.getUTCFullYear(), 4) + "-" + pad(at.getUTCMonth() + 1) + "-" + pad(at.getUTCDate());
+}
+const daysBetween = (a, b) => Math.round((dayMs(b) - dayMs(a)) / DAY_MS);
+const habitKey = (habit, iso) => habit + "|" + iso;
+const ID = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+const isHabitId = (id) => typeof id === "string" && ID.test(id);
+const rulesOf = (habit) => habit === ALCOHOL.id ? ALCOHOL : isHabitId(habit) ? CUSTOM : null;
+const DEF_DAY = "def";
+const defKey = (habit) => habitKey(habit, "def");
+const cleanName = (v) => typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+const logOf = (S) => isMap(S?.habitLog) ? S.habitLog : {};
+function habitOf(S, habit) {
+	const rules = rulesOf(habit);
+	if (!rules) return null;
+	const raw = logOf(S)[defKey(habit)];
+	const d = isMap(raw) ? raw : {};
+	const icon = HABIT_ICONS.includes(d.icon) ? d.icon : null;
+	const color = HABIT_COLORS.includes(d.color) ? d.color : null;
+	const archived = d.archived === true;
+	if (rules === ALCOHOL) return {
+		...ALCOHOL,
+		name: cleanName(d.name) || null,
+		icon: icon || ALCOHOL.icon,
+		color: color || ALCOHOL.color,
+		archived,
+		at: 0
+	};
+	const name = cleanName(d.name);
+	if (!name) return null;
+	return {
+		id: habit,
+		...CUSTOM,
+		name,
+		icon: icon || "star",
+		color: color || "teal",
+		kind: KINDS.includes(d.kind) ? d.kind : "do",
+		archived,
+		at: Number.isFinite(d.at) && d.at > 0 ? d.at : 0
+	};
+}
+function habitList(S, { archived = false } = {}) {
+	const ids = /* @__PURE__ */ new Set([ALCOHOL.id]);
+	for (const k of Object.keys(logOf(S))) {
+		const i = k.lastIndexOf("|");
+		if (i > 0 && k.slice(i + 1) === "def") ids.add(k.slice(0, i));
+	}
+	return [...ids].map((id) => habitOf(S, id)).filter((h) => h && (archived == null || h.archived === archived)).sort((a, b) => a.builtin === b.builtin ? a.at - b.at || (a.id < b.id ? -1 : 1) : a.builtin ? -1 : 1);
+}
+function readEntry(habit, raw) {
+	const h = rulesOf(habit);
+	if (!h || !isMap(raw)) return null;
+	const status = raw.s === h.good || raw.s === h.bad ? raw.s : null;
+	const count = h.count && status === h.bad && Number.isInteger(raw.n) && raw.n >= 1 && raw.n <= 99 ? raw.n : null;
+	const note = typeof raw.note === "string" ? raw.note.trim().slice(0, 500) : "";
+	const tz = typeof raw.tz === "string" && raw.tz.length <= 64 ? raw.tz : null;
+	return status || note ? {
+		status,
+		count,
+		note,
+		tz
+	} : null;
 }
 
 // mcp/src/hosted.js
@@ -94003,5 +94141,117 @@ const helpers = {
 	removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
 	findDuplicate: (S, w) => findDuplicate(S || {}, w)
 };
+const HABIT_LOG_MAX_DAYS = 92;
+const HABIT_LOG_DEFAULT_DAYS = 14;
+const habitLogOf = (S) => S && typeof S.habitLog === "object" && S.habitLog && !Array.isArray(S.habitLog) ? S.habitLog : {};
+function habitToday(S, now) {
+	if (typeof S?.reminder?.tz === "string" && S.reminder.tz) return todayFor(S, now);
+	let tz = null, ts = -Infinity;
+	for (const raw of Object.values(habitLogOf(S))) if (raw && typeof raw.tz === "string" && raw.tz.length <= 64 && Number(raw._ts) > ts) {
+		tz = raw.tz;
+		ts = Number(raw._ts);
+	}
+	return todayFor(tz ? { reminder: { tz } } : {}, now);
+}
+function habitView(h) {
+	return {
+		id: h.id,
+		name: h.name || (h.builtin ? "Alcohol" : ""),
+		builtin: !!h.builtin,
+		kind: h.kind,
+		archived: !!h.archived,
+		answers: {
+			good: h.good,
+			bad: h.bad
+		},
+		counts: !!h.count,
+		icon: h.icon,
+		color: h.color,
+		created: h.at > 0 ? new Date(h.at).toISOString().slice(0, 10) : null
+	};
+}
+const listHabitsTool = {
+	name: "list_habits",
+	description: "List the habits the user tracks in Gymly's daily habit log: the built-in one and their own, each with its id (for get_habit_log), name, kind (\"do\": a habit to build, \"avoid\": one to stay away from), whether it is archived, its two answers (the status words get_habit_log reports for a good and a bad day) and whether a bad day carries a count. Notes the user wrote are never shared.",
+	schema: { include_archived: z.boolean().optional().describe("Include archived habits too (default true).") },
+	handler: (S, { include_archived }) => {
+		const habits = habitList(S, { archived: include_archived === false ? false : null }).map(habitView);
+		return {
+			habits,
+			count: habits.length
+		};
+	}
+};
+const habitDay = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD").refine(isDay, { message: "not a calendar date" });
+const habitLogTool = {
+	name: "get_habit_log",
+	description: `Read the user's daily habit log for a range of days: one entry per habit and day that was logged, with the status (the habit's good or bad answer, as list_habits gives them) and, where the habit counts, the count. A day with no entry was not logged: never treat it as a good day. Default the ${14} days ending today; at most ${92} days per call. Notes the user wrote on a day are never shared.`,
+	schema: {
+		from: habitDay().optional().describe(`First day, YYYY-MM-DD. Default 13 days before \`to\`.`),
+		to: habitDay().optional().describe("Last day, YYYY-MM-DD. Default today (the profile's date)."),
+		habit_id: z.string().trim().min(1).max(40).optional().describe("Only this habit (an id from list_habits).")
+	},
+	handler: (S, { from, to, habit_id }, now) => {
+		const today = habitToday(S, now);
+		const end = to || (from ? (() => {
+			const d = addDays$1(from, 13);
+			return d < today ? d : today;
+		})() : today);
+		const start = from || addDays$1(end, -13);
+		if (start > end) return {
+			error: "invalid_range",
+			message: "`from` is after `to`"
+		};
+		const span = daysBetween(start, end) + 1;
+		if (span > 92) return {
+			error: "invalid_range",
+			message: `at most ${92} days per call; this range has ${span}`
+		};
+		const habits = habitList(S, { archived: null });
+		if (habit_id != null && !(isHabitId(habit_id) && habits.some((h) => h.id === habit_id))) return {
+			error: "not_found",
+			message: "no habit with that id; list_habits gives the ids"
+		};
+		const log = habitLogOf(S);
+		const entries = [];
+		for (const h of habits) {
+			if (habit_id != null && h.id !== habit_id) continue;
+			for (let i = 0; i < span; i++) {
+				const date = addDays$1(start, i);
+				const key = h.id + "|" + date;
+				if (!Object.hasOwn(log, key)) continue;
+				const e = readEntry(h.id, log[key]);
+				if (!e || !e.status) continue;
+				entries.push({
+					habit_id: h.id,
+					date,
+					status: e.status,
+					result: e.status === h.good ? "good" : "bad",
+					count: h.count ? e.count : null
+				});
+			}
+		}
+		entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+		return {
+			from: start,
+			to: end,
+			days: span,
+			today,
+			habits: habits.filter((h) => habit_id == null || h.id === habit_id).map((h) => ({
+				id: h.id,
+				name: h.name || (h.builtin ? "Alcohol" : ""),
+				archived: !!h.archived
+			})),
+			entries,
+			about_missing_days: "A day without an entry was not logged. It is not a good day."
+		};
+	}
+};
+const HABIT_TOOLS = [listHabitsTool, habitLogTool];
+function runHabitTool(name, args, S, now = /* @__PURE__ */ new Date()) {
+	const tool = HABIT_TOOLS.find((t) => t.name === name);
+	if (!tool) throw new Error("unknown habit tool " + name);
+	return tool.handler(S || {}, args || {}, now);
+}
 
-export { READ_TOOLS, helpers, runReadTool, searchExercisesTool, todayFor, trainingProgress };
+export { HABIT_LOG_DEFAULT_DAYS, HABIT_LOG_MAX_DAYS, HABIT_TOOLS, READ_TOOLS, helpers, runHabitTool, runReadTool, searchExercisesTool, todayFor, trainingProgress };

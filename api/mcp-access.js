@@ -140,8 +140,9 @@ export function dropMcpTokens(db, userId) {
  *   coach   — the AI Coach's consent record, profile and pending proposals;
  *   reminder, hints — device-facing switches, nothing about training;
  *   habitLog — the daily habit log (Alcohol and the user's own habits: their names, every day,
- *     drink counts, private notes): health and personal data the owner kept for themselves. Not training data, and not opened to an assistant until that
- *     is designed and consented to on its own (docs/dev/HABITS.md);
+ *     drink counts, private notes): health and personal data the owner kept for themselves. Not training data. A V1 token never gets it; the only
+ *     path to an assistant is the hosted endpoint's opt-in gymly:habits:read scope, and that
+ *     without notes (mcp-remote/tools.js, docs/dev/HABITS.md);
  *   sex, birthYear — About you (frontend/src/components/StrengthLevel.jsx): read only by the
  *     strength levels, worked out on the device. The sheet promises they are never sent to the
  *     Coach or an AI assistant, so no MCP view carries them;

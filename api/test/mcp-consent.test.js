@@ -46,3 +46,20 @@ test('headers: CSP with nonce, no framing, no caching; form-action allows the cl
   assert.equal(h['Cache-Control'], 'no-store');
   assert.match(pageHeaders(nonce)['Content-Security-Policy'], /form-action 'self';/);
 });
+
+test('the habit log has its own line, only when asked for, and it starts unticked', () => {
+  const page = scopes => consentPage({ id: 'r', request: { ...request, scopes }, user: { name: 'Me' }, nonce });
+  const plain = page(['gymly:read', 'gymly:write']);
+  assert.doesNotMatch(plain, /name="allow_habits"/);
+  // Not asked for: the screen says habits stay out, alongside the rest it never sees.
+  assert.match(plain, /AI Coach settings or habits, and cannot sign in as you/);
+
+  const asked = page(['gymly:read', 'gymly:write', 'gymly:habits:read']);
+  const box = asked.match(/<input[^>]*name="allow_habits"[^>]*>/g);
+  assert.equal(box?.length, 1);
+  assert.doesNotMatch(box[0], /checked/);
+  assert.match(asked, /Also read your habits/);
+  assert.match(asked, /notes you write on a day are never shared/);
+  // Write keeps its own box, ticked as before.
+  assert.match(asked.match(/<input[^>]*name="allow_write"[^>]*>/)[0], /checked/);
+});

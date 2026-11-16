@@ -2617,7 +2617,7 @@ const routes = {
     const user = readSession(req);
     if (!user) return mcpPage(res, 401, errorPage('expired', nonce), nonce);
     const allow = form.get('decision') === 'allow';
-    const r = MCP_OAUTH.decide(user, form.get('request_id'), { allow, allowWrite: form.get('allow_write') === '1' });
+    const r = MCP_OAUTH.decide(user, form.get('request_id'), { allow, allowWrite: form.get('allow_write') === '1', allowHabits: form.get('allow_habits') === '1' });
     if (r.page) return mcpPage(res, 400, errorPage(r.page, nonce), nonce);
     audit(req, allow ? 'auth.mcp.consent' : 'auth.mcp.declined', { user, msg: `${r.request.client.client_name} (${allow ? r.scopes.join(' ') : 'declined'})` });
     res.writeHead(303, { Location: r.redirect, 'Cache-Control': 'no-store' });

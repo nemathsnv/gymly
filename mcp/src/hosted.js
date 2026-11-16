@@ -4,7 +4,12 @@
    into api/mcp-remote/read-tools.gen.js, with hosted-state.js standing in for state.js. The read
    tools are V1's own (tools.js), unchanged, so a question answered over stdio and over HTTPS gets
    the same numbers from the same code the app's screens use. Two read tools are added here, and
-   the write tools borrow a few labels and lookups through `helpers`; nothing in this file writes. */
+   the write tools borrow a few labels and lookups through `helpers`; nothing in this file writes.
+
+   The habit tools (HABIT_TOOLS, runHabitTool) are the one way any part of the habit log leaves the
+   server, and only on a connection the owner granted gymly:habits:read (api/mcp-remote/tools.js).
+   They are not V1 tools and never run through withState, which drops the log with the other
+   private keys (private-keys.js) for every other tool. */
 import { z } from 'zod'
 import { TOOLS } from './tools.js'
 import { getState } from './state.js'
@@ -18,6 +23,7 @@ import { buildCompletedWorkout } from '../../frontend/src/lib/finish-workout.js'
 import { allExercises, searchExercises, exOr, canonicalExId, isAssisted, isCardio, EXIDX, registerCustom } from '../../frontend/src/lib/exercises.js'
 import { buildLoggedWorkout, appendLoggedWorkout, removeLoggedWorkout, findDuplicate } from '../../frontend/src/lib/log-workout.js'
 import { e1rmSeries, best1RM, formulaOf } from '../../frontend/src/lib/onerm.js'
+import { habitList, readEntry, isDay, isHabitId, addDays as addHabitDays, daysBetween } from '../../frontend/src/lib/habits.js'
 
 // The calendar date where the profile's owner is. The reminder's time zone is the one the app
 // records; without it the server's own clock decides, which is what V1's tools always did.
@@ -194,4 +200,110 @@ export const helpers = {
   appendLoggedWorkout: (S, built, opts) => withCustomsIndexed(S, () => appendLoggedWorkout(S, built, opts)),
   removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
   findDuplicate: (S, w) => findDuplicate(S || {}, w)
+}
+
+/* ---------- habits: gymly:habits:read only ----------
+
+   The owner's consent covers habit names, kinds, whether one is archived, and each day's answer and
+   count; never a day's note (a private text), the device's time zone, the sync stamps, or anything
+   else of the profile. So these tools do not hand the log on: they read it through
+   frontend/src/lib/habits.js and copy out the fields named below, one by one. A field the app adds
+   to a habit or a day later is left out until it is added here on purpose. */
+
+/** The longest range get_habit_log answers, and the one it answers without `from`/`to`. */
+export const HABIT_LOG_MAX_DAYS = 92
+export const HABIT_LOG_DEFAULT_DAYS = 14
+
+const habitLogOf = S => (S && typeof S.habitLog === 'object' && S.habitLog && !Array.isArray(S.habitLog) ? S.habitLog : {})
+
+// "Today" for the habit log: the profile's date (todayFor), and without a reminder zone the zone of
+// the device that last wrote a day, so a log kept east of the server is not a day behind. The zone
+// only picks the date; it is never part of an answer.
+function habitToday(S, now) {
+  if (typeof S?.reminder?.tz === 'string' && S.reminder.tz) return todayFor(S, now)
+  let tz = null, ts = -Infinity
+  for (const raw of Object.values(habitLogOf(S))) {
+    if (raw && typeof raw.tz === 'string' && raw.tz.length <= 64 && Number(raw._ts) > ts) { tz = raw.tz; ts = Number(raw._ts) }
+  }
+  return todayFor(tz ? { reminder: { tz } } : {}, now)
+}
+
+// One habit as an assistant is told it: an explicit list of fields.
+function habitView(h) {
+  return {
+    id: h.id,
+    name: h.name || (h.builtin ? 'Alcohol' : ''),
+    builtin: !!h.builtin,
+    kind: h.kind,
+    archived: !!h.archived,
+    answers: { good: h.good, bad: h.bad },
+    counts: !!h.count,
+    icon: h.icon,
+    color: h.color,
+    created: h.at > 0 ? new Date(h.at).toISOString().slice(0, 10) : null
+  }
+}
+
+const listHabitsTool = {
+  name: 'list_habits',
+  description: 'List the habits the user tracks in Gymly\'s daily habit log: the built-in one and their own, each with its id (for get_habit_log), name, kind ("do": a habit to build, "avoid": one to stay away from), whether it is archived, its two answers (the status words get_habit_log reports for a good and a bad day) and whether a bad day carries a count. Notes the user wrote are never shared.',
+  schema: {
+    include_archived: z.boolean().optional().describe('Include archived habits too (default true).')
+  },
+  handler: (S, { include_archived }) => {
+    const habits = habitList(S, { archived: include_archived === false ? false : null }).map(habitView)
+    return { habits, count: habits.length }
+  }
+}
+
+const habitDay = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD').refine(isDay, { message: 'not a calendar date' })
+
+const habitLogTool = {
+  name: 'get_habit_log',
+  description: `Read the user's daily habit log for a range of days: one entry per habit and day that was logged, with the status (the habit's good or bad answer, as list_habits gives them) and, where the habit counts, the count. A day with no entry was not logged: never treat it as a good day. Default the ${HABIT_LOG_DEFAULT_DAYS} days ending today; at most ${HABIT_LOG_MAX_DAYS} days per call. Notes the user wrote on a day are never shared.`,
+  schema: {
+    from: habitDay().optional().describe(`First day, YYYY-MM-DD. Default ${HABIT_LOG_DEFAULT_DAYS - 1} days before \`to\`.`),
+    to: habitDay().optional().describe('Last day, YYYY-MM-DD. Default today (the profile\'s date).'),
+    habit_id: z.string().trim().min(1).max(40).optional().describe('Only this habit (an id from list_habits).')
+  },
+  handler: (S, { from, to, habit_id }, now) => {
+    const today = habitToday(S, now)
+    const end = to || (from ? (() => { const d = addHabitDays(from, HABIT_LOG_DEFAULT_DAYS - 1); return d < today ? d : today })() : today)
+    const start = from || addHabitDays(end, -(HABIT_LOG_DEFAULT_DAYS - 1))
+    if (start > end) return { error: 'invalid_range', message: '`from` is after `to`' }
+    const span = daysBetween(start, end) + 1
+    if (span > HABIT_LOG_MAX_DAYS) return { error: 'invalid_range', message: `at most ${HABIT_LOG_MAX_DAYS} days per call; this range has ${span}` }
+    const habits = habitList(S, { archived: null })
+    if (habit_id != null && !(isHabitId(habit_id) && habits.some(h => h.id === habit_id))) return { error: 'not_found', message: 'no habit with that id; list_habits gives the ids' }
+    const log = habitLogOf(S)
+    const entries = []
+    for (const h of habits) {
+      if (habit_id != null && h.id !== habit_id) continue
+      for (let i = 0; i < span; i++) {
+        const date = addHabitDays(start, i)
+        const key = h.id + '|' + date
+        if (!Object.hasOwn(log, key)) continue
+        const e = readEntry(h.id, log[key])
+        // A day with only a note has no status: nothing an assistant may be told about it.
+        if (!e || !e.status) continue
+        entries.push({ habit_id: h.id, date, status: e.status, result: e.status === h.good ? 'good' : 'bad', count: h.count ? e.count : null })
+      }
+    }
+    entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    return {
+      from: start, to: end, days: span, today,
+      habits: habits.filter(h => habit_id == null || h.id === habit_id).map(h => ({ id: h.id, name: h.name || (h.builtin ? 'Alcohol' : ''), archived: !!h.archived })),
+      entries,
+      about_missing_days: 'A day without an entry was not logged. It is not a good day.'
+    }
+  }
+}
+
+export const HABIT_TOOLS = [listHabitsTool, habitLogTool]
+
+/** One habit tool's answer for one profile (S may be null for a profile never synced). Throws for an unknown name. */
+export function runHabitTool(name, args, S, now = new Date()) {
+  const tool = HABIT_TOOLS.find(t => t.name === name)
+  if (!tool) throw new Error('unknown habit tool ' + name)
+  return tool.handler(S || {}, args || {}, now)
 }
