@@ -75,6 +75,8 @@ import { shareImage as shareImageOut } from './lib/share-image.js'
 import { copyText } from './lib/clipboard.js'
 import { queueRemaining, pinState } from './lib/queue.js'
 import { DAY_NOTE_TAGS, DAY_NOTE_LABEL, DAY_NOTE_ICON, dayNoteOf, dayNoteLine, canNoteDay, withDayNote } from './lib/day-notes.js'
+import { planReschedule, applyReschedule, planChanges, missedAnswerOf, addDays as addIsoDays } from './lib/reschedule.js'
+import { scheduleModeOf } from './lib/rotation.js'
 import { workoutLayoutOf } from './lib/workout-layout.js'
 import { levelFits } from './lib/machine-level.js'
 
@@ -2479,6 +2481,12 @@ function DayOverride({ iso, close }) {
   // that date with the day's routines picked, where the time and the duration can still change.
   const missed = iso < todayISO() && effIds.length > 0 && !workoutsOn(st, iso).length
   const logIt = () => { close(); logPastWorkoutSheet({ iso, routineIds: effIds }) }
+  // A missed session can also move forward, the days after it shifting to keep their order
+  // (lib/reschedule.js): one time only, the weekly plan stays as it is. Not in a coach week or
+  // rotation, which carries an undone session forward on its own.
+  const answer = missedAnswerOf(st, iso)
+  const canMove = missed && !answer && scheduleModeOf(st) === 'week'
+  const moveIt = () => { close(); rescheduleSheet([iso]) }
   // A note on a day off (#261, lib/day-notes.js): offered on today and past days with nothing
   // logged, kept in view on any day that already has one. Quiet on purpose: a row, not a button.
   const note = dayNoteOf(st, iso)
@@ -2508,6 +2516,8 @@ function DayOverride({ iso, close }) {
     <h3>{fmtDate(iso, true)}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Weekly plan:')} {weeklyNames.length ? deriveSessionName(weeklyNames) : t('Rest')}{changed && <span style={{ color: 'var(--orange)' }}> · {t('changed for this day')}</span>}<br />{t('Sick, missed a day or want a different session? Pick what to train instead.')}</div>
     {missed && <div style={{ marginBottom: 14 }}><Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button></div>}
+    {canMove && <div style={{ marginBottom: 14 }}><Button variant="tinted" icon="calendar" onClick={moveIt}>{t('Reschedule this workout')}</Button></div>}
+    {answer && <div className="muted small" style={{ marginBottom: 12 }}>{answer.act === 'moved' && answer.to ? t('Rescheduled to {0}', fmtDate(answer.to, true)) : answer.act === 'skipped' ? t('Skipped') : t('Kept on schedule')}</div>}
     {canNote && <div className="day-note" style={{ marginBottom: 14 }}>
       <div className="item day-note-row" {...tappable(() => dayNoteSheet(iso))}>
         <span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name={note?.tag ? DAY_NOTE_ICON[note.tag] : 'note'} /></span>
@@ -2529,6 +2539,72 @@ function DayOverride({ iso, close }) {
   </>
 }
 export const dayOverrideSheet = iso => ui().openSheet(close => <DayOverride iso={iso} close={close} />)
+
+/* ============================ reschedule missed workouts ============================ */
+// Preview → approval → apply (lib/reschedule.js): the sheet shows every date the shift changes,
+// what no longer fits this week and any recovery warning, and writes nothing until Apply. The
+// plan is worked out again inside the write, against the state as it is then.
+function Reschedule({ missed, close }) {
+  const st = useStore(s => s.S)
+  const today = todayISO()
+  const [fillRest, setFillRest] = useState(false)
+  const p = planReschedule(st, { missed, fillRest, today })
+  const nameOf = id => st.routines.find(r => r.id === id)?.name || id
+  const label = ids => (ids.length ? ids.map(nameOf).join(' + ') : t('Rest'))
+  const apply = () => {
+    let moved = null
+    update(s => {
+      const now = planReschedule(s, { missed, fillRest, today })
+      if (!planChanges(now)) return
+      applyReschedule(s, now)
+      moved = Object.values(now.resolutions)[0]?.to || null
+    })
+    close()
+    toast(moved ? t('Rescheduled. Your weekly plan is unchanged.') : t('Nothing changed'))
+  }
+  if (!p.ok) return <>
+    <h3>{t('Reschedule')}</h3>
+    {p.errors.map((e, i) => <div key={i} className="small" style={{ color: 'var(--yellow)', marginBottom: 8, lineHeight: 1.4 }}>{e}</div>)}
+    <Button variant="ghost" className="dim" onClick={close}>{t('Close')}</Button>
+  </>
+  const changed = new Set(Object.keys(p.writes))
+  const missedNames = p.missed.map(m => t('{0} on {1}', label(m.ids), fmtDate(m.iso, true))).join(', ')
+  return <>
+    <h3>{t('Reschedule')}</h3>
+    <div className="muted small" style={{ marginBottom: 12, lineHeight: 1.4 }}>
+      {p.missed.length === 1
+        ? t('Moves {0} forward and shifts the sessions after it, keeping their order.', missedNames)
+        : t('Moves {0} forward and shifts the sessions after them, keeping their order.', missedNames)}{' '}
+      {t('Only these dates change; your weekly plan stays as it is and is back from {0}.', fmtDate(addIsoDays(p.until, 1), true))}
+    </div>
+    <div className="list" style={{ marginBottom: 12 }}>
+      {p.days.map(d => <div key={d.date} className="item">
+        <span className="lrow-i" style={{ background: changed.has(d.date) ? 'var(--acc)' : 'var(--surface-3)' }}>
+          <Icon name={d.fixed ? 'checkCircle' : d.after.length ? glyphOf(st.routines.find(r => r.id === d.after[0])?.emoji) : 'moon'} />
+        </span>
+        <div className="grow">
+          <div className="tt">{fmtDate(d.date, true)} · {d.fixed ? t('Done') : label(d.after)}</div>
+          {changed.has(d.date) && <div className="ss">{t('was {0}', label(d.before))}</div>}
+        </div>
+      </div>)}
+    </div>
+    {p.alreadyDone.map((a, i) => <div key={'d' + i} className="small muted" style={{ marginBottom: 6 }}>{t('{0} was already done on {1}.', nameOf(a.routine_id), fmtDate(a.done_on, true))}</div>)}
+    {p.warnings.map((w, i) => <div key={'w' + i} className="small" style={{ color: 'var(--yellow)', marginBottom: 6, lineHeight: 1.4 }}>
+      {w.type === 'dropped'
+        ? t('{0} doesn’t fit before {1} and isn’t made up this week.', nameOf(w.routine_id), fmtDate(addIsoDays(p.until, 1), true))
+        : w.type === 'streak' ? t('{0} training days in a row. Consider keeping a rest day.', w.days)
+          : t('{0} and {1} train the same muscles on back-to-back days.', fmtDate(w.after, true), fmtDate(w.date, true))}
+    </div>)}
+    <div className="row between" style={{ padding: '10px 2px', borderTop: '1px solid var(--sep)', borderBottom: '1px solid var(--sep)', margin: '8px 0 16px', gap: 12 }}>
+      <div><div className="tt" style={{ fontSize: 15 }}>{t('Use rest days to catch up')}</div><div className="small dim">{t('Off keeps your rest days for recovery.')}</div></div>
+      <Switch checked={fillRest} onChange={setFillRest} />
+    </div>
+    <Button variant="primary" onClick={apply} disabled={!planChanges(p)}>{t('Apply this schedule')}</Button>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
+}
+export const rescheduleSheet = missed => ui().openSheet(close => <Reschedule missed={missed} close={close} />)
 
 // Why a day went without training (#261): one quick pick, a line of text, or both. Saving an
 // empty note takes it away (a stamped clear, lib/day-notes.js withDayNote), and so does Remove.
@@ -2962,7 +3038,9 @@ function Calendar({ start, close }) {
     // A day off with a note on it (#261) shows the note's dot instead of the plan's, and its
     // note as the tooltip; tapping it opens the day sheet, where the note is.
     const note = !ws && dayNoteOf(st, iso)
-    const dotCls = ws ? 'done' : note ? 'noted' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
+    // A missed session skipped or moved on (lib/reschedule.js) is accounted for, like a noted day.
+    const answered = !ws && !note && iso < todayISO() && ['skipped', 'moved'].includes(missedAnswerOf(st, iso)?.act)
+    const dotCls = ws ? 'done' : note || answered ? 'noted' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
     cells.push(<button key={d} className={'cal-d' + (ws ? ' has' : '') + (note ? ' noted' : '') + (iso === todayISO() ? ' today' : '')}
       title={note ? dayNoteLine(note, t) : undefined} onClick={() => {
       if (!ws) { close(); dayOverrideSheet(iso); return }

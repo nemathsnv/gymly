@@ -89205,10 +89205,14 @@ const fmtNum = (n) => {
 	const p = decimals === 2 ? 100 : 10;
 	return (Math.round(n * p) / p).toLocaleString(dateLocale(), { maximumFractionDigits: decimals });
 };
+const MONDAY = 1;
+const SUNDAY = 0;
+const weekStartOf = (S) => S?.weekStart === 0 ? 0 : 1;
+const weekDayOffset = (day, ws = 1) => (day - ws + 7) % 7;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // frontend/src/lib/queue.js
-const routineIdsOf = (w) => Array.isArray(w.routineIds) ? w.routineIds : w.routineId ? [w.routineId] : [];
+const routineIdsOf$1 = (w) => Array.isArray(w.routineIds) ? w.routineIds : w.routineId ? [w.routineId] : [];
 const nameParts = (w) => String(w.name || "").split(" + ");
 const queueOf = (S) => {
 	const q = S?.queue;
@@ -89222,7 +89226,7 @@ const queueOf = (S) => {
 		startsOn: typeof q.startsOn === "string" ? q.startsOn : isoOf(new Date(q.since || 0))
 	};
 };
-const countsFor = (S, q, w, id) => routineIdsOf(w).includes(id) && ((w.start ?? 0) >= q.since || q.strict !== true && String(w.d || "") >= q.startsOn && nameParts(w).includes(S.routines.find((r) => r.id === id)?.name));
+const countsFor = (S, q, w, id) => routineIdsOf$1(w).includes(id) && ((w.start ?? 0) >= q.since || q.strict !== true && String(w.d || "") >= q.startsOn && nameParts(w).includes(S.routines.find((r) => r.id === id)?.name));
 const isDone = (S, q, id) => S.workouts.some((w) => countsFor(S, q, w, id));
 function queueRemaining(S) {
 	const q = queueOf(S);
@@ -89433,10 +89437,10 @@ function applyBackoff(rows, step) {
 // frontend/src/lib/dumbbells.js
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
-const isMap$4 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$6 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const tidy$1 = (w) => Math.round(w * 1e3) / 1e3;
 function dbLoadOf(value) {
-	const m = isMap$4(value) ? value.mode : value;
+	const m = isMap$6(value) ? value.mode : value;
 	return m === "each" || m === "total" || m === "as" ? m : null;
 }
 function dbLoadFor(S, cfgOrId) {
@@ -89469,14 +89473,14 @@ function meaningFactor(from, to, cfg) {
 	return from === "each" ? n : 1 / n;
 }
 const scaleRow = (row, f) => {
-	if (!isMap$4(row)) return row;
+	if (!isMap$6(row)) return row;
 	const out = { ...row };
 	if (Number.isFinite(Number(row.w)) && row.w != null) out.w = tidy$1(Number(row.w) * f);
-	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$4(d) ? {
+	if (Array.isArray(row.drops)) out.drops = row.drops.map((d) => isMap$6(d) ? {
 		...d,
 		w: tidy$1((Number(d.w) || 0) * f)
 	} : d);
-	if (isMap$4(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
+	if (isMap$6(row.sides)) out.sides = Object.fromEntries(Object.entries(row.sides).map(([k, s]) => [k, scaleRow(s, f)]));
 	return out;
 };
 function entryAs(entry, to) {
@@ -89546,8 +89550,8 @@ function ownedKindFor(S, cfg) {
 	return stackOf(S, cfg?.id).length ? "stack" : "dumbbells";
 }
 function stackOf(S, exId) {
-	const e = isMap$4(S?.stackWeights) ? S.stackWeights[exId] : null;
-	if (!isMap$4(e)) return [];
+	const e = isMap$6(S?.stackWeights) ? S.stackWeights[exId] : null;
+	if (!isMap$6(e)) return [];
 	const ws = cleanWeights(e.weights);
 	const from = e.unit === "lb" ? "lb" : "kg", to = unitOf$1(S);
 	if (from === to) return ws;
@@ -90389,6 +90393,11 @@ const loadOfWorkouts = (workouts, pick) => loadOf$1((workouts || []).flatMap((w)
 	ex: e.exercise || e,
 	sets: (e.sets || []).filter((s) => s.done && !isWarmupRow(s) && (!pick || pick(s))).length
 }))));
+const loadOfRoutine = (routine, exercises = {}) => loadOf$1((routine?.ex || []).map((c) => ({
+	id: c.id,
+	ex: exercises[c.id] || c,
+	sets: c.sets || 1
+})));
 function levelsOf(load, thresholds) {
 	if (thresholds) {
 		const lv = {};
@@ -90416,7 +90425,7 @@ function rankOf(load) {
 }
 
 // frontend/src/lib/exercise-merge.js
-const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$5 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const list$1 = (v) => Array.isArray(v) ? v : [];
 const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
 const MOVE_MAPS = [
@@ -90437,7 +90446,7 @@ const RESTORE = [
 ];
 const mergedInto = (S, id) => mergedTarget(S?.exMerged, id);
 function mergedAway(S) {
-	const m = isMap$3(S?.exMerged) ? S.exMerged : null;
+	const m = isMap$5(S?.exMerged) ? S.exMerged : null;
 	if (!m) return null;
 	const out = /* @__PURE__ */ new Set();
 	for (const [k, v] of Object.entries(m)) if (v && v.into) out.add(k);
@@ -92062,7 +92071,7 @@ const DAILY_MODES = [
 	"last"
 ];
 const LEGACY_ID = "0";
-const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$4 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const num$1 = (v) => Number(v) || 0;
 const p2 = (n) => String(n).padStart(2, "0");
 const dailyModeOf = (S) => DAILY_MODES.includes(S?.bwDaily) ? S.bwDaily : "first";
@@ -92084,7 +92093,7 @@ const byTime = (a, b) => {
 	return x < y ? -1 : x > y ? 1 : num$1(a.t) - num$1(b.t);
 };
 function cleanReading(r) {
-	if (!isMap$2(r) || r.id == null || !(Number(r.w) > 0)) return null;
+	if (!isMap$4(r) || r.id == null || !(Number(r.w) > 0)) return null;
 	const out = {
 		...r,
 		id: String(r.id),
@@ -92095,7 +92104,7 @@ function cleanReading(r) {
 	return out;
 }
 function readingsOf(e) {
-	if (!isMap$2(e)) return [];
+	if (!isMap$4(e)) return [];
 	if (Array.isArray(e.ins)) return e.ins.map(cleanReading).filter(Boolean).sort(byTime);
 	if (!(Number(e.w) > 0)) return [];
 	const t = num$1(e.t);
@@ -92251,7 +92260,7 @@ const getRoutine = {
 		};
 	}
 };
-const DAY_NAMES = [
+const DAY_NAMES$1 = [
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -92291,7 +92300,7 @@ const getWeekPlan = {
 			return {
 				date: iso,
 				weekday: d.getDay(),
-				weekday_name: DAY_NAMES[d.getDay()],
+				weekday_name: DAY_NAMES$1[d.getDay()],
 				routine_ids: ids,
 				routine_names: ids.map(nameOf),
 				planned_by: plannedBy(iso, ids)
@@ -92329,7 +92338,7 @@ const getWeekPlan = {
 				const overrideForToday = d === todayWd ? S.dayPlan?.[isoToday] ?? null : null;
 				return {
 					weekday: d,
-					weekday_name: DAY_NAMES[d],
+					weekday_name: DAY_NAMES$1[d],
 					routine_ids: ids,
 					routine_names: ids.map(nameOf),
 					routine_id: ids[0] ?? null,
@@ -92776,6 +92785,26 @@ function deleteRoutine(s, id) {
 	return dropped;
 }
 
+// frontend/src/lib/day-notes.js
+const DAY_NOTE_TAGS = [
+	"sick",
+	"travel",
+	"rest",
+	"injured"
+];
+const isMap$3 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+function readDayNote(entry) {
+	if (!isMap$3(entry)) return null;
+	const tag = DAY_NOTE_TAGS.includes(entry.tag) ? entry.tag : null;
+	const text = typeof entry.text === "string" ? entry.text.trim().slice(0, 500) : "";
+	return tag || text ? {
+		tag,
+		text
+	} : null;
+}
+const dayNoteOf = (S, iso) => readDayNote(isMap$3(S?.dayNotes) ? S.dayNotes[iso] : null);
+const excusedOn = (S, iso) => dayNoteOf(S, iso) != null;
+
 // frontend/src/lib/sync-merge.js
 const STAMPED_MAPS = [
 	"balanceOverrides",
@@ -92787,7 +92816,8 @@ const STAMPED_MAPS = [
 	"dayNotes",
 	"habitLog",
 	"exEquip",
-	"exMerged"
+	"exMerged",
+	"missedDays"
 ];
 function stampWorkout(w, now = Date.now()) {
 	if (w && typeof w === "object") w._ts = now;
@@ -93300,7 +93330,7 @@ const LOG_LIMITS = {
 	maxBodyweightKg: 700
 };
 const MIN_ROOM_MS = 3e5;
-const ISO$1 = /^\d{4}-\d{2}-\d{2}$/;
+const ISO$2 = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const localIso = (t) => {
 	const d = new Date(t);
@@ -93314,7 +93344,7 @@ const realDate = (iso) => {
 const nameKey = (n) => String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
 const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
 const list = (v) => Array.isArray(v) ? v : [];
-const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isMap$2 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const inCatalogue$1 = (id) => typeof id === "string" && Object.hasOwn(EXIDX, id);
 const customsOf = (S) => list(S?.customEx).filter((c) => c && typeof c.id === "string" && c.id);
 const exerciseOf$1 = (S, id) => customsOf(S).find((c) => c.id === id) || (inCatalogue$1(id) ? EXIDX[id] : null);
@@ -93333,7 +93363,7 @@ function resolveExercise(S, ref) {
 	const text = String(ref ?? "").trim();
 	if (!text) return { problem: "no exercise named" };
 	const customs = customsOf(S);
-	const merges = isMap$1(S?.exMerged) ? S.exMerged : {};
+	const merges = isMap$2(S?.exMerged) ? S.exMerged : {};
 	const land = (id, from) => {
 		const to = followMerge(S, id);
 		const ex = exerciseOf$1(S, to);
@@ -93438,7 +93468,7 @@ function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt }
 	const problems = [];
 	const day = today || localIso(now);
 	const date = input?.date;
-	if (typeof date !== "string" || !ISO$1.test(date) || !realDate(date)) problems.push({
+	if (typeof date !== "string" || !ISO$2.test(date) || !realDate(date)) problems.push({
 		field: "date",
 		problem: "must be a real YYYY-MM-DD date"
 	});
@@ -93469,7 +93499,7 @@ function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt }
 		toKg: (w) => unit === "lb" ? w * LB_TO_KG : w,
 		convert: (w) => unit === profileUnit ? w : Math.round((unit === "lb" ? w * LB_TO_KG : w / LB_TO_KG) * 100) / 100
 	};
-	const routines = list(S.routines).filter(isMap$1);
+	const routines = list(S.routines).filter(isMap$2);
 	const routine = input?.routineId != null ? routines.find((r) => r.id === input.routineId) || null : null;
 	if (input?.routineId != null && !routine) problems.push({
 		field: "routineId",
@@ -93715,7 +93745,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 	const w = JSON.parse(JSON.stringify(built.workout));
 	S.workouts = list(S.workouts).filter(Boolean);
 	const prsBefore = new Map(S.workouts.filter((x) => x.id != null).map((x) => [x.id, list(x.prs).slice()]));
-	const weightsBefore = isMap$1(S.exWeights) ? JSON.parse(JSON.stringify(S.exWeights)) : {};
+	const weightsBefore = isMap$2(S.exWeights) ? JSON.parse(JSON.stringify(S.exWeights)) : {};
 	const later = S.workouts.some((x) => x.d > w.d || x.d === w.d && (Number(x.start) || 0) > w.start);
 	if (built.past || later) {
 		stampWorkout(w, now);
@@ -93732,7 +93762,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 			const mx = loads.length ? loads.reduce((a, b) => betterWeight(e.id, a, b)) : 0;
 			if (beatsWeight(e.id, mx, bestWeightFor(H, e.id, entryDbLoad(e)))) w.prs.push(e.id);
 		});
-		S.exWeights = isMap$1(S.exWeights) ? S.exWeights : {};
+		S.exWeights = isMap$2(S.exWeights) ? S.exWeights : {};
 		w.entries.forEach((e) => {
 			const mx = bestWeightForEntry(e);
 			if (mx > 0 && beatsWeight(e.id, mx, (S.exWeights[e.id] || {}).w || 0)) S.exWeights[e.id] = {
@@ -93743,7 +93773,7 @@ function appendLoggedWorkout(S, built, { now = Date.now(), allowDuplicate = fals
 		S.workouts = insertChronological(S.workouts, w);
 	}
 	const exWeights = {};
-	for (const k of /* @__PURE__ */ new Set([...Object.keys(weightsBefore), ...Object.keys(isMap$1(S.exWeights) ? S.exWeights : {})])) {
+	for (const k of /* @__PURE__ */ new Set([...Object.keys(weightsBefore), ...Object.keys(isMap$2(S.exWeights) ? S.exWeights : {})])) {
 		const a = weightsBefore[k] ?? null, b = S.exWeights?.[k] ?? null;
 		if (JSON.stringify(a) !== JSON.stringify(b)) exWeights[k] = {
 			before: a,
@@ -93775,7 +93805,7 @@ function removeLoggedWorkout(S, undo) {
 	next.workouts = next.workouts.filter((w) => !(w && w.id === undo.workoutId));
 	const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 	for (const [k, { before, after }] of Object.entries(undo.exWeights || {})) {
-		if (!isMap$1(next.exWeights) || !same(next.exWeights[k], after)) continue;
+		if (!isMap$2(next.exWeights) || !same(next.exWeights[k], after)) continue;
 		if (before == null) delete next.exWeights[k];
 		else next.exWeights[k] = before;
 	}
@@ -93840,11 +93870,11 @@ const HABIT_COLORS = Object.freeze([
 ]);
 const NAME_MAX = 40;
 const COUNT_MAX = 99;
-const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+const isMap$1 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const ISO$1 = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 864e5;
 function isDay(iso) {
-	const m = ISO.exec(typeof iso === "string" ? iso : "");
+	const m = ISO$1.exec(typeof iso === "string" ? iso : "");
 	if (!m) return false;
 	const [y, mo, d] = [
 		+m[1],
@@ -93859,7 +93889,7 @@ const dayMs = (iso) => {
 	return Date.UTC(y, m - 1, d);
 };
 const pad = (n, w = 2) => String(n).padStart(w, "0");
-function addDays$1(iso, n) {
+function addDays$2(iso, n) {
 	const at = new Date(dayMs(iso) + n * DAY_MS);
 	return pad(at.getUTCFullYear(), 4) + "-" + pad(at.getUTCMonth() + 1) + "-" + pad(at.getUTCDate());
 }
@@ -93871,12 +93901,12 @@ const rulesOf = (habit) => habit === ALCOHOL.id ? ALCOHOL : isHabitId(habit) ? C
 const DEF_DAY = "def";
 const defKey = (habit) => habitKey(habit, "def");
 const cleanName = (v) => typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 40) : "";
-const logOf = (S) => isMap(S?.habitLog) ? S.habitLog : {};
+const logOf = (S) => isMap$1(S?.habitLog) ? S.habitLog : {};
 function habitOf(S, habit) {
 	const rules = rulesOf(habit);
 	if (!rules) return null;
 	const raw = logOf(S)[defKey(habit)];
-	const d = isMap(raw) ? raw : {};
+	const d = isMap$1(raw) ? raw : {};
 	const icon = HABIT_ICONS.includes(d.icon) ? d.icon : null;
 	const color = HABIT_COLORS.includes(d.color) ? d.color : null;
 	const archived = d.archived === true;
@@ -93911,7 +93941,7 @@ function habitList(S, { archived = false } = {}) {
 }
 function readEntry(habit, raw) {
 	const h = rulesOf(habit);
-	if (!h || !isMap(raw)) return null;
+	if (!h || !isMap$1(raw)) return null;
 	const status = raw.s === h.good || raw.s === h.bad ? raw.s : null;
 	const count = h.count && status === h.bad && Number.isInteger(raw.n) && raw.n >= 1 && raw.n <= 99 ? raw.n : null;
 	const note = typeof raw.note === "string" ? raw.note.trim().slice(0, 500) : "";
@@ -93922,6 +93952,460 @@ function readEntry(habit, raw) {
 		note,
 		tz
 	} : null;
+}
+
+// frontend/src/lib/reschedule.js
+const MISSED_ACTS = [
+	"moved",
+	"skipped",
+	"kept"
+];
+const MISSED_LOOKBACK_DAYS = 7;
+const MAX_TRAINING_STREAK = 5;
+const MAX_SPAN_DAYS = 28;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isIsoDate = (v) => typeof v === "string" && ISO.test(v) && isoOf(/* @__PURE__ */ new Date(v + "T12:00:00")) === v;
+const addDays$1 = (iso, n) => {
+	const d = /* @__PURE__ */ new Date(iso + "T12:00:00");
+	d.setDate(d.getDate() + n);
+	return isoOf(d);
+};
+const weekdayOf = (iso) => (/* @__PURE__ */ new Date(iso + "T12:00:00")).getDay();
+const routineIdsOf = (w) => Array.isArray(w?.routineIds) ? w.routineIds : w?.routineId ? [w.routineId] : [];
+const sameIds = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+function readMissed(entry) {
+	if (!isMap(entry) || !MISSED_ACTS.includes(entry.act)) return null;
+	return entry.act === "moved" && isIsoDate(entry.to) ? {
+		act: "moved",
+		to: entry.to
+	} : { act: entry.act };
+}
+const missedAnswerOf = (S, iso) => readMissed(isMap(S?.missedDays) ? S.missedDays[iso] : null);
+function withMissed(map, iso, answer, now = Date.now()) {
+	const clean = readMissed(answer);
+	const entry = clean ? {
+		...clean,
+		_ts: now
+	} : { _ts: now };
+	return {
+		...isMap(map) ? map : {},
+		[iso]: entry
+	};
+}
+const norm = (S) => ({
+	...S,
+	routines: Array.isArray(S?.routines) ? S.routines.filter((r) => r && r.id) : [],
+	workouts: Array.isArray(S?.workouts) ? S.workouts.filter(Boolean) : [],
+	week: isMap(S?.week) ? S.week : {},
+	dayPlan: isMap(S?.dayPlan) ? S.dayPlan : {},
+	missedDays: isMap(S?.missedDays) ? S.missedDays : {}
+});
+const workoutsOn = (S, iso) => S.workouts.filter((w) => w.d === iso);
+const hasExercises = (S, id) => (S.routines.find((r) => r.id === id)?.ex || []).length > 0;
+const plannedOn = (S, iso, today) => effectiveRoutineIds(S, iso, today);
+function weeklyOn(state, iso, today = todayISO()) {
+	const S = norm(state);
+	const { [iso]: _drop, ...rest } = S.dayPlan;
+	return effectiveRoutineIds({
+		...S,
+		dayPlan: rest
+	}, iso, today);
+}
+function missedWorkouts(state, today = todayISO(), { lookback = 7 } = {}) {
+	const S = norm(state);
+	const last = S.workouts.reduce((m, w) => typeof w.d === "string" && w.d < today && w.d > m ? w.d : m, "");
+	const out = [];
+	for (let i = lookback; i >= 1; i--) {
+		const iso = addDays$1(today, -i);
+		if (iso <= last || workoutsOn(S, iso).length) continue;
+		if (excusedOn(S, iso) || missedAnswerOf(S, iso)) continue;
+		if (queueLiveOn(S, iso, iso)) continue;
+		const ids = effectiveRoutineIds(S, iso, iso).filter((id) => hasExercises(S, id));
+		if (ids.length) out.push({
+			iso,
+			ids
+		});
+	}
+	return out;
+}
+const weekEndOf = (S, iso) => addDays$1(iso, 6 - weekDayOffset(weekdayOf(iso), weekStartOf(S)));
+const RECOVER_FAST = /* @__PURE__ */ new Set([
+	"abs",
+	"obliques",
+	"forearm",
+	"cardiovascular system"
+]);
+function focusOf(S, id) {
+	const r = S.routines.find((x) => x.id === id);
+	const ex = r?.ex || [];
+	if (!ex.length || ex.filter((c) => isCardio(c.id)).length * 2 >= ex.length) return [];
+	const load = loadOfRoutine(r);
+	delete load["cardiovascular system"];
+	const top = Math.max(0, ...Object.values(load));
+	return top > 0 ? Object.keys(load).filter((m) => load[m] >= top / 2 && !RECOVER_FAST.has(m)).sort() : [];
+}
+function recoveryWarnings(state, days) {
+	const S = norm(state);
+	if (!days.length) return [];
+	const out = [];
+	const nameOf = (id) => S.routines.find((r) => r.id === id)?.name || id;
+	const lead = [];
+	for (let i = 1; i <= 6; i++) {
+		const iso = addDays$1(days[0].date, -i);
+		const ids = [...new Set(workoutsOn(S, iso).flatMap(routineIdsOf))];
+		const trained = workoutsOn(S, iso).length > 0;
+		lead.unshift({
+			date: iso,
+			ids,
+			trained
+		});
+		if (!trained) break;
+	}
+	const all = [...lead, ...days.map((d) => ({
+		...d,
+		trained: d.trained ?? d.ids.length > 0
+	}))];
+	let run = 0, runStart = null, flagged = false;
+	for (let i = 0; i < all.length; i++) {
+		const d = all[i];
+		if (d.trained) {
+			run++;
+			if (run === 1) runStart = d.date;
+		} else {
+			run = 0;
+			flagged = false;
+		}
+		if (run > 5 && !flagged && i >= lead.length) {
+			out.push({
+				type: "streak",
+				date: d.date,
+				from: runStart,
+				days: run,
+				message: `${run} training days in a row from ${runStart} to ${d.date}; consider keeping a rest day.`
+			});
+			flagged = true;
+		}
+		if (i === 0 || i < lead.length) continue;
+		const prev = all[i - 1];
+		const a = prev.ids.flatMap((id) => focusOf(S, id)), b = d.ids.flatMap((id) => focusOf(S, id));
+		const shared = [...new Set(a.filter((m) => b.includes(m)))].sort();
+		if (shared.length) out.push({
+			type: "muscles",
+			date: d.date,
+			after: prev.date,
+			muscles: shared,
+			message: `${prev.ids.map(nameOf).join(" + ")} (${prev.date}) and ${d.ids.map(nameOf).join(" + ")} (${d.date}) both mostly train ${shared.join(", ")} on back-to-back days.`
+		});
+	}
+	return out;
+}
+function writeFor(S, iso, desired, today) {
+	const current = plannedOn(S, iso, today);
+	if (sameIds(current, desired)) return void 0;
+	if (sameIds(weeklyOn(S, iso, today), desired)) return S.dayPlan[iso] !== void 0 ? null : void 0;
+	return desired[0] ?? "rest";
+}
+const plan = (fields) => ({
+	ok: true,
+	errors: [],
+	days: [],
+	writes: {},
+	resolutions: {},
+	dropped: [],
+	alreadyDone: [],
+	warnings: [],
+	...fields
+});
+function planReschedule(state, { missed, from, until, fillRest = false, today = todayISO() } = {}) {
+	const S = norm(state);
+	const errors = [];
+	const nameOf = (id) => S.routines.find((r) => r.id === id)?.name || id;
+	const dates = missed == null ? missedWorkouts(S, today).map((m) => m.iso) : [...new Set([].concat(missed))].sort();
+	if (from == null) from = workoutsOn(S, today).length ? addDays$1(today, 1) : today;
+	if (!isIsoDate(from)) return plan({
+		ok: false,
+		errors: ["from is not a date (YYYY-MM-DD)"]
+	});
+	if (from < today) errors.push(`cannot reschedule into the past (${from} is before today, ${today})`);
+	if (until == null) until = weekEndOf(S, from);
+	if (!isIsoDate(until)) return plan({
+		ok: false,
+		errors: ["until is not a date (YYYY-MM-DD)"]
+	});
+	if (until < from) errors.push(`until (${until}) is before from (${from})`);
+	if (addDays$1(from, 27) < until) errors.push(`at most ${28} days can be rescheduled at once`);
+	if (!dates.length) errors.push("there is no missed workout to reschedule");
+	const queue = [], alreadyDone = [], missedOut = [];
+	for (const iso of dates) {
+		if (!isIsoDate(iso)) {
+			errors.push(`${iso} is not a date (YYYY-MM-DD)`);
+			continue;
+		}
+		if (iso >= from) {
+			errors.push(`${iso} is not before ${from}: only a day already gone by can be rescheduled forward`);
+			continue;
+		}
+		if (workoutsOn(S, iso).length) {
+			errors.push(`${iso} already has a workout logged; completed days are never rescheduled`);
+			continue;
+		}
+		const ids = effectiveRoutineIds(S, iso, iso).filter((id) => hasExercises(S, id));
+		if (!ids.length) {
+			errors.push(`nothing was planned on ${iso}`);
+			continue;
+		}
+		if (ids.length > 1) {
+			errors.push(`${iso} combines ${ids.map(nameOf).join(" + ")}; a one-time reschedule moves one routine per day, so pick the day's routine in the app`);
+			continue;
+		}
+		missedOut.push({
+			iso,
+			ids
+		});
+		const doneOn = S.workouts.find((w) => w.d > iso && w.d < from && routineIdsOf(w).includes(ids[0]));
+		if (doneOn) alreadyDone.push({
+			routine_id: ids[0],
+			missed_on: iso,
+			done_on: doneOn.d
+		});
+		else queue.push({
+			id: ids[0],
+			from: iso,
+			missed: true
+		});
+	}
+	if (errors.length) return plan({
+		ok: false,
+		errors,
+		from,
+		until,
+		missed: missedOut
+	});
+	const days = [], writes = {}, resolutions = {};
+	for (let iso = from; iso <= until; iso = addDays$1(iso, 1)) {
+		const before = plannedOn(S, iso, today);
+		const logged = workoutsOn(S, iso);
+		if (logged.length) {
+			const did = new Set(logged.flatMap(routineIdsOf));
+			for (const id of before) queue.push({
+				id,
+				from: iso
+			});
+			for (const id of did) {
+				const at = queue.findIndex((q) => q.id === id);
+				if (at < 0) continue;
+				if (queue[at].missed) alreadyDone.push({
+					routine_id: id,
+					missed_on: queue[at].from,
+					done_on: iso
+				});
+				queue.splice(at, 1);
+			}
+			days.push({
+				date: iso,
+				before,
+				after: before,
+				ids: [...did],
+				trained: true,
+				fixed: true,
+				moved_from: null
+			});
+			continue;
+		}
+		if (before.length > 1) return plan({
+			ok: false,
+			errors: [`${iso} combines ${before.map(nameOf).join(" + ")}; shorten the span with until, or change that day in the app`],
+			from,
+			until,
+			missed: missedOut
+		});
+		if (before.length) queue.push({
+			id: before[0],
+			from: iso
+		});
+		const take = before.length || fillRest && queue.some((q) => q.missed) ? queue.shift() : null;
+		const after = take ? [take.id] : [];
+		const w = writeFor(S, iso, after, today);
+		if (w !== void 0) writes[iso] = w;
+		if (take?.missed) resolutions[take.from] = {
+			act: "moved",
+			to: iso
+		};
+		days.push({
+			date: iso,
+			before,
+			after,
+			ids: after,
+			fixed: false,
+			moved_from: take && take.from !== iso ? take.from : null
+		});
+	}
+	const dropped = queue.map((q) => ({
+		routine_id: q.id,
+		planned_on: q.from,
+		missed: !!q.missed
+	}));
+	const warnings = recoveryWarnings(S, days);
+	for (const d of dropped) warnings.push({
+		type: "dropped",
+		date: d.planned_on,
+		routine_id: d.routine_id,
+		message: d.missed ? `${nameOf(d.routine_id)} (missed ${d.planned_on}) does not fit before ${until}; it stays missed.` : `${nameOf(d.routine_id)} (planned ${d.planned_on}) no longer fits before ${until} and is not made up; the regular week resumes after.`
+	});
+	return plan({
+		from,
+		until,
+		fillRest: !!fillRest,
+		missed: missedOut,
+		days,
+		writes,
+		resolutions,
+		dropped,
+		alreadyDone,
+		warnings
+	});
+}
+function planAssignments(state, assignments, { answers = [], today = todayISO() } = {}) {
+	const S = norm(state);
+	const errors = [];
+	const nameOf = (id) => S.routines.find((r) => r.id === id)?.name || id;
+	const seen = /* @__PURE__ */ new Set(), list = [];
+	for (const a of [].concat(assignments || [])) {
+		const iso = a?.date;
+		if (!isIsoDate(iso)) {
+			errors.push(`${iso} is not a date (YYYY-MM-DD)`);
+			continue;
+		}
+		if (seen.has(iso)) {
+			errors.push(`${iso} is assigned twice`);
+			continue;
+		}
+		seen.add(iso);
+		if (iso < today) {
+			errors.push(`${iso} is in the past; only today (${today}) and later can be assigned`);
+			continue;
+		}
+		if (workoutsOn(S, iso).length) {
+			errors.push(`${iso} already has a workout logged; completed days are never reassigned`);
+			continue;
+		}
+		const v = a.routine_id;
+		if (v != null && v !== "rest" && !S.routines.some((r) => r.id === v)) {
+			errors.push(`${iso}: no routine with id ${v}`);
+			continue;
+		}
+		list.push({
+			iso,
+			desired: v == null ? weeklyOn(S, iso, today) : v === "rest" ? [] : [v]
+		});
+	}
+	const answerFor = /* @__PURE__ */ new Map();
+	for (const a of [].concat(answers || [])) {
+		if (!isIsoDate(a?.date) || !MISSED_ACTS.includes(a?.act) || a.act === "moved") {
+			errors.push(`answers: ${a?.date} needs act "skipped" or "kept"`);
+			continue;
+		}
+		if (a.date >= today) {
+			errors.push(`answers: ${a.date} has not gone by yet`);
+			continue;
+		}
+		answerFor.set(a.date, a.act);
+	}
+	if (!list.length && !answerFor.size && !errors.length) errors.push("nothing to change");
+	if (errors.length) return plan({
+		ok: false,
+		errors
+	});
+	list.sort((x, y) => x.iso < y.iso ? -1 : 1);
+	const days = [], writes = {};
+	for (const { iso, desired } of list) {
+		const before = plannedOn(S, iso, today);
+		const w = writeFor(S, iso, desired, today);
+		if (w !== void 0) writes[iso] = w;
+		days.push({
+			date: iso,
+			before,
+			after: desired,
+			ids: desired,
+			fixed: false,
+			moved_from: null
+		});
+	}
+	const resolutions = {};
+	const placed = days.filter((d) => d.after.length && !sameIds(d.after, weeklyOn(S, d.date, today)));
+	for (const m of [...missedWorkouts(S, today)].reverse()) {
+		if (answerFor.has(m.iso)) continue;
+		const at = placed.find((d) => d.after[0] === m.ids[0] && !Object.values(resolutions).some((r) => r.to === d.date));
+		if (at) {
+			resolutions[m.iso] = {
+				act: "moved",
+				to: at.date
+			};
+			at.moved_from = m.iso;
+		}
+	}
+	for (const [iso, act] of answerFor) resolutions[iso] = { act };
+	const beforeAll = days.flatMap((d) => d.before), afterAll = days.flatMap((d) => d.after);
+	const warnings = recoveryWarnings(S, days.map((d) => ({
+		date: d.date,
+		ids: d.after
+	})));
+	for (const id of new Set(beforeAll)) {
+		const lost = beforeAll.filter((x) => x === id).length - afterAll.filter((x) => x === id).length;
+		if (lost > 0) warnings.push({
+			type: "dropped",
+			routine_id: id,
+			message: `${nameOf(id)} is planned ${lost} time(s) fewer on these dates than before.`
+		});
+	}
+	for (const id of new Set(afterAll)) {
+		const n = afterAll.filter((x) => x === id).length;
+		if (n > 1 && n > beforeAll.filter((x) => x === id).length) warnings.push({
+			type: "duplicate",
+			routine_id: id,
+			message: `${nameOf(id)} is assigned ${n} times on these dates.`
+		});
+	}
+	return plan({
+		days,
+		writes,
+		resolutions,
+		warnings
+	});
+}
+function applyReschedule(s, p, now = Date.now()) {
+	if (!p?.ok) return s;
+	if (!isMap(s.dayPlan)) s.dayPlan = {};
+	for (const [iso, v] of Object.entries(p.writes || {})) if (v == null) delete s.dayPlan[iso];
+	else s.dayPlan[iso] = v;
+	for (const [iso, r] of Object.entries(p.resolutions || {})) s.missedDays = withMissed(s.missedDays, iso, r, now);
+	return s;
+}
+const planChanges = (p) => !!p?.ok && (Object.keys(p.writes || {}).length > 0 || Object.keys(p.resolutions || {}).length > 0);
+function scheduleDay(state, iso, today = todayISO()) {
+	const S = norm(state);
+	const planned = plannedOn(S, iso, iso < today ? iso : today);
+	const weekly = weeklyOn(S, iso, iso < today ? iso : today);
+	const logged = workoutsOn(S, iso);
+	const answer = missedAnswerOf(S, iso);
+	let status;
+	if (logged.length) status = "done";
+	else if (iso < today) status = answer ? answer.act : excusedOn(S, iso) ? "excused" : planned.length ? "missed" : "rest";
+	else status = !planned.length ? "rest" : iso === today ? "today" : "planned";
+	return {
+		date: iso,
+		planned,
+		weekly,
+		override: S.dayPlan[iso] !== void 0 && !sameIds(planned, weekly) ? S.dayPlan[iso] : null,
+		logged: logged.map((w) => ({
+			id: w.id ?? null,
+			name: w.name || null,
+			routine_ids: routineIdsOf(w)
+		})),
+		status,
+		...answer ? { answer } : {}
+	};
 }
 
 // mcp/src/hosted.js
@@ -94103,10 +94587,71 @@ const trainingProgress = {
 		};
 	}
 };
+const DAY_NAMES = [
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday"
+];
+const scheduleDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD").refine(isIsoDate, { message: "not a calendar date" });
+const SCHEDULE_MAX_DAYS = 62;
+const scheduleTool = {
+	name: "get_schedule",
+	description: "The user's schedule date by date, in their own time zone: for each date the routines planned (`planned`), what the recurring weekly plan alone would give (`weekly`), a one-time `override` when the date differs from the weekly plan, the workouts logged that day, and a `status`: done, missed (planned, gone by, nothing logged), moved (a missed session that was rescheduled; `answer.to` says where), skipped, kept (the user chose to keep the schedule as it was), excused (a day note), rest, today or planned. `missed` lists the missed sessions Gymly would ask the user about now. Defaults to the last 7 days and the next 14. Use preview_schedule_changes to move sessions on specific dates; never change the weekly plan for a one-off.",
+	schema: {
+		from: scheduleDate().optional().describe("First date, YYYY-MM-DD. Default 7 days ago."),
+		to: scheduleDate().optional().describe(`Last date, YYYY-MM-DD. Default 13 days from today; at most ${62} days in all.`)
+	},
+	handler: ({ from, to }) => {
+		const S = getState();
+		if (!S) return noState();
+		const today = todayFor(S);
+		const f = from || addDays(today, -7);
+		const t = to || addDays(today, 13);
+		if (t < f) return { error: "to is before from" };
+		if (addDays(f, 61) < t) return { error: `at most ${62} days at once` };
+		const routines = Array.isArray(S.routines) ? S.routines : [];
+		const named = (ids) => ids.map((id) => ({
+			id,
+			name: routines.find((r) => r && r.id === id)?.name || null
+		}));
+		const days = [];
+		for (let iso = f; iso <= t; iso = addDays(iso, 1)) {
+			const d = scheduleDay(S, iso, today);
+			days.push({
+				date: iso,
+				weekday_name: DAY_NAMES[(/* @__PURE__ */ new Date(iso + "T12:00:00Z")).getUTCDay()],
+				status: d.status,
+				planned: named(d.planned),
+				weekly: named(d.weekly),
+				override: d.override,
+				logged: d.logged.map((w) => ({
+					workout_id: w.id,
+					name: w.name,
+					routine_ids: w.routine_ids
+				})),
+				...d.answer ? { answer: d.answer } : {}
+			});
+		}
+		return {
+			today,
+			week_ends_on: weekEndOf(S, today),
+			days,
+			missed: missedWorkouts(S, today).map((m) => ({
+				date: m.iso,
+				routines: named(m.ids)
+			}))
+		};
+	}
+};
 const READ_TOOLS = [
 	...TOOLS,
 	searchExercisesTool,
-	trainingProgress
+	trainingProgress,
+	scheduleTool
 ];
 function runReadTool(name, args, S, user) {
 	const tool = READ_TOOLS.find((t) => t.name === name);
@@ -94139,7 +94684,18 @@ const helpers = {
 	buildLoggedWorkout: (S, input, opts) => withCustomsIndexed(S, () => buildLoggedWorkout(S || {}, input, opts)),
 	appendLoggedWorkout: (S, built, opts) => withCustomsIndexed(S, () => appendLoggedWorkout(S, built, opts)),
 	removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
-	findDuplicate: (S, w) => findDuplicate(S || {}, w)
+	findDuplicate: (S, w) => findDuplicate(S || {}, w),
+	planReschedule: (S, opts) => withCustomsIndexed(S, () => planReschedule(S || {}, {
+		...opts,
+		today: todayFor(S || {})
+	})),
+	planAssignments: (S, list, opts) => withCustomsIndexed(S, () => planAssignments(S || {}, list, {
+		...opts,
+		today: todayFor(S || {})
+	})),
+	applyReschedule: (s, p, now) => applyReschedule(s, p, now),
+	planChanges: (p) => planChanges(p),
+	scheduleDay: (S, iso) => scheduleDay(S || {}, iso, todayFor(S || {}))
 };
 const HABIT_LOG_MAX_DAYS = 92;
 const HABIT_LOG_DEFAULT_DAYS = 14;
@@ -94194,10 +94750,10 @@ const habitLogTool = {
 	handler: (S, { from, to, habit_id }, now) => {
 		const today = habitToday(S, now);
 		const end = to || (from ? (() => {
-			const d = addDays$1(from, 13);
+			const d = addDays$2(from, 13);
 			return d < today ? d : today;
 		})() : today);
-		const start = from || addDays$1(end, -13);
+		const start = from || addDays$2(end, -13);
 		if (start > end) return {
 			error: "invalid_range",
 			message: "`from` is after `to`"
@@ -94217,7 +94773,7 @@ const habitLogTool = {
 		for (const h of habits) {
 			if (habit_id != null && h.id !== habit_id) continue;
 			for (let i = 0; i < span; i++) {
-				const date = addDays$1(start, i);
+				const date = addDays$2(start, i);
 				const key = h.id + "|" + date;
 				if (!Object.hasOwn(log, key)) continue;
 				const e = readEntry(h.id, log[key]);
@@ -94254,4 +94810,4 @@ function runHabitTool(name, args, S, now = /* @__PURE__ */ new Date()) {
 	return tool.handler(S || {}, args || {}, now);
 }
 
-export { HABIT_LOG_DEFAULT_DAYS, HABIT_LOG_MAX_DAYS, HABIT_TOOLS, READ_TOOLS, helpers, runHabitTool, runReadTool, searchExercisesTool, todayFor, trainingProgress };
+export { HABIT_LOG_DEFAULT_DAYS, HABIT_LOG_MAX_DAYS, HABIT_TOOLS, READ_TOOLS, SCHEDULE_MAX_DAYS, helpers, runHabitTool, runReadTool, scheduleTool, searchExercisesTool, todayFor, trainingProgress };

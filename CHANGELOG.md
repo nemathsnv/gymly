@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Missed a workout? Reschedule it, skip it or keep your schedule.** When a planned session from
+  a previous day went by without a workout, Home now asks what to do with it. **Reschedule**
+  shows a preview first: the missed session moves to today (or tomorrow, if you already trained
+  today) and the sessions after it shift one day each, in order, keeping your rest days; whatever
+  no longer fits before the week turns over is named, never lost silently, and a warning appears
+  if the new order puts the same muscles on back-to-back days or too many training days in a row.
+  Nothing changes until you tap **Apply**. **Skip** lets it go without moving anything (and the
+  missed-day reminder leaves it alone); **Keep schedule** changes nothing and stops asking. It is
+  one time only: your weekly plan, routines, weights and logged workouts are never changed, and
+  your normal week is back on its own the week after. The day sheet of a missed day offers
+  **Reschedule this workout** too. Home, the calendar and Start all show the moved session.
+  Assistants on the hosted MCP endpoint can read the schedule date by date (`get_schedule`) and
+  make the same one-time changes with your approval (`preview_schedule_changes` →
+  `apply_schedule_changes`, undoable). Weekly plans only: a rotation already carries a missed
+  session forward.
 - **Let an assistant read your habits, if you say so.** An AI assistant connected to Gymly's
   hosted MCP endpoint can now read your habit log, but only when it asks for it and you tick
   **Also read your habits** on the consent screen; the box starts unticked, nothing asks for it

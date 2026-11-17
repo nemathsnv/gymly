@@ -45,8 +45,15 @@ export function excusedOn(S, iso) {
   return DAY_NOTE_TAGS.includes(e.tag) || (typeof e.text === 'string' && e.text.trim() !== '');
 }
 
+// A missed day the user answered "Skip" or "Reschedule" for (frontend lib/reschedule.js,
+// S.missedDays) is accounted for, like a day with a note: the nudge leaves it alone.
+export function resolvedOff(S, iso) {
+  const e = S?.missedDays && typeof S.missedDays === 'object' ? S.missedDays[iso] : null;
+  return !!e && typeof e === 'object' && !Array.isArray(e) && (e.act === 'skipped' || e.act === 'moved');
+}
+
 function missed(S, iso) {
-  if (logged(S, iso) || excusedOn(S, iso)) return null;
+  if (logged(S, iso) || excusedOn(S, iso) || resolvedOff(S, iso)) return null;
   const rid = effectiveRoutineId(S, iso);
   if (!rid) return null;
   if (queueLiveOn(S, iso) && logged(S, dayBefore(iso))) return null;

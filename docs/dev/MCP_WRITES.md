@@ -43,6 +43,18 @@ reasoning behind it.
   (client name and counts, never content). Profile: `data/mcp-journal-<uid>.json`, the last 25
   changes with their full before/after, readable through `list_recent_changes`.
 
+### One-time rescheduling
+
+`preview_schedule_changes` → `apply_schedule_changes` (`api/mcp-remote/schedule-ops.js`) plan
+with the app's own `frontend/src/lib/reschedule.js`, the same code behind Home's missed-workout
+card, and write only per-date overrides (`S.dayPlan`, already read by every screen through
+`effectiveRoutineIds`) and missed-day answers (`S.missedDays`, a stamped map like `dayNotes`).
+Never `S.week`, a routine or a workout; never a date before today (in the profile's time zone,
+`todayFor`) or one with a workout logged. Staleness is scoped to the touched dates (`scheduleKey`:
+their override, answer and logged workouts); undo restores them and re-stamps the answers so a
+device holding the newer ones takes it. The commit stamps the plan days (`edited['dayPlan.<iso>']`)
+as for any unstamped writer. `get_schedule` is a hosted read tool in `mcp/src/hosted.js`.
+
 ### Logging a workout (ported from openGym #739)
 
 openGym's `log_workout` (47d81fe78, beed2965e) takes a session as the user described it,

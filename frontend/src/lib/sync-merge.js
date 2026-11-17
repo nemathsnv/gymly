@@ -90,8 +90,9 @@ const list = v => (Array.isArray(v) ? v : [])
 // (lib/habits.js), one entry per habit and date; exEquip an exercise's +/− step and pulley
 // (lib/weight-step.js), one entry per exercise; exMerged where an exercise was merged into another
 // (lib/exercise-merge.js, #656), one entry per exercise merged away; stackWeights a machine's own
-// weight stack (lib/dumbbells.js, #688), one entry per exercise.
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged']
+// weight stack (lib/dumbbells.js, #688), one entry per exercise; missedDays what became of a missed
+// session (lib/reschedule.js), one entry per date.
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged', 'missedDays']
 
 /** The copy with the later `_ts`; on a tie the first argument (callers pass local first). */
 export const newerOf = (a, b) => ((b?._ts || 0) > (a?._ts || 0) ? b : a)
@@ -631,7 +632,7 @@ function applyDeletions(S, deleted) {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged',
+  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'dayNotes', 'habitLog', 'exEquip', 'exMerged', 'missedDays',
 ])
 // Stamped per key instead of whole: one day of the plan, one exercise's note or bar.
 const PER_KEY = new Set(['week', 'dayPlan', 'exNotes', 'barWeights'])

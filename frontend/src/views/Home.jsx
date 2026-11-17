@@ -24,6 +24,8 @@ import { dayNoteOf } from '../lib/day-notes.js'
 import { HomeMeasurementCard } from './Measurements.jsx'
 import { WeeklySetsHomeLine } from '../components/WeeklySets.jsx'
 import { RecapHomeCard } from '../components/Recap.jsx'
+import MissedCard from '../components/MissedCard.jsx'
+import { missedAnswerOf } from '../lib/reschedule.js'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -71,7 +73,9 @@ export default function Home() {
     const iso = isoOf(d)
     const eff = effectiveRoutineIds(S, iso).length > 0, ovr = S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
     // A day off with a note (#261) reads as excused, not as a plan that went by.
-    const dot = done ? ' done' : dayNoteOf(S, iso) ? ' noted' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
+    // So does a missed session skipped or moved on (lib/reschedule.js).
+    const answered = iso < todayISO() && ['skipped', 'moved'].includes(missedAnswerOf(S, iso)?.act)
+    const dot = done ? ' done' : dayNoteOf(S, iso) || answered ? ' noted' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
     strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} {...tappable(() => dayOverrideSheet(iso))}>
       <div className="lbl">{t(DAYS[d.getDay()])}</div><div className="num">{d.getDate()}</div><div className={'dot' + dot} /></div>)
   }
@@ -187,6 +191,10 @@ export default function Home() {
         </Button>
       </div>}
     </div>
+
+    {/* A session from a previous day that went by without a workout: Reschedule, Skip or Keep
+        schedule (components/MissedCard.jsx). Nothing moves until one is picked. */}
+    <MissedCard S={S} today={habitToday} />
 
     {/* The first day of a week: Your week; the 1st: Your month (lib/recap.js). Settings → On Home
         → "Week and month recap" switches it off, its × puts that one away. */}

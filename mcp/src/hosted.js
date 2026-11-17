@@ -3,8 +3,9 @@
    The API image carries nothing outside api/, so scripts/build-mcp-hosted.mjs bundles this file
    into api/mcp-remote/read-tools.gen.js, with hosted-state.js standing in for state.js. The read
    tools are V1's own (tools.js), unchanged, so a question answered over stdio and over HTTPS gets
-   the same numbers from the same code the app's screens use. Two read tools are added here, and
-   the write tools borrow a few labels and lookups through `helpers`; nothing in this file writes.
+   the same numbers from the same code the app's screens use. Three read tools are added here
+   (search_exercises, get_training_progress, get_schedule), and the write tools borrow a few labels
+   and lookups through `helpers`; nothing in this file writes.
 
    The habit tools (HABIT_TOOLS, runHabitTool) are the one way any part of the habit log leaves the
    server, and only on a connection the owner granted gymly:habits:read (api/mcp-remote/tools.js).
@@ -24,6 +25,7 @@ import { allExercises, searchExercises, exOr, canonicalExId, isAssisted, isCardi
 import { buildLoggedWorkout, appendLoggedWorkout, removeLoggedWorkout, findDuplicate } from '../../frontend/src/lib/log-workout.js'
 import { e1rmSeries, best1RM, formulaOf } from '../../frontend/src/lib/onerm.js'
 import { habitList, readEntry, isDay, isHabitId, addDays as addHabitDays, daysBetween } from '../../frontend/src/lib/habits.js'
+import { scheduleDay, missedWorkouts, planReschedule, planAssignments, applyReschedule, planChanges, isIsoDate, weekEndOf } from '../../frontend/src/lib/reschedule.js'
 
 // The calendar date where the profile's owner is. The reminder's time zone is the one the app
 // records; without it the server's own clock decides, which is what V1's tools always did.
@@ -163,7 +165,47 @@ export const trainingProgress = {
   }
 }
 
-export const READ_TOOLS = [...TOOLS, searchExercisesTool, trainingProgress]
+/** get_schedule — date by date: what is planned, what the recurring week alone says, what was done. */
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const scheduleDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD').refine(isIsoDate, { message: 'not a calendar date' })
+export const SCHEDULE_MAX_DAYS = 62
+export const scheduleTool = {
+  name: 'get_schedule',
+  description: 'The user\'s schedule date by date, in their own time zone: for each date the routines planned (`planned`), what the recurring weekly plan alone would give (`weekly`), a one-time `override` when the date differs from the weekly plan, the workouts logged that day, and a `status`: done, missed (planned, gone by, nothing logged), moved (a missed session that was rescheduled; `answer.to` says where), skipped, kept (the user chose to keep the schedule as it was), excused (a day note), rest, today or planned. `missed` lists the missed sessions Gymly would ask the user about now. Defaults to the last 7 days and the next 14. Use preview_schedule_changes to move sessions on specific dates; never change the weekly plan for a one-off.',
+  schema: {
+    from: scheduleDate().optional().describe('First date, YYYY-MM-DD. Default 7 days ago.'),
+    to: scheduleDate().optional().describe(`Last date, YYYY-MM-DD. Default 13 days from today; at most ${SCHEDULE_MAX_DAYS} days in all.`)
+  },
+  handler: ({ from, to }) => {
+    const S = getState()
+    if (!S) return noState()
+    const today = todayFor(S)
+    const f = from || addDays(today, -7)
+    const t = to || addDays(today, 13)
+    if (t < f) return { error: 'to is before from' }
+    if (addDays(f, SCHEDULE_MAX_DAYS - 1) < t) return { error: `at most ${SCHEDULE_MAX_DAYS} days at once` }
+    const routines = Array.isArray(S.routines) ? S.routines : []
+    const named = ids => ids.map(id => ({ id, name: routines.find(r => r && r.id === id)?.name || null }))
+    const days = []
+    for (let iso = f; iso <= t; iso = addDays(iso, 1)) {
+      const d = scheduleDay(S, iso, today)
+      days.push({
+        date: iso, weekday_name: DAY_NAMES[new Date(iso + 'T12:00:00Z').getUTCDay()], status: d.status,
+        planned: named(d.planned), weekly: named(d.weekly), override: d.override,
+        logged: d.logged.map(w => ({ workout_id: w.id, name: w.name, routine_ids: w.routine_ids })),
+        ...(d.answer ? { answer: d.answer } : {})
+      })
+    }
+    return {
+      today,
+      week_ends_on: weekEndOf(S, today),
+      days,
+      missed: missedWorkouts(S, today).map(m => ({ date: m.iso, routines: named(m.ids) }))
+    }
+  }
+}
+
+export const READ_TOOLS = [...TOOLS, searchExercisesTool, trainingProgress, scheduleTool]
 
 /** One read tool's answer for one profile. Throws for an unknown name. */
 export function runReadTool(name, args, S, user) {
@@ -199,7 +241,14 @@ export const helpers = {
   buildLoggedWorkout: (S, input, opts) => withCustomsIndexed(S, () => buildLoggedWorkout(S || {}, input, opts)),
   appendLoggedWorkout: (S, built, opts) => withCustomsIndexed(S, () => appendLoggedWorkout(S, built, opts)),
   removeLoggedWorkout: (S, undo) => removeLoggedWorkout(S, undo),
-  findDuplicate: (S, w) => findDuplicate(S || {}, w)
+  findDuplicate: (S, w) => findDuplicate(S || {}, w),
+  // One-time rescheduling (frontend/src/lib/reschedule.js): the shift and explicit dates, both
+  // planned in the profile's own time zone, and the write that applies them.
+  planReschedule: (S, opts) => withCustomsIndexed(S, () => planReschedule(S || {}, { ...opts, today: todayFor(S || {}) })),
+  planAssignments: (S, list, opts) => withCustomsIndexed(S, () => planAssignments(S || {}, list, { ...opts, today: todayFor(S || {}) })),
+  applyReschedule: (s, p, now) => applyReschedule(s, p, now),
+  planChanges: p => planChanges(p),
+  scheduleDay: (S, iso) => scheduleDay(S || {}, iso, todayFor(S || {}))
 }
 
 /* ---------- habits: gymly:habits:read only ----------
