@@ -13,6 +13,7 @@
 //           day right after a workout is a rest day, not a miss — only the second day off in a
 //           row counts. A day you left a note on (lib/day-notes.js: sick, travelling, …) is
 //           excused, never missed: it is not nudged about and does not count towards the back-off.
+//           So is a day whose missed session was skipped or rescheduled (lib/reschedule.js).
 //   HOW OFTEN — back-off: the missed days since the last workout are counted (14 days back at
 //           most). After 3 of them the nudge goes quiet until the next workout is logged, so a
 //           break never turns into a daily nag. No counter is stored anywhere: it is read off
@@ -25,6 +26,7 @@ import { isoOf } from './format.js'
 import { effectiveRoutineIds } from './history.js'
 import { queueLiveOn } from './queue.js'
 import { excusedOn } from './day-notes.js'
+import { resolvedOff } from './reschedule.js'
 
 export const NUDGE_TONES = ['friendly', 'guilt', 'drill']
 export const NUDGE_MAX_MISSES = 3
@@ -88,7 +90,8 @@ const norm = S => ({
 // The routine ids `iso` missed, or [] when it is not a missed day. Each date is asked as if it
 // were today, as the reminder does: a coach week's session is due every day until it is done.
 function missed(S, iso) {
-  if (logged(S, iso) || excusedOn(S, iso)) return []
+  // A day answered Skip or Reschedule (lib/reschedule.js) is accounted for, like a noted one.
+  if (logged(S, iso) || excusedOn(S, iso) || resolvedOff(S, iso)) return []
   const ids = effectiveRoutineIds(S, iso, iso)
   if (!ids.length) return []
   if (queueLiveOn(S, iso, iso) && logged(S, dayBefore(iso))) return []

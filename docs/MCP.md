@@ -19,8 +19,10 @@ There are two ways in:
 
 ### What the assistant can do
 
-Read (`gymly:read`): your routines and week plan, workouts, body weight, estimated 1RMs and
-training progress, muscle balance, what a session will ask of you, and exercise search.
+Read (`gymly:read`): your routines and week plan, your schedule date by date (`get_schedule`:
+what each date trains, what the weekly plan alone would say, what you logged, and missed
+sessions), workouts, body weight, estimated 1RMs and training progress, muscle balance, what a
+session will ask of you, and exercise search.
 
 Change (`gymly:write`, only if you leave "Change your routines and log workouts" ticked when you
 connect):
@@ -31,6 +33,8 @@ connect):
   what each weekday trains — "create a four-day routine", "replace leg press with hack squat";
 - log a workout you did without the app, by telling it: "dumbbell curls, 12 kg, 12/12/10" (see
   [Log a workout by telling your assistant](#log-a-workout-by-telling-your-assistant));
+- reschedule missed workouts or move a session on specific dates, one time only — "I missed
+  Monday, move it to today" (see [Reschedule a missed workout](#reschedule-a-missed-workout));
 - undo any of those.
 
 Every change works the same way: the assistant **previews** it (nothing is saved), shows you the
@@ -79,6 +83,30 @@ in the app.
 - It cannot make a new exercise: create it in the app first, then log it by name.
 
 This is available on the hosted endpoint only. The local bridge stays read-only (below).
+
+### Reschedule a missed workout
+
+Missed a session because you were ill, tired or away? Say so: "I missed Upper Body A on Monday,
+do it today and push the rest of the week back". The assistant reads your schedule
+(`get_schedule`) and previews the change (`preview_schedule_changes`):
+
+- **`reschedule_missed`** moves the missed session forward (to today, or tomorrow if you already
+  trained today) and shifts the sessions after it one by one, keeping their order. Rest days stay
+  rest days unless you ask to use them (`use_rest_days`), and anything that no longer fits before
+  your week turns over is listed as *not made up*, never dropped silently. Your normal week
+  resumes after that (`until`, the end of the week by default).
+- **`assignments`** sets specific dates: a routine, rest, or back to the weekly plan.
+- **`answers`** marks a missed day as *skipped* (let go, not made up, no missed-day reminder) or
+  *kept* (leave everything as it is and stop asking).
+
+The preview lists every date that changes, before → after, and any recovery warning (the same
+muscles on back-to-back days, too many training days in a row). Nothing changes until you agree
+and the assistant calls `apply_schedule_changes`. Only those dates change: your weekly plan,
+routines, exercises, weights and logged workouts are never touched, a day you already trained is
+never reassigned, and dates before today are never rewritten. If a date in the preview was
+changed or trained in the meantime, the apply is refused and the assistant previews again.
+`undo_change` puts the dates back. The app offers the same thing on Home when it sees a missed
+session: **Reschedule**, **Skip** or **Keep schedule**.
 
 ### Your habits (opt-in)
 

@@ -4317,6 +4317,14 @@ components:
           description: >-
             Per-date overrides: ISO date → routine id, or "rest". Wins over `week`.
           additionalProperties: { type: string }
+        missedDays:
+          type: object
+          description: >-
+            What became of a missed session, per ISO date: `{ act: "moved" | "skipped" | "kept",
+            to?: ISO date, _ts }`. "moved" was rescheduled (by one-time `dayPlan` overrides) to
+            `to`; "skipped" was let go without making it up; "kept" left the schedule as it was.
+            Each entry carries its own edit time; a cleared answer is `{ _ts }`.
+          additionalProperties: { type: object }
         bodyweight:
           type: array
           items: { $ref: '#/components/schemas/BodyweightEntry' }

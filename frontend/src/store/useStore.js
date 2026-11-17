@@ -91,6 +91,8 @@ export const DEF = {
   // A note per day off (#261): { [iso]: { tag, text, _ts } } (lib/day-notes.js). A noted day is
   // excused from the missed-day nudge; each day merges on its own stamp (lib/sync-merge.js).
   dayNotes: {},
+  // What became of a missed session, per date (lib/reschedule.js): moved, skipped or kept.
+  missedDays: {},
   // Daily habits (lib/habits.js): the alcohol-free calendar. One entry per habit and day,
   // { 'alcohol|2026-10-08': { s: 'free' | 'drank', n?, note?, tz?, _ts } }, merged across devices
   // on each entry's own stamp (lib/sync-merge.js). Private to the profile: never part of what an
