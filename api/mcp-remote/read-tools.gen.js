@@ -2,7 +2,7 @@
    SPDX-License-Identifier: AGPL-3.0-or-later */
 import { z } from "zod";
 
-//#region mcp/src/private-keys.js
+// mcp/src/private-keys.js
 const PRIVATE_KEYS = Object.freeze([
 	"habitLog",
 	"sex",
@@ -15,8 +15,7 @@ function dropPrivate(S) {
 	return out;
 }
 
-//#endregion
-//#region frontend/src/lib/exercises-data.js
+// frontend/src/lib/exercises-data.js
 const EXDB = [
 	{
 		"id": "5965",
@@ -84538,8 +84537,7 @@ const EXALIAS = {
 	"0941": "4511"
 };
 
-//#endregion
-//#region frontend/src/lib/exercise-muscle-map.json
+// frontend/src/lib/exercise-muscle-map.json
 var exercise_muscle_map_default = {
 	"1010": {
 		"bp": "upper legs",
@@ -87179,8 +87177,7 @@ var exercise_muscle_map_default = {
 	}
 };
 
-//#endregion
-//#region frontend/src/lib/catalogue-v13-ids.json
+// frontend/src/lib/catalogue-v13-ids.json
 var catalogue_v13_ids_default = [
 	"0001",
 	"0002",
@@ -88508,8 +88505,7 @@ var catalogue_v13_ids_default = [
 	"5201"
 ];
 
-//#endregion
-//#region frontend/src/lib/i18n-core.js
+// frontend/src/lib/i18n-core.js
 const DATE_LOCALES = {
 	en: "en-GB",
 	de: "de-DE",
@@ -88559,8 +88555,7 @@ const exerciseNameSearchText = (ex) => {
 	return translated ? `${translated} ${ex.n}` : ex?.n || "";
 };
 
-//#endregion
-//#region frontend/src/lib/exercises.js
+// frontend/src/lib/exercises.js
 const catalogueExercise = (ex) => {
 	const metadata = exercise_muscle_map_default[ex?.id];
 	if (!metadata) return ex;
@@ -88989,8 +88984,7 @@ function rankByRelevance(found, tokens) {
 	return scored.map((x) => x.e);
 }
 
-//#endregion
-//#region frontend/src/lib/workout-model.js
+// frontend/src/lib/workout-model.js
 const MODES = [
 	"reps",
 	"time",
@@ -89196,8 +89190,7 @@ function modeForEntry(entry, fallback = null) {
 	return fallback == null ? modeForSet(source, target) : normalizeMode(fallback);
 }
 
-//#endregion
-//#region frontend/src/lib/format.js
+// frontend/src/lib/format.js
 const todayISO = () => {
 	const d = /* @__PURE__ */ new Date();
 	return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -89218,8 +89211,7 @@ const weekStartOf = (S) => S?.weekStart === 0 ? 0 : 1;
 const weekDayOffset = (day, ws = 1) => (day - ws + 7) % 7;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-//#endregion
-//#region frontend/src/lib/queue.js
+// frontend/src/lib/queue.js
 const routineIdsOf$1 = (w) => Array.isArray(w.routineIds) ? w.routineIds : w.routineId ? [w.routineId] : [];
 const nameParts = (w) => String(w.name || "").split(" + ");
 const queueOf = (S) => {
@@ -89292,8 +89284,7 @@ function queueView(S, today) {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/superset-meta.js
+// frontend/src/lib/superset-meta.js
 const SG_NAME_MAX = 40;
 function setSupersetMeta(ex, sg, { name = "", rest = 0 } = {}) {
 	const clean = String(name || "").trim().slice(0, 40);
@@ -89329,8 +89320,7 @@ function syncSupersetMeta(ex) {
 	return ex;
 }
 
-//#endregion
-//#region frontend/src/lib/speed.js
+// frontend/src/lib/speed.js
 const KMH_PER_MPH = 1.609344;
 const speedLabel = (unit) => unit === "mph" ? "mph" : "km/h";
 function toSpeed(kmh, unit) {
@@ -89339,13 +89329,11 @@ function toSpeed(kmh, unit) {
 }
 const fmtSpeed = (kmh, unit) => `${fmtNum(toSpeed(Number(kmh) || 0, unit))} ${speedLabel(unit)}`;
 
-//#endregion
-//#region frontend/src/lib/incline.js
+// frontend/src/lib/incline.js
 const hasIncline = (s) => Number(s?.incline) > 0;
 const inclineFrom = (s) => hasIncline(s) ? { incline: Number(s.incline) } : {};
 
-//#endregion
-//#region frontend/src/lib/machine-level.js
+// frontend/src/lib/machine-level.js
 const LEVEL_MAX = 50;
 const LEVELLED = /stepmill|step ?mill|stair ?master|stair ?climb|stair ?mill|\bstepper\b|stair machine/i;
 const LEVELLED_EQ = /* @__PURE__ */ new Set(["stepmill machine"]);
@@ -89364,8 +89352,7 @@ function clampLevel(v) {
 const hasLevel = (s) => Number(s?.level) > 0;
 const levelFrom = (s) => hasLevel(s) ? { level: Number(s.level) } : {};
 
-//#endregion
-//#region frontend/src/lib/bar.js
+// frontend/src/lib/bar.js
 const BAR_EQ = /* @__PURE__ */ new Set([
 	"barbell",
 	"olympic barbell",
@@ -89399,8 +89386,7 @@ function barWeightFor(S, exOrId) {
 	return defaultBarWeight(ex.eq, S?.unit);
 }
 
-//#endregion
-//#region frontend/src/lib/backoff.js
+// frontend/src/lib/backoff.js
 const round1$2 = (v) => Math.round(v * 10) / 10;
 function isBackoff(cfg) {
 	return !!cfg && cfg.backoff === true && (cfg.mode || "reps") === "reps" && !(Array.isArray(cfg.pyramid) && cfg.pyramid.length) && cfg.intensifier?.type !== "restpause";
@@ -89448,8 +89434,7 @@ function applyBackoff(rows, step) {
 	});
 }
 
-//#endregion
-//#region frontend/src/lib/dumbbells.js
+// frontend/src/lib/dumbbells.js
 const exOf$2 = (exOrId) => typeof exOrId === "string" ? EXIDX[exOrId] : exOrId;
 const unitOf$1 = (S) => S?.unit === "lb" ? "lb" : "kg";
 const isMap$6 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -89598,8 +89583,7 @@ function ownedAround(ideal, ws, max, strict) {
 	return [...new Set([low, high].filter((x) => x != null))].sort((a, b) => a - b);
 }
 
-//#endregion
-//#region frontend/src/lib/warmup-snap.js
+// frontend/src/lib/warmup-snap.js
 const EPS = 1e-9;
 const tidy = (x) => Math.round(x * 1e3) / 1e3;
 function snapDown(x, grid) {
@@ -89618,8 +89602,7 @@ function rungWeight(rung, work, grid, floor = 0) {
 }
 const isRungRow = (row) => !!row && (row.wb === true || Number.isFinite(row.wp));
 
-//#endregion
-//#region frontend/src/lib/pyramid.js
+// frontend/src/lib/pyramid.js
 const PYRAMID_MAX = "max";
 function isPyramid(cfg) {
 	return !!cfg && Array.isArray(cfg.pyramid) && cfg.pyramid.length > 0 && (cfg.mode || "reps") === "reps";
@@ -89635,8 +89618,7 @@ function pyramidWeightAt(cfg, i) {
 	return Math.max(0, Number(pyramidTargetAt(cfg.pyramidWeight, i)) || 0);
 }
 
-//#endregion
-//#region frontend/src/lib/history.js
+// frontend/src/lib/history.js
 const objectOf = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
 const workRowsForMode = (entry = {}, mode = "reps") => {
 	const source = objectOf(entry);
@@ -90115,8 +90097,7 @@ function bestWeightForEntry(entry = {}) {
 	return best;
 }
 
-//#endregion
-//#region frontend/src/lib/muscles.js
+// frontend/src/lib/muscles.js
 const MUSCLES = [
 	"trapezius",
 	"deltoids",
@@ -90443,8 +90424,7 @@ function rankOf(load) {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/exercise-merge.js
+// frontend/src/lib/exercise-merge.js
 const isMap$5 = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const list$1 = (v) => Array.isArray(v) ? v : [];
 const clone = (v) => v === void 0 ? v : JSON.parse(JSON.stringify(v));
@@ -90530,8 +90510,7 @@ function withExerciseMerges(S) {
 	return out;
 }
 
-//#endregion
-//#region mcp/src/hosted-state.js
+// mcp/src/hosted-state.js
 let _current = null;
 function defaultsShape() {
 	return {
@@ -90582,8 +90561,7 @@ function current() {
 }
 const getState = () => current().state;
 
-//#endregion
-//#region frontend/src/lib/rep-range.js
+// frontend/src/lib/rep-range.js
 function normalizeRepRange(reps, repsMin, stride = 1) {
 	const step = Number.isInteger(stride) && stride > 0 ? stride : 1;
 	const upper = align(positiveInt(reps, 10), step);
@@ -90604,8 +90582,7 @@ function positiveInt(value, fallback) {
 	return Number.isFinite(n) && n > 0 ? Math.max(1, Math.round(n)) : fallback;
 }
 
-//#endregion
-//#region frontend/src/lib/progression.js
+// frontend/src/lib/progression.js
 const POLICIES_FOR = {
 	reps: [
 		"off",
@@ -91386,8 +91363,7 @@ function applyPrescription(sets, p, step = 2.5, floor = 0) {
 	return rerampWarmups(out, step, floor);
 }
 
-//#endregion
-//#region mcp/src/labels.js
+// mcp/src/labels.js
 function fmt(template, args) {
 	let v = template;
 	for (let i = 0; i < (args || []).length; i++) v = v.replaceAll("{" + i + "}", String(args[i]));
@@ -91419,12 +91395,10 @@ function muscleOrder() {
 	return MUSCLES.slice();
 }
 
-//#endregion
-//#region frontend/src/lib/set-notes.js
+// frontend/src/lib/set-notes.js
 const setNoteOf = (s) => s && typeof s.note === "string" ? s.note.trim() : "";
 
-//#endregion
-//#region frontend/src/lib/onerm.js
+// frontend/src/lib/onerm.js
 const REP_CAP = 12;
 const WEIGHTED_REP_CAP = 15;
 const FORMULAS = {
@@ -91581,8 +91555,7 @@ function best1RM(S, exId, formula = formulaOf(S), as) {
 	return best;
 }
 
-//#endregion
-//#region frontend/src/lib/plates.js
+// frontend/src/lib/plates.js
 const PLATE_SIZES = {
 	kg: [
 		25,
@@ -91753,8 +91726,7 @@ function dropGrid(S, cfg) {
 	return weightIncrement(cfg, S?.unit === "lb" ? "lb" : "kg");
 }
 
-//#endregion
-//#region frontend/src/lib/warmup-ramp.js
+// frontend/src/lib/warmup-ramp.js
 const WARMUP_MODES = [
 	"auto",
 	"own",
@@ -91968,8 +91940,7 @@ function withWarmupBlock(S, cfg, rows, opts) {
 	return [...block, ...rows.filter((r) => !isWarmupRow(r))];
 }
 
-//#endregion
-//#region frontend/src/lib/session-start.js
+// frontend/src/lib/session-start.js
 const startsFromLast = (st) => st?.startFrom === "last";
 const carriedWarmupRow = (row, mode) => {
 	if (isSideSet(row)) {
@@ -92093,8 +92064,7 @@ function buildSessionEntries(st, r) {
 	});
 }
 
-//#endregion
-//#region frontend/src/lib/weigh-ins.js
+// frontend/src/lib/weigh-ins.js
 const DAILY_MODES = [
 	"first",
 	"avg",
@@ -92148,8 +92118,7 @@ function readingsOf(e) {
 	return [r];
 }
 
-//#endregion
-//#region mcp/src/tools.js
+// mcp/src/tools.js
 const localIso$1 = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const todayIso = () => localIso$1(/* @__PURE__ */ new Date());
 const isoDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD").refine((v) => {
@@ -92796,8 +92765,7 @@ function noState$1() {
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/routines.js
+// frontend/src/lib/routines.js
 function deleteRoutine(s, id) {
 	s.routines = s.routines.filter((r) => r.id !== id);
 	Object.keys(s.week || {}).forEach((d) => {
@@ -92817,8 +92785,7 @@ function deleteRoutine(s, id) {
 	return dropped;
 }
 
-//#endregion
-//#region frontend/src/lib/day-notes.js
+// frontend/src/lib/day-notes.js
 const DAY_NOTE_TAGS = [
 	"sick",
 	"travel",
@@ -92838,8 +92805,7 @@ function readDayNote(entry) {
 const dayNoteOf = (S, iso) => readDayNote(isMap$3(S?.dayNotes) ? S.dayNotes[iso] : null);
 const excusedOn = (S, iso) => dayNoteOf(S, iso) != null;
 
-//#endregion
-//#region frontend/src/lib/sync-merge.js
+// frontend/src/lib/sync-merge.js
 const STAMPED_MAPS = [
 	"balanceOverrides",
 	"loadKind",
@@ -92863,8 +92829,7 @@ const RESET_MAPS = [
 	...STAMPED_MAPS
 ];
 
-//#endregion
-//#region frontend/src/lib/backfill.js
+// frontend/src/lib/backfill.js
 function insertChronological(workouts, w) {
 	const key = (x) => [x.d || "", x.start || 0];
 	const [d, s] = key(w);
@@ -92881,8 +92846,7 @@ function insertChronological(workouts, w) {
 	];
 }
 
-//#endregion
-//#region frontend/src/lib/finish-workout.js
+// frontend/src/lib/finish-workout.js
 function finishedRow(set) {
 	if (!set) return set;
 	const sideMarked = isSideSet(set) && (set.sides.L.weightOrigin != null || set.sides.R.weightOrigin != null);
@@ -92942,8 +92906,7 @@ function buildCompletedWorkout(active, { end = Date.now(), prs = [], snapshotFor
 	};
 }
 
-//#endregion
-//#region frontend/src/lib/measurements.js
+// frontend/src/lib/measurements.js
 const MEASUREMENT_FIELDS = [
 	{
 		key: "neck",
@@ -93051,8 +93014,7 @@ const MEASUREMENT_FIELDS = [
 const MEASUREMENT_KEYS = MEASUREMENT_FIELDS.map((f) => f.key);
 const DEFAULT_MEASUREMENT_KEYS = MEASUREMENT_FIELDS.filter((f) => !f.optional).map((f) => f.key);
 
-//#endregion
-//#region frontend/src/lib/import-csv.js
+// frontend/src/lib/import-csv.js
 const SYN = [
 	[/\bbb\b/g, "barbell"],
 	[/\bdb\b/g, "dumbbell"],
@@ -93327,8 +93289,7 @@ function importId(prefix, text) {
 	return prefix + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-//#endregion
-//#region frontend/src/lib/workout-date.js
+// frontend/src/lib/workout-date.js
 function rebuildPrHistory(workouts, exerciseIds, moved = null) {
 	const ids = new Set(exerciseIds || []);
 	if (!ids.size) return workouts;
@@ -93355,8 +93316,7 @@ function rebuildPrHistory(workouts, exerciseIds, moved = null) {
 	});
 }
 
-//#endregion
-//#region frontend/src/lib/log-workout.js
+// frontend/src/lib/log-workout.js
 const LB_TO_KG = .45359237;
 const LOG_LIMITS = {
 	maxKg: 1e3,
@@ -93369,7 +93329,7 @@ const LOG_LIMITS = {
 	maxDurationMin: 1440,
 	maxBodyweightKg: 700
 };
-const MIN_ROOM_MS = 5 * 6e4;
+const MIN_ROOM_MS = 3e5;
 const ISO$2 = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const localIso = (t) => {
@@ -93694,7 +93654,7 @@ function buildLoggedWorkout(S0, input, { now = Date.now(), today, at = localAt }
 			}] };
 		} else {
 			const lastEnd = Math.max(0, ...list(S.workouts).filter((w) => w?.d === date).map((w) => Number(w.end) || Number(w.start) || 0));
-			start = Math.max(end - 60 * 6e4, lastEnd, midnight);
+			start = Math.max(end - 36e5, lastEnd, midnight);
 			if (end - start < MIN_ROOM_MS) start = Math.max(end - MIN_ROOM_MS, midnight);
 		}
 	}
@@ -93856,8 +93816,7 @@ function removeLoggedWorkout(S, undo) {
 	return { next };
 }
 
-//#endregion
-//#region frontend/src/lib/habits.js
+// frontend/src/lib/habits.js
 const ALCOHOL = Object.freeze({
 	id: "alcohol",
 	builtin: true,
@@ -93995,8 +93954,7 @@ function readEntry(habit, raw) {
 	} : null;
 }
 
-//#endregion
-//#region frontend/src/lib/reschedule.js
+// frontend/src/lib/reschedule.js
 const MISSED_ACTS = [
 	"moved",
 	"skipped",
@@ -94176,7 +94134,7 @@ function planReschedule(state, { missed, from, until, fillRest = false, today = 
 		errors: ["until is not a date (YYYY-MM-DD)"]
 	});
 	if (until < from) errors.push(`until (${until}) is before from (${from})`);
-	if (addDays$1(from, 28 - 1) < until) errors.push(`at most ${28} days can be rescheduled at once`);
+	if (addDays$1(from, 27) < until) errors.push(`at most ${28} days can be rescheduled at once`);
 	if (!dates.length) errors.push("there is no missed workout to reschedule");
 	const queue = [], alreadyDone = [], missedOut = [];
 	for (const iso of dates) {
@@ -94450,8 +94408,7 @@ function scheduleDay(state, iso, today = todayISO()) {
 	};
 }
 
-//#endregion
-//#region mcp/src/hosted.js
+// mcp/src/hosted.js
 function todayFor(S, now = /* @__PURE__ */ new Date()) {
 	const tz = S?.reminder?.tz;
 	if (typeof tz === "string" && tz) try {
@@ -94655,7 +94612,7 @@ const scheduleTool = {
 		const f = from || addDays(today, -7);
 		const t = to || addDays(today, 13);
 		if (t < f) return { error: "to is before from" };
-		if (addDays(f, 62 - 1) < t) return { error: `at most ${62} days at once` };
+		if (addDays(f, 61) < t) return { error: `at most ${62} days at once` };
 		const routines = Array.isArray(S.routines) ? S.routines : [];
 		const named = (ids) => ids.map((id) => ({
 			id,
@@ -94786,14 +94743,14 @@ const habitLogTool = {
 	name: "get_habit_log",
 	description: `Read the user's daily habit log for a range of days: one entry per habit and day that was logged, with the status (the habit's good or bad answer, as list_habits gives them) and, where the habit counts, the count. A day with no entry was not logged: never treat it as a good day. Default the ${14} days ending today; at most ${92} days per call. Notes the user wrote on a day are never shared.`,
 	schema: {
-		from: habitDay().optional().describe(`First day, YYYY-MM-DD. Default ${14 - 1} days before \`to\`.`),
+		from: habitDay().optional().describe(`First day, YYYY-MM-DD. Default 13 days before \`to\`.`),
 		to: habitDay().optional().describe("Last day, YYYY-MM-DD. Default today (the profile's date)."),
 		habit_id: z.string().trim().min(1).max(40).optional().describe("Only this habit (an id from list_habits).")
 	},
 	handler: (S, { from, to, habit_id }, now) => {
 		const today = habitToday(S, now);
 		const end = to || (from ? (() => {
-			const d = addDays$2(from, 14 - 1);
+			const d = addDays$2(from, 13);
 			return d < today ? d : today;
 		})() : today);
 		const start = from || addDays$2(end, -13);
@@ -94853,5 +94810,4 @@ function runHabitTool(name, args, S, now = /* @__PURE__ */ new Date()) {
 	return tool.handler(S || {}, args || {}, now);
 }
 
-//#endregion
 export { HABIT_LOG_DEFAULT_DAYS, HABIT_LOG_MAX_DAYS, HABIT_TOOLS, READ_TOOLS, SCHEDULE_MAX_DAYS, helpers, runHabitTool, runReadTool, scheduleTool, searchExercisesTool, todayFor, trainingProgress };
