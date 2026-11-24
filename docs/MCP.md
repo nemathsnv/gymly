@@ -22,7 +22,9 @@ There are two ways in:
 Read (`gymly:read`): your routines and week plan, your schedule date by date (`get_schedule`:
 what each date trains, what the weekly plan alone would say, what you logged, and missed
 sessions), workouts, body weight, estimated 1RMs and training progress, muscle balance, what a
-session will ask of you, and exercise search.
+session will ask of you, and exercise search. With Oura connected, also your sleep night by night
+(`get_sleep`: bedtime, wake time, total sleep, efficiency, score, HRV and lowest heart rate, up to
+92 days; see [OURA.md](OURA.md#ai-assistants-and-oura)).
 
 Change (`gymly:write`, only if you leave "Change your routines and log workouts" ticked when you
 connect):

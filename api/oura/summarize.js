@@ -2,7 +2,8 @@
  *
  * Data minimisation (Oura API Agreement §3(m), §4(c)): of each document only the fields on the
  * screen are kept. No 5-minute series, no sleep hypnograms, no movement or MET samples, no ring
- * ids. Heart-rate samples are reduced to a per-day min / average / max before they leave this
+ * ids. Of a sleep period: its totals, its type and when it began and ended (bedtime_start /
+ * bedtime_end, as Oura sends them, offset included). Heart-rate samples are reduced to a per-day min / average / max before they leave this
  * module. Pure: no I/O, no clock — the tests feed it fixtures shaped like the v2 spec (1.43).
  *
  * Two levels, so the sync (sync.js) can refresh one data type over a few days without touching
@@ -15,6 +16,12 @@
 const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const int = v => (num(v) == null ? null : Math.round(v));
 const isDay = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+/** An ISO 8601 date-time with its UTC offset (Oura's bedtime_start/bedtime_end), kept as sent so
+ *  the person's own clock time survives; anything else is no reading. */
+const instant = s => (typeof s === 'string' && s.length <= 40
+  && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(s)
+  && Number.isFinite(Date.parse(s)) ? s : null);
+const SLEEP_TYPES = ['long_sleep', 'sleep', 'late_nap', 'rest'];
 
 /** Whether `tz` is an IANA zone this runtime knows. */
 export function validTz(tz) {
@@ -115,8 +122,14 @@ export function partials(type, docs, { tz = 'UTC' } = {}) {
     for (const [d, ps] of byDay) {
       const s = mainSleep(ps);
       if (!s) continue;
-      const v = { totalSec: int(s.total_sleep_duration), efficiency: int(s.efficiency), averageHrv: int(s.average_hrv), lowestHeartRate: int(s.lowest_heart_rate), averageHeartRate: int(s.average_heart_rate) };
-      if (hasValue(v)) out.set(d, { sleep: v });
+      // When the main sleep began and ended, and what kind of period it was: two timestamps and a
+      // label, never the hypnogram or the 5-minute series in between.
+      const v = {
+        totalSec: int(s.total_sleep_duration), efficiency: int(s.efficiency), averageHrv: int(s.average_hrv), lowestHeartRate: int(s.lowest_heart_rate), averageHeartRate: int(s.average_heart_rate),
+        bedtimeStart: instant(s.bedtime_start), bedtimeEnd: instant(s.bedtime_end),
+      };
+      // The type alone is no reading: a period with nothing else usable still keeps no entry.
+      if (hasValue(v)) out.set(d, { sleep: { ...v, type: SLEEP_TYPES.includes(s.type) ? s.type : null } });
     }
     return out;
   }

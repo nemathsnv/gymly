@@ -15,8 +15,8 @@ export function fixtures(today = Date.now()) {
     ],
     daily_sleep: [{ id: 's0', day: d0, score: 85, timestamp: d0 + 'T00:00:00+01:00', contributors: {} }],
     sleep: [
-      { id: 'p-nap', day: d0, type: 'late_nap', total_sleep_duration: 1200, average_hrv: 20, lowest_heart_rate: 60, average_heart_rate: 66, efficiency: 70, bedtime_end: d0 + 'T15:00:00+01:00', sleep_phase_5_min: '4444', heart_rate: { items: [60, 61] } },
-      { id: 'p-main', day: d0, type: 'long_sleep', total_sleep_duration: 27000, average_hrv: 48, lowest_heart_rate: 47, average_heart_rate: 53.4, efficiency: 91, bedtime_end: d0 + 'T07:10:00+01:00', sleep_phase_5_min: '4422113', heart_rate: { items: [50, 49] } },
+      { id: 'p-nap', day: d0, type: 'late_nap', total_sleep_duration: 1200, average_hrv: 20, lowest_heart_rate: 60, average_heart_rate: 66, efficiency: 70, bedtime_start: d0 + 'T14:30:00+01:00', bedtime_end: d0 + 'T15:00:00+01:00', sleep_phase_5_min: '4444', heart_rate: { items: [60, 61] } },
+      { id: 'p-main', day: d0, type: 'long_sleep', total_sleep_duration: 27000, average_hrv: 48, lowest_heart_rate: 47, average_heart_rate: 53.4, efficiency: 91, bedtime_start: d1 + 'T23:05:00+01:00', bedtime_end: d0 + 'T07:10:00+01:00', sleep_phase_5_min: '4422113', heart_rate: { items: [50, 49] } },
     ],
     daily_activity: [{ id: 'a0', day: d0, score: 76, steps: 9120, active_calories: 410, met: { items: [1, 2, 3] }, class_5_min: '000111' }],
     daily_stress: [{ id: 'st0', day: d0, stress_high: 3600, recovery_high: 5400, day_summary: 'normal' }],

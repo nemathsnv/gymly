@@ -71,10 +71,11 @@ export function createOuraStore({ dir, key = null }) {
       if (!tokens || !tokens.access || !tokens.refresh) return null;
       return { connectedAt: raw.connectedAt || null, scopes: raw.scopes || null, lastSync: raw.lastSync || null, tokens };
     },
-    /** Facts only, without decrypting: what the status route shows. */
+    /** Facts only, without decrypting: what the status route shows, and the device's zone name the
+     *  last sync used (sync.js), so a read after a restart puts nights on the same days. */
     meta(uid) {
       const raw = readRaw(uid);
-      return raw && raw.tok ? { connectedAt: raw.connectedAt || null, scopes: raw.scopes || null, lastSync: raw.lastSync || null, lastError: raw.lastError || null } : null;
+      return raw && raw.tok ? { connectedAt: raw.connectedAt || null, scopes: raw.scopes || null, lastSync: raw.lastSync || null, lastError: raw.lastError || null, tz: typeof raw.tz === 'string' ? raw.tz : null } : null;
     },
     put(uid, { tokens, connectedAt, scopes, lastSync }) {
       if (!key) throw new Error('oura store: not configured');

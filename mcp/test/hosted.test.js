@@ -106,6 +106,115 @@ describe('object keys are not exercises', () => {
   })
 })
 
+// get_sleep: the Oura sleep the API holds in memory for the caller's profile, handed in per call.
+describe('hosted get_sleep', () => {
+  const TZ = 'Europe/Berlin'
+  const S = { unit: 'kg', reminder: { on: false, time: '08:00', tz: TZ } }
+  const tday = todayFor(S)
+  const ago = n => helpers.addDays(tday, -n)
+  // A night ending on day `d` (Berlin), in bed 23:05 the evening before.
+  const night = (d, over = {}) => ({
+    day: d,
+    sleep: { totalSec: 27000, efficiency: 91, score: 85, averageHrv: 48, lowestHeartRate: 47, bedtimeStart: helpers.addDays(d, -1) + 'T23:05:00+01:00', bedtimeEnd: d + 'T07:10:00+01:00', type: 'long_sleep', ...over }
+  })
+  const snap = (nights, over = {}) => ({ configured: true, connected: true, lastSync: Date.parse('2026-11-24T06:00:00Z'), lastError: null, tz: TZ, nights, ...over })
+  const run = (args, oura, doc = S, user = { id: 'u1', name: 'One' }) => runReadTool('get_sleep', args, doc, user, { oura })
+
+  it('is a hosted read tool, not one of the stdio bridge\'s', async () => {
+    expect(READ_TOOLS.map(t => t.name)).toContain('get_sleep')
+    const { TOOLS } = await import('../src/tools.js')
+    expect(TOOLS.map(t => t.name)).not.toContain('get_sleep')
+  })
+
+  it('defaults to the 7 days ending today: one entry per night with data, oldest first, and the latest', () => {
+    const r = run({}, snap([night(ago(8)), night(ago(6)), night(ago(2), { totalSec: 25200, score: 78 }), night(tday)]))
+    expect(r.from).toBe(ago(6))
+    expect(r.to).toBe(tday)
+    expect(r.days).toBe(7)
+    expect(r.connected).toBe(true)
+    expect(r.lastSync).toBe('2026-11-24T06:00:00.000Z')
+    expect(r.nights.map(n => n.date)).toEqual([ago(6), ago(2), tday])
+    expect(r.nights[1]).toEqual({
+      date: ago(2), bedtimeStart: ago(3) + 'T23:05:00+01:00', bedtimeEnd: ago(2) + 'T07:10:00+01:00',
+      totalSleepMin: 420, efficiency: 91, score: 78, averageHrv: 48, lowestHeartRate: 47
+    })
+    expect(r.latest.date).toBe(tday)
+    expect(r.count).toBe(3)
+    // Only these fields: nothing else Oura has is passed on.
+    expect(Object.keys(r.nights[0]).sort()).toEqual(['averageHrv', 'bedtimeEnd', 'bedtimeStart', 'date', 'efficiency', 'lowestHeartRate', 'score', 'totalSleepMin'])
+  })
+
+  it('dates a night by the day it ended in the profile\'s zone; a night held without bedtimes keeps Oura\'s day', () => {
+    // Woke 01:30 UTC: 02:30 or 03:30 in Berlin, still that day; New York puts it on the day before.
+    const d = ago(3)
+    const late = { day: ago(4), sleep: { totalSec: 14400, bedtimeStart: ago(4) + 'T21:30:00+00:00', bedtimeEnd: d + 'T01:30:00+00:00' } }
+    expect(run({ from: ago(5), to: ago(3) }, snap([late])).nights.map(n => n.date)).toEqual([d])
+    const ny = run({ from: ago(5), to: ago(3) }, snap([late], { tz: 'America/New_York' }), { unit: 'kg', reminder: { tz: 'America/New_York' } })
+    expect(ny.nights.map(n => n.date)).toEqual([ago(4)])
+    const old = run({ from: ago(5), to: ago(3) }, snap([{ day: ago(4), sleep: { totalSec: 26000, efficiency: 88, score: 80 } }]))
+    expect(old.nights).toEqual([{ date: ago(4), bedtimeStart: null, bedtimeEnd: null, totalSleepMin: 433, efficiency: 88, score: 80, averageHrv: null, lowestHeartRate: null }])
+  })
+
+  it('without a reminder zone, uses the zone the Oura sync recorded: today and the night\'s date both', () => {
+    const MKS = 'Asia/Makassar'                                   // UTC+8: 07:00 there is 23:00 UTC the day before
+    const mToday = todayFor({ reminder: { tz: MKS } })
+    const woke = { day: mToday, sleep: { totalSec: 25200, bedtimeStart: helpers.addDays(mToday, -1) + 'T23:00:00+08:00', bedtimeEnd: mToday + 'T07:00:00+08:00' } }
+    const noReminder = { unit: 'kg', reminder: { on: false, time: '08:00', tz: null } }
+    const r = run({}, snap([woke], { tz: MKS }), noReminder)
+    expect([r.to, r.from, r.time_zone]).toEqual([mToday, helpers.addDays(mToday, -6), MKS])
+    expect(r.nights.map(n => n.date)).toEqual([mToday])
+    // No zone anywhere: the date the person woke on, from the timestamp's own offset, not UTC's.
+    const bare = run({ from: helpers.addDays(mToday, -2), to: mToday }, snap([woke], { tz: null }), noReminder)
+    expect(bare.time_zone).toBe(null)
+    expect(bare.nights.map(n => n.date)).toEqual([mToday])
+  })
+
+  it('takes an explicit range up to 92 days and refuses more, or a reversed one', () => {
+    const r = run({ from: ago(91), to: tday }, snap([night(ago(91)), night(ago(92))]))
+    expect(r.days).toBe(92)
+    expect(r.nights.map(n => n.date)).toEqual([ago(91)])
+    expect(run({ from: ago(92), to: tday }, snap([])).error).toBe('invalid_range')
+    expect(run({ from: tday, to: ago(1) }, snap([])).error).toBe('invalid_range')
+    // `from` alone runs to today, however far back (up to 92 days).
+    const f = run({ from: ago(2) }, snap([]))
+    expect([f.from, f.to]).toEqual([ago(2), tday])
+    const long = run({ from: ago(30) }, snap([night(ago(30)), night(ago(10)), night(tday)]))
+    expect([long.from, long.to, long.days]).toEqual([ago(30), tday, 31])
+    expect(long.nights.map(n => n.date)).toEqual([ago(30), ago(10), tday])
+    expect(run({ from: ago(91) }, snap([])).days).toBe(92)
+    expect(run({ from: ago(92) }, snap([])).error).toBe('invalid_range')
+    // A `from` after today, with `to` left out, is a reversed range.
+    expect(run({ from: helpers.addDays(tday, 1) }, snap([])).error).toBe('invalid_range')
+  })
+
+  it('says when Oura is not connected or not configured, and then lists nothing', () => {
+    expect(run({}, null)).toMatchObject({ connected: false, lastSync: null, nights: [], latest: null })
+    const gone = run({}, snap([night(tday)], { connected: false }))
+    expect(gone.nights).toEqual([])
+    expect(gone.note).toMatch(/not connected/)
+    expect(run({}, { configured: false, connected: false, nights: [] }).note).toMatch(/not set up/)
+    // A failed last sync still answers with the nights held, and says so.
+    const stale = run({}, snap([night(tday)], { lastError: 'rate' }))
+    expect(stale.nights).toHaveLength(1)
+    expect(stale.note).toMatch(/last Oura sync failed/)
+  })
+
+  it('answers each call with its own profile\'s Oura data only, and none for a tool that is not get_sleep', () => {
+    const a = run({}, snap([night(tday)]), S, { id: 'u1', name: 'One' })
+    const b = run({}, snap([]), S, { id: 'u2', name: 'Two' })
+    const c = run({}, null, S, { id: 'u3', name: 'Three' })
+    expect(a.nights).toHaveLength(1)
+    expect(b.nights).toEqual([])
+    expect(c.nights).toEqual([])
+    // The snapshot is never left behind for the next call.
+    expect(() => withState(S, { id: 'u4', name: 'Four' }, () => 1)).not.toThrow()
+    const after = runReadTool('get_sleep', {}, S, { id: 'u4', name: 'Four' })
+    expect(after.connected).toBe(false)
+    // A snapshot passed to another tool is not handed in.
+    expect(() => runReadTool('list_routines', {}, ONE, { id: 'u1', name: 'One' }, { oura: snap([night(tday)]) })).not.toThrow()
+  })
+})
+
 // The habit tools (gymly:habits:read on the hosted endpoint): the only way any of the habit log
 // leaves the server. They copy named fields out of it; notes, zones, stamps and anything a later
 // app adds stay behind.

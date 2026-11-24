@@ -3,7 +3,9 @@
  * What is held per connected profile: the minimised per-day fields of summarize.js for at most
  * WINDOW_DAYS days, heart rate for HEART_RATE_DAYS, Oura's workouts in the same window, and per
  * data type whether Oura shared it. Never written to disk: not in the data folder, not in backups,
- * not in the synced state, so not in exports, webhooks, the Coach or MCP.
+ * not in the synced state, so not in exports, webhooks, the Coach or the MCP views of the state.
+ * The hosted MCP's get_sleep reads the main sleep per night from here (routes.js sleepFor), and
+ * such a read counts as use, like a look at the overview.
  *
  * - First look: a backfill of the whole window.
  * - After that, incremental: from REFETCH_DAYS before the last synced day up to tomorrow, each data
@@ -59,7 +61,11 @@ export function createSync({ client, store, now = Date.now, log = () => {} }) {
   }
 
   async function run(uid, { reason, tz }) {
-    const e = held.get(uid) || fresh(tz);
+    // Nothing held (first look, or after a restart) and no zone given (an assistant's read, the
+    // automatic sync): the zone the last sync recorded on the connection file, never UTC over it.
+    let known = null;
+    if (!held.has(uid) && !validTz(tz)) { try { known = store.meta?.(uid)?.tz || null; } catch { /* no file: none */ } }
+    const e = held.get(uid) || fresh(validTz(tz) ? tz : known);
     if (validTz(tz)) e.tz = tz;
     const t = now();
     const today = localDay(t, e.tz);

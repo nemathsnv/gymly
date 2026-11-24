@@ -24,10 +24,13 @@ function defaultsShape() {
   }
 }
 
-/** Runs `fn` with `S` (the profile's document, or null for one never synced) and `user` current. */
-export function withState(S, user, fn) {
+/** Runs `fn` with `S` (the profile's document, or null for one never synced) and `user` current.
+ *  `extra.oura` is that same profile's Oura sleep snapshot, for get_sleep only (api/oura/routes.js
+ *  sleepFor); null when there is none. */
+export function withState(S, user, fn, extra = {}) {
   if (_current) throw new Error('withState is not re-entrant')
   _current = {
+    oura: extra && extra.oura ? extra.oura : null,
     // An exercise merged into another in the app (#656) reads as the one it went into, as in
     // state.js.
     state: S ? withExerciseMerges(Object.assign({}, defaultsShape(), dropPrivate(S))) : null,
@@ -49,3 +52,4 @@ function current() {
 
 export const getState = () => current().state
 export const getUser = () => ({ ...current().user })
+export const getOura = () => current().oura

@@ -786,6 +786,9 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
     <tr><td><code>estimate_1rm</code></td><td>Best 1RM for an exercise + trend, or a PR table across all.</td></tr>
     <tr><td><code>muscle_balance</code></td><td>Muscles trained this week/month/all-time, ranked — and the neglected ones.</td></tr>
   </table>
+  <p>The hosted MCP endpoint adds <code>get_sleep</code>: your Oura sleep night by night (bedtime,
+     wake time, total sleep, efficiency, score, HRV, lowest heart rate), up to 92 days at a time.
+     It answers when Oura is connected for your profile, for that profile only.</p>
   <p>It is <b>not part of the Docker build</b> — if you don't use an AI assistant, it simply
      isn't there. No new auth (the filesystem is the boundary), no telemetry, no network; the
      LLM never sees passkeys or session secrets. Setup is <code>cd mcp &amp;&amp; npm

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { exchangeCode } from '../oura/oauth.js';
 import { createOuraStore, deriveKey } from '../oura/store.js';
 import { createOuraClient } from '../oura/client.js';
-import { summarize, heartRateByDay, localDay } from '../oura/summarize.js';
+import { summarize, heartRateByDay, localDay, partials, assemble } from '../oura/summarize.js';
 import { fakeOura, fixtures, CFG, day } from './oura-fake.mjs';
 
 async function setup(t, opts = {}) {
@@ -99,7 +99,11 @@ test('summary: one row per day, main sleep over the nap, only the fields on scre
   const today = s.days[0];
   assert.equal(today.day, day(0));
   assert.deepEqual(today.readiness, { score: 82, temperatureDeviation: -0.1, hrvBalance: 77, restingHeartRate: 90 });
-  assert.deepEqual(today.sleep, { score: 85, totalSec: 27000, efficiency: 91, averageHrv: 48, lowestHeartRate: 47, averageHeartRate: 53 });
+  assert.deepEqual(today.sleep, {
+    score: 85, totalSec: 27000, efficiency: 91, averageHrv: 48, lowestHeartRate: 47, averageHeartRate: 53,
+    // the night's own bedtimes, offset kept — not the nap's 14:30–15:00
+    bedtimeStart: day(-1) + 'T23:05:00+01:00', bedtimeEnd: day(0) + 'T07:10:00+01:00', type: 'long_sleep',
+  });
   assert.deepEqual(today.activity, { score: 76, steps: 9120, activeCalories: 410 });
   assert.deepEqual(today.stress, { stressHighSec: 3600, recoveryHighSec: 5400, summary: 'normal' });
   assert.deepEqual(today.spo2, { average: 97.2, breathingDisturbanceIndex: 3 });
@@ -116,6 +120,28 @@ test('summary: one row per day, main sleep over the nap, only the fields on scre
     calories: 230, distance: null, intensity: 'moderate', source: 'confirmed',
   });
   assert.deepEqual(Object.values(s.available), Array(10).fill('ok'));
+});
+
+test('sleep: bedtimes come from the main sleep, never a nap; junk bedtimes and rows without them still read', () => {
+  const nap = { day: '2026-11-10', type: 'late_nap', total_sleep_duration: 1800, bedtime_start: '2026-11-10T13:00:00+01:00', bedtime_end: '2026-11-10T13:30:00+01:00' };
+  // No long_sleep that day: the longest period stands for the night, with its own type.
+  const night = { day: '2026-11-10', type: 'sleep', total_sleep_duration: 21600, bedtime_start: '2026-11-09T23:40:00-05:00', bedtime_end: '2026-11-10T06:10:00-05:00' };
+  const m = partials('sleep', [nap, night]);
+  assert.deepEqual(
+    [m.get('2026-11-10').sleep.bedtimeStart, m.get('2026-11-10').sleep.bedtimeEnd, m.get('2026-11-10').sleep.type],
+    ['2026-11-09T23:40:00-05:00', '2026-11-10T06:10:00-05:00', 'sleep'],
+  );
+  // A long_sleep wins over a longer nap.
+  const long = { ...night, type: 'long_sleep', total_sleep_duration: 1000 };
+  assert.equal(partials('sleep', [{ ...nap, total_sleep_duration: 9000 }, long]).get('2026-11-10').sleep.bedtimeStart, night.bedtime_start);
+  // Not a timestamp with an offset: no reading, the rest of the night still kept.
+  const bad = partials('sleep', [{ ...night, bedtime_start: 'yesterday', bedtime_end: '2026-11-10T06:10:00', type: 'weird' }]).get('2026-11-10').sleep;
+  assert.deepEqual([bad.bedtimeStart, bad.bedtimeEnd, bad.type, bad.totalSec], [null, null, null, 21600]);
+  // A row held from before these fields existed merges with the day's score as it always did.
+  const s = assemble({ byType: { sleep: new Map([['2026-11-10', { sleep: { totalSec: 25000 } }]]), daily_sleep: new Map([['2026-11-10', { sleepScore: 80 }]]) } });
+  assert.deepEqual(s.days[0].sleep, { totalSec: 25000, score: 80 });
+  // A period with only a type is no reading.
+  assert.equal(partials('sleep', [{ day: '2026-11-10', type: 'long_sleep' }]).size, 0);
 });
 
 test('summary: a type that was not shared or failed is marked, and a doubled workout counts once', () => {

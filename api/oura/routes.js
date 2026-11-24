@@ -17,8 +17,11 @@
  *    exports or webhooks, not in the MCP or Coach views of the state, and not in backups.
  *  - §5(f) revocation and deletion: disconnect revokes the token at Oura, deletes the stored
  *    tokens and drops the held summary at once. Deleting the profile (admin) does the same.
- *  - §4(d)/§6(g) no AI: nothing here hands Oura data to the Coach or to MCP. Those read the
- *    state file, which never contains it (test/oura-routes.test.js checks both).
+ *  - §4(d)/§6(g) AI: nothing here hands Oura data to the Coach, and the MCP views of the state
+ *    never contain it (test/oura-routes.test.js checks both). The one exception is sleepFor: the
+ *    hosted MCP's get_sleep gives an assistant the owner connected the main sleep per night.
+ *    §4(d) restricts Oura data to "the MCP Server" (Oura's own) for use with an LLM; whether that
+ *    exception is covered is the operator's to settle with Oura (docs/OURA.md).
  */
 import path from 'node:path';
 import { OuraError, ouraConfig, pkcePair, newState, authorizeUrl, exchangeCode, revokeToken } from './oauth.js';
@@ -231,8 +234,46 @@ export function ouraRoutes({ json, readSession, audit = () => {}, env = process.
     },
   };
 
+  /* What the hosted MCP's get_sleep may read for one profile: per night only the main sleep's
+     bedtimes, totals, score, HRV and lowest heart rate. Nothing else Oura shared (readiness,
+     activity, stress, SpO2, heart rate, workouts) leaves this module this way. This is Oura data
+     going to an AI assistant the profile's owner connected (gymly:read); docs/OURA.md "AI
+     assistants and Oura" and the privacy policy (8.3) say so. */
+  async function sleepFor(uid, { tz } = {}) {
+    const base = { configured: !!cfg, connected: false, lastSync: null, lastError: null, tz: null, nights: [] };
+    if (!cfg) return base;
+    const meta = store.meta(uid);
+    if (!meta || !store.get(uid)) return base;
+    let e = sync.entry(uid);
+    // The profile's zone when the app recorded one (reminder), else the device's zone the last sync
+    // recorded (sync.js recovers it after a restart), so a night lands on the day it ended there.
+    const known = validTz(tz) ? tz : validTz(meta.tz) ? meta.tz : null;
+    // The overview's rule: nothing held (first look, a restart) or older than an hour and not
+    // backing off → sync first. A failure still answers with what is held.
+    if (!e || (now() - (e.lastSync || 0) > VIEW_STALE_MS && !(e.backoffUntil > now()))) {
+      try { await sync.syncNow(uid, { reason: e ? 'mcp' : 'backfill', tz: validTz(tz) ? tz : undefined }); } catch { /* recorded on the entry */ }
+    }
+    if (!store.get(uid)) return base;                   // the grant was refused meanwhile: disconnected
+    const v = sync.view(uid, WINDOW_DAYS);
+    e = sync.entry(uid);
+    const pick = s => ({
+      totalSec: s.totalSec ?? null, efficiency: s.efficiency ?? null, score: s.score ?? null,
+      averageHrv: s.averageHrv ?? null, lowestHeartRate: s.lowestHeartRate ?? null,
+      bedtimeStart: s.bedtimeStart ?? null, bedtimeEnd: s.bedtimeEnd ?? null, type: s.type ?? null,
+    });
+    return {
+      ...base, connected: true,
+      lastSync: e?.lastSync || store.meta(uid)?.lastSync || null,
+      lastError: e?.lastError || null,
+      tz: (validTz(tz) ? tz : null) || v?.tz || known,
+      nights: (v?.days || []).filter(d => d.sleep).map(d => ({ day: d.day, sleep: pick(d.sleep) })),
+    };
+  }
+
   return {
     routes,
+    /** get_sleep's data for one profile (see sleepFor above). Never throws. */
+    sleepFor: (uid, opts) => sleepFor(uid, opts).catch(() => ({ configured: !!cfg, connected: false, lastSync: null, lastError: 'error', tz: null, nights: [] })),
     /** Deleting a profile: the same as its own Disconnect. Never throws. */
     forgetUser: uid => forget(uid).catch(() => { store.remove(uid); sync?.forget(uid); }),
     stop: () => sync?.stop(),

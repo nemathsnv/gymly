@@ -4,7 +4,8 @@
    into api/mcp-remote/read-tools.gen.js, with hosted-state.js standing in for state.js. The read
    tools are V1's own (tools.js), unchanged, so a question answered over stdio and over HTTPS gets
    the same numbers from the same code the app's screens use. Three read tools are added here
-   (search_exercises, get_training_progress, get_schedule), and the write tools borrow a few labels
+   (search_exercises, get_training_progress, get_schedule), plus get_sleep from tools.js, which
+   only the hosted endpoint can answer (Oura data lives in the API's memory), and the write tools borrow a few labels
    and lookups through `helpers`; nothing in this file writes.
 
    The habit tools (HABIT_TOOLS, runHabitTool) are the one way any part of the habit log leaves the
@@ -12,7 +13,7 @@
    They are not V1 tools and never run through withState, which drops the log with the other
    private keys (private-keys.js) for every other tool. */
 import { z } from 'zod'
-import { TOOLS } from './tools.js'
+import { TOOLS, getSleep } from './tools.js'
 import { getState } from './state.js'
 import { withState } from './hosted-state.js'
 import { exLine } from './labels.js'
@@ -205,13 +206,15 @@ export const scheduleTool = {
   }
 }
 
-export const READ_TOOLS = [...TOOLS, searchExercisesTool, trainingProgress, scheduleTool]
+// get_sleep (tools.js) is hosted only: its Oura data is held in the API's memory, never on disk.
+export const READ_TOOLS = [...TOOLS, searchExercisesTool, trainingProgress, scheduleTool, getSleep]
 
-/** One read tool's answer for one profile. Throws for an unknown name. */
-export function runReadTool(name, args, S, user) {
+/** One read tool's answer for one profile. Throws for an unknown name. `extra.oura`: that
+ *  profile's Oura sleep snapshot, for a tool marked `oura: true`. */
+export function runReadTool(name, args, S, user, extra) {
   const tool = READ_TOOLS.find(t => t.name === name)
   if (!tool) throw new Error('unknown read tool ' + name)
-  return withState(S, user, () => tool.handler(args || {}))
+  return withState(S, user, () => tool.handler(args || {}), tool.oura ? extra : undefined)
 }
 
 /* Lookups the write side (api/mcp-remote/plan-ops.js) needs from the app's own code: what an
