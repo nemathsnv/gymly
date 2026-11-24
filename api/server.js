@@ -2666,6 +2666,9 @@ const routes = {
       toolDeps: {
         config: MCP_CONFIG,
         readState: mcpReadState,
+        // get_sleep: the main sleep per night from the in-memory Oura summary (oura/routes.js
+        // sleepFor), for the caller's own profile only.
+        oura: { sleep: (uid, opts) => OURA.sleepFor(uid, opts) },
         commit: (user, cur, next) => mcpCommit(req, user, cur, next),
         journal: MCP_JOURNAL,
         previews,

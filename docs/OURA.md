@@ -81,15 +81,16 @@ Oura Membership on Gen3 or later rings.
 | Scopes | `daily heartrate workout spo2 heart_health` (`OURA_SCOPES` to change). Never `email` or `personal`. The person can switch any scope off on Oura's consent screen. That data type then shows as "not available", and the rest still loads. |
 | Flow | Authorization code + PKCE (S256), single-use `state` tied to the profile that started it (10 minutes), code exchanged server side with the client secret. |
 | Tokens | `DATA_DIR/oura/<profile id>.json`, 0600 in a 0700 folder. AES-256-GCM, with the key derived (HKDF) from the instance `secret` **and** `OURA_CLIENT_SECRET`, so a copy of the data folder alone cannot decrypt them. Refresh tokens are single-use: refreshes are serialised per profile, and each new pair is stored before it is used. |
-| Oura health data | **Never written to disk.** Reduced to the figures on screen (`api/oura/summarize.js`) and held in the API's memory only (`api/oura/sync.js`): at most 90 days (heart rate 7), only for a profile whose Training & recovery screen was opened in the last 14 days, then dropped. A restart drops everything. It is not in `state-<uid>.json`, so it is not synced, exported, sent by webhooks or backed up, and the Coach and the MCP tools (which read the state) never see it. Oura workouts are shown beside Gymly's sessions and never added to the Gymly log. |
+| Oura health data | **Never written to disk.** Reduced to the figures on screen (`api/oura/summarize.js`) and held in the API's memory only (`api/oura/sync.js`): at most 90 days (heart rate 7), only for a profile whose Training & recovery screen was opened in the last 14 days, then dropped. A restart drops everything. It is not in `state-<uid>.json`, so it is not synced, exported, sent by webhooks or backed up, and the Coach and the MCP tools (which read the state) never see it. The one exception is the hosted MCP tool `get_sleep`, which reads the main sleep per night from memory (see "AI assistants and Oura"). Oura workouts are shown beside Gymly's sessions and never added to the Gymly log. |
 | Sync | First look: a backfill of 90 days. After that it is incremental: from 3 days before the last synced day up to tomorrow, each data type's days replaced wholesale, so revisions and deletions in Oura carry over and nothing doubles. **Automatic:** every 3 hours for profiles in use (a 15-minute tick). Sync now also triggers one, with a 30 s minimum gap. A look after an hour syncs first. Failures: a rate limit waits for `Retry-After`; other errors back off 15 min, 30, 60… up to 6 h. A transient 502/503/504 or dropped connection is retried once. A type that fails alone keeps its previous days. A type no longer shared is cleared. A refused grant disconnects. `lastSync` and the last error's code (no data) are kept on the connection file. |
 | Time zones | The app sends the device's IANA zone. Heart-rate samples (UTC) are put on the person's own days in that zone, daylight saving included. Daily documents keep the day Oura gives them. Gymly's sessions keep their own local date. |
 | Disconnect / delete | Revoke at Oura (best effort), delete the token file, drop the memory copy: immediate. An admin deleting a profile does the same. A grant revoked in the Oura app is noticed on the next request, and its tokens are deleted. |
 
 These choices follow the Oura API and MCP Agreement (effective 8 June 2026). Data is minimised
 and not retained beyond need (§3(m), §4(c)). Revocation and deletion are immediate, well within
-72 hours (§5(f)). Oura data is never used with any AI model (§4(d), §6(g)), and it is not
-disclosed or used for advertising (§4(a)). The published [Privacy Policy](https://gymly.churntech.com/privacy#oura)
+72 hours (§5(f)). Oura data is never used by the AI Coach or to train any model (§6(g)). The one
+place it reaches an AI model is the hosted MCP tool `get_sleep`, below: see "AI assistants and
+Oura" for how that sits with §4(d). It is not disclosed or used for advertising (§4(a)). The published [Privacy Policy](https://gymly.churntech.com/privacy#oura)
 says the same to users.
 
 ## Routes
@@ -156,9 +157,20 @@ The Oura API has no write endpoint for workouts (spec 1.43: every `usercollectio
 
 The Oura API and MCP Agreement (8 June 2026) §4(d) says Oura data may be used with a large
 language model "solely through the MCP Server", meaning Oura's own. It also says the Oura API
-must not be used to "prompt, or otherwise provide input or data to any AI Model". Gymly therefore
-never gives Oura data to its AI Coach, its MCP tools (V1 and hosted) or any model, and its MCP
-tools continue to read and write Gymly's own workouts as before.
+must not be used to "prompt, or otherwise provide input or data to any AI Model". Gymly never gives
+Oura data to its AI Coach, to the local MCP bridge (V1) or to any model for training.
+
+**The exception: `get_sleep` on the hosted MCP endpoint.** An assistant the profile's owner
+connected with `gymly:read` can read that profile's own sleep from the in-memory summary: per
+night only the main sleep's bedtime start and end, total sleep, efficiency, score, average HRV and
+lowest heart rate (no naps, no hypnogram, no other Oura data). Nothing is read for a profile
+without an Oura connection, and disconnecting Oura ends it at once. The privacy policy (6.2, 8.3)
+says this to users.
+
+This hands Oura data to an AI model outside Oura's own MCP server, which is what §4(d) restricts.
+An instance that connects to Oura with its own app credentials is answerable to Oura for this
+under its agreement: get Oura's written permission for this use before offering it, or remove
+`get_sleep` from `mcp/src/hosted.js` `READ_TOOLS` and rebuild (`node scripts/build-mcp-hosted.mjs`).
 
 To have ChatGPT or Claude look at both, connect them separately. Gymly's MCP server serves the
 training ([docs/MCP.md](MCP.md)), Oura's MCP server serves the Oura data, and the assistant

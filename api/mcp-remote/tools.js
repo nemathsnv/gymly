@@ -264,8 +264,12 @@ export function buildServer(actor, deps) {
 
   /* reads */
   for (const t of READ_TOOLS) {
-    register(t.name, { description: t.description, inputSchema: z.object(t.schema), annotations: READ_ANN }, 'gymly:read', args => {
-      const data = runReadTool(t.name, args, state(), userView);
+    register(t.name, { description: t.description, inputSchema: z.object(t.schema), annotations: READ_ANN }, 'gymly:read', async args => {
+      const S = state();
+      // get_sleep reads the Oura summary held in memory for this caller's profile only, fetched
+      // before the synchronous tool run (hosted-state.js withState).
+      const oura = t.oura ? ((await deps.oura?.sleep(actor.user.id, { tz: S?.reminder?.tz })) || null) : undefined;
+      const data = runReadTool(t.name, args, S, userView, t.oura ? { oura } : undefined);
       return ok(`${t.name} for ${actor.user.name}`, data);
     });
   }

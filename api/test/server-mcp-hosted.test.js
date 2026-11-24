@@ -188,7 +188,7 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
 
   const list = await h.rpc(at, 'tools/list');
   const names = list.body.result.tools.map(x => x.name);
-  for (const n of ['list_routines', 'get_routine', 'list_workouts', 'get_workout', 'get_training_progress', 'get_week_plan', 'search_exercises',
+  for (const n of ['list_routines', 'get_routine', 'list_workouts', 'get_workout', 'get_training_progress', 'get_week_plan', 'search_exercises', 'get_sleep',
     'preview_routine_changes', 'create_routine', 'apply_routine_changes', 'apply_destructive_routine_changes', 'preview_workout_log', 'log_workout', 'undo_change', 'list_recent_changes']) {
     assert.ok(names.includes(n), n);
   }
@@ -199,6 +199,14 @@ test('connect, read, preview, apply, sync, undo — and the change is a real, me
   }
   assert.equal(list.body.result.tools.find(x => x.name === 'apply_destructive_routine_changes').annotations.destructiveHint, true);
   assert.equal(list.body.result.tools.find(x => x.name === 'apply_routine_changes').annotations.readOnlyHint, false);
+  // get_sleep: a read (gymly:read, read-only), and on a server without Oura it says so and lists nothing.
+  const sleepTool = list.body.result.tools.find(x => x.name === 'get_sleep');
+  assert.equal(sleepTool.annotations.readOnlyHint, true);
+  assert.deepEqual(sleepTool._meta.securitySchemes[0].scopes, ['gymly:read']);
+  const sleep = await h.call(at, 'get_sleep');
+  assert.equal(sleep.structuredContent.connected, false);
+  assert.deepEqual(sleep.structuredContent.nights, []);
+  assert.equal(sleep.structuredContent.days, 7);
 
   const routines = await h.call(at, 'list_routines');
   assert.deepEqual(routines.structuredContent.routines.map(r => r.name), ['Push Day', 'Legs']);

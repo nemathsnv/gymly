@@ -93,6 +93,13 @@ Nine read-only tools in v1:
 | `estimate_1rm` | All-time best 1RM for an exercise + the trend, or a PR table across all exercises. |
 | `muscle_balance` | Which muscles I've trained this week/month/all-time, ranked + which I've neglected. |
 
+The **hosted** endpoint (below) has one more read tool that the bridge can't answer, because the
+data never reaches `./data`:
+
+| Tool | What it answers |
+|---|---|
+| `get_sleep` | Oura sleep, one entry per night (`from`/`to`, default the last 7 days, at most 92): the main sleep's `bedtimeStart`/`bedtimeEnd`, `totalSleepMin`, efficiency, score, average HRV and lowest heart rate, dated by the day the sleep ended in the profile's time zone, plus `latest`, whether Oura is `connected` and its `lastSync`. Nights without data are left out. It needs `gymly:read` and answers only for the connected profile ([docs/OURA.md](../docs/OURA.md#ai-assistants-and-oura)). |
+
 `get_routine` and `preview_session` answer two different questions, and confusing them is the
 easiest way for a coach to give wrong advice. `get_routine` reports what the routine *stores*.
 `preview_session` reports what the athlete will actually *see*: a routine holding "squat 3×8 @

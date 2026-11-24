@@ -135,9 +135,15 @@ describe('Oura API Agreement statements', () => {
   const privacy = text('privacy')
   const terms = text('terms')
 
-  it('privacy: Oura data never reaches an AI model, the Coach or an assistant (§4(d), §6(g))', () => {
-    expect(privacy).toMatch(/is never sent to an AI model or AI service/)
+  // §4(d)/§6(g): Oura data never reaches the Coach or AI training. The one exception, the hosted
+  // MCP tool get_sleep, is stated in full: only sleep figures, only an assistant the person connected.
+  // That exception sits outside what §4(d) allows without Oura's permission (docs/OURA.md).
+  it('privacy: Oura data never reaches the Coach or AI training; an assistant reads only sleep figures (§4(d), §6(g))', () => {
+    expect(privacy).toMatch(/Oura data is never sent to Gymly.s AI Coach/)
     expect(privacy).toMatch(/never used to train, fine-tune or evaluate AI/)
+    expect(privacy).toMatch(/AI assistant \(such as ChatGPT or Claude\) that you connected to Gymly through the authorisation screen/)
+    expect(privacy).toMatch(/It can read nothing else from Oura, and nothing at all from a read-only access token/)
+    expect(terms).toMatch(/Oura data is not sent to the AI Coach, sold, or used for advertising/)
   })
 
   it('privacy: no sale, sharing or advertising use of Oura data (§4(a)(vi)-(vii))', () => {
@@ -153,7 +159,7 @@ describe('Oura API Agreement statements', () => {
 
   it('privacy: Oura data is never saved — memory only, bounded, dropped when unused, never in sync, exports, webhooks or backups (§3(m), §4(c))', () => {
     expect(privacy).toMatch(/kept in the server.s memory only: for the last 90 days at most/)
-    expect(privacy).toMatch(/If you do not open the screen for 14 days, they are discarded and automatic syncing stops/)
+    expect(privacy).toMatch(/If neither happens for 14 days, they are discarded and automatic syncing stops/)
     expect(privacy).toMatch(/never written to Gymly.s database or files/)
     expect(privacy).toMatch(/not part of your synced data, exports, webhooks or backups/)
     // and every Oura scope the server asks for by default is named (api/oura/oauth.js DEFAULT_SCOPES)

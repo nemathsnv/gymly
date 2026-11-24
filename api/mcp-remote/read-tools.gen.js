@@ -90537,9 +90537,10 @@ function defaultsShape() {
 		}
 	};
 }
-function withState(S, user, fn) {
+function withState(S, user, fn, extra = {}) {
 	if (_current) throw new Error("withState is not re-entrant");
 	_current = {
+		oura: extra && extra.oura ? extra.oura : null,
 		state: S ? withExerciseMerges(Object.assign({}, defaultsShape(), dropPrivate(S))) : null,
 		user: {
 			id: user.id,
@@ -90560,6 +90561,7 @@ function current() {
 	return _current;
 }
 const getState = () => current().state;
+const getOura = () => current().oura;
 
 // frontend/src/lib/rep-range.js
 function normalizeRepRange(reps, repsMin, stride = 1) {
@@ -92747,6 +92749,99 @@ const previewSession = {
 		};
 	}
 };
+const SLEEP_MAX_DAYS = 92;
+const SLEEP_DEFAULT_DAYS = 7;
+const zoneOk = (tz) => {
+	if (typeof tz !== "string" || !tz || tz.length > 64) return false;
+	try {
+		new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+		return true;
+	} catch {
+		return false;
+	}
+};
+const dayIn = (ms, tz) => new Intl.DateTimeFormat("en-CA", {
+	timeZone: tz,
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit"
+}).format(new Date(ms));
+const plusDays = (iso, n) => new Date(Date.parse(iso + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+const daysFromTo = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5) + 1;
+const numOrNull = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
+const stampOrNull = (v) => typeof v === "string" && v.length <= 40 && Number.isFinite(Date.parse(v)) ? v : null;
+const getSleep = {
+	name: "get_sleep",
+	oura: true,
+	description: `Read the user's sleep from their connected Oura ring: one entry per night with the main sleep's bedtimeStart and bedtimeEnd (ISO timestamps with the UTC offset), totalSleepMin, efficiency (%), Oura's sleep score, averageHrv (ms) and lowestHeartRate (bpm), plus \`latest\` (the most recent night). \`date\` is the day the sleep ended, in the profile's time zone. Nights Oura has no data for are left out, not zero. Naps are never used for a night. Default the ${7} days ending today; at most ${92} days per call. \`connected\` says whether Oura is connected and \`lastSync\` when Gymly last read it.`,
+	schema: {
+		from: isoDate().optional().describe(`First day, YYYY-MM-DD. Default 6 days before \`to\`.`),
+		to: isoDate().optional().describe("Last day, YYYY-MM-DD. Default today (the profile's date).")
+	},
+	handler: ({ from, to }) => {
+		const S = getState();
+		const o = getOura();
+		const tz = [S?.reminder?.tz, o?.tz].find(zoneOk) || null;
+		const today = tz ? dayIn(Date.now(), tz) : todayIso();
+		const end = to || today;
+		const start = from || plusDays(end, -6);
+		if (start > end) return {
+			error: "invalid_range",
+			message: "`from` is after `to`"
+		};
+		const span = daysFromTo(start, end);
+		if (span > 92) return {
+			error: "invalid_range",
+			message: `at most ${92} days per call; this range has ${span}`
+		};
+		const connected = !!(o && o.connected);
+		const head = {
+			from: start,
+			to: end,
+			days: span,
+			today,
+			time_zone: tz,
+			connected,
+			lastSync: o && Number(o.lastSync) > 0 ? new Date(Number(o.lastSync)).toISOString() : null
+		};
+		let note = null;
+		if (!o || !o.configured) note = "Oura is not set up on this Gymly server.";
+		else if (!connected) note = "Oura is not connected for this profile: connect it in Gymly under Settings → Data & backup.";
+		else if (o.lastError) note = `The last Oura sync failed (${o.lastError}); the nights shown are the ones read before.`;
+		const byDate = /* @__PURE__ */ new Map();
+		for (const n of connected && Array.isArray(o.nights) ? o.nights : []) {
+			const s = n && n.sleep;
+			if (!s || typeof n.day !== "string") continue;
+			const bedtimeStart = stampOrNull(s.bedtimeStart);
+			const bedtimeEnd = stampOrNull(s.bedtimeEnd);
+			const date = bedtimeEnd ? tz ? dayIn(Date.parse(bedtimeEnd), tz) : bedtimeEnd.slice(0, 10) : n.day;
+			if (date < start || date > end) continue;
+			const totalSec = numOrNull(s.totalSec);
+			const entry = {
+				date,
+				bedtimeStart,
+				bedtimeEnd,
+				totalSleepMin: totalSec == null ? null : Math.round(totalSec / 60),
+				efficiency: numOrNull(s.efficiency),
+				score: numOrNull(s.score),
+				averageHrv: numOrNull(s.averageHrv),
+				lowestHeartRate: numOrNull(s.lowestHeartRate)
+			};
+			if (Object.entries(entry).every(([k, v]) => k === "date" || v == null)) continue;
+			const prev = byDate.get(date);
+			if (!prev || (entry.totalSleepMin || 0) > (prev.totalSleepMin || 0)) byDate.set(date, entry);
+		}
+		const nights = [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+		return {
+			...head,
+			count: nights.length,
+			latest: nights.length ? { ...nights[nights.length - 1] } : null,
+			nights,
+			...note ? { note } : {},
+			about_missing_nights: "A date without an entry has no Oura sleep data. It is not a night without sleep."
+		};
+	}
+};
 const TOOLS = [
 	listRoutines,
 	getRoutine,
@@ -94651,12 +94746,13 @@ const READ_TOOLS = [
 	...TOOLS,
 	searchExercisesTool,
 	trainingProgress,
-	scheduleTool
+	scheduleTool,
+	getSleep
 ];
-function runReadTool(name, args, S, user) {
+function runReadTool(name, args, S, user, extra) {
 	const tool = READ_TOOLS.find((t) => t.name === name);
 	if (!tool) throw new Error("unknown read tool " + name);
-	return withState(S, user, () => tool.handler(args || {}));
+	return withState(S, user, () => tool.handler(args || {}), tool.oura ? extra : void 0);
 }
 const helpers = {
 	todayFor,

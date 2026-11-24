@@ -210,6 +210,11 @@ export function getUser() {
   return { id: u.id, name: u.name, created: u.created || null }
 }
 
+// Oura sleep (get_sleep): never on disk and never in the synced state, so the stdio bridge has
+// none. Only the hosted endpoint, which holds the Oura summary in memory, answers it
+// (hosted-state.js).
+export const getOura = () => null
+
 export const dataDir = () => DATA_DIR
 
 // Test-only: work against a passed-in state, not the disk.

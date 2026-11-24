@@ -75,7 +75,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 <main id="main">
 <article>
 <h1>Privacy Policy</h1>
-<p class="meta">Last updated: <time datetime="2026-11-16">16 November 2026</time></p>
+<p class="meta">Last updated: <time datetime="2026-11-24">24 November 2026</time></p>
 
 <div class="card note">
   <p><strong>In short:</strong> Gymly is a workout and body-weight tracker. We store what you log so you can use it across your devices. We do not sell your data. We do not show ads. We do not use tracking or analytics. You can export your data at any time, and you can ask us to delete your account. AI features only run if you turn them on. Connecting Oura is optional and read-only; <a href="#oura">section 8</a> explains it.</p>
@@ -208,7 +208,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 <p>You are identified to the provider only by a pseudonym, never by your name or profile ID. You can stop using the Coach at any time, and "Reset everything" deletes your Coach data on our server. In the mobile app, you can use your own API key instead. In that case your data goes directly from your phone to the provider you chose, under your own agreement with that provider.</p>
 <h3>6.2 AI assistant connections</h3>
 <p>If this feature is enabled for your profile, you can connect an AI assistant such as ChatGPT or Claude to your Gymly data. You connect it through an authorisation screen or with a read-only access token. Once connected, the assistant can read your routines, workouts, body weight and related statistics. Your sex and birth year are always withheld. Your habits are withheld too, unless you choose to share them: when you connect an assistant through the authorisation screen, it can ask to read your habits, and that screen then shows a separate permission, "Also read your habits", which is off unless you tick it. With it, the assistant can read your habits' names and, for each day you logged, whether you logged it as done or not and any count you recorded (for example drinks). It can never read the notes you write on a day, and it can never change your habits. A read-only access token never includes habits. Depending on the connection type, the assistant can also propose changes to your plan, which you apply and can undo. The assistant's provider processes this data under its own privacy policy. You can disconnect assistants and revoke tokens at any time in Settings.</p>
-<p>Data imported from Oura is never sent to either of these features (see <a href="#oura">section 8</a>).</p>
+<p>Data imported from Oura is never sent to the AI Coach. An assistant connected through the authorisation screen can read your Oura sleep figures, and nothing else from Oura (see <a href="#oura">section 8.3</a>).</p>
 </section>
 
 <section id="integrations" aria-labelledby="integrations-h">
@@ -228,7 +228,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 <h3>8.1 What Gymly reads</h3>
 <p>When you connect, Gymly asks Oura for read access to:</p>
 <ul>
-  <li>sleep (daily sleep score; for the main sleep of each night: duration, efficiency, average heart-rate variability (HRV), lowest and average heart rate);</li>
+  <li>sleep (daily sleep score; for the main sleep of each night: when it began and ended, its type, duration, efficiency, average heart-rate variability (HRV), lowest and average heart rate);</li>
   <li>readiness (daily readiness score, temperature deviation, HRV balance and resting heart rate contributors);</li>
   <li>activity (daily activity score, steps, active calories);</li>
   <li>stress (daily time in high stress and high recovery, and Oura's day summary);</li>
@@ -246,9 +246,9 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
 </ul>
 <h3>8.3 How Oura data is used, stored and not used</h3>
 <ul>
-  <li><strong>Only for you, and never saved.</strong> Gymly shows your Oura data on the Training &amp; recovery screen, next to your own training. To do that, the reduced figures listed in 8.1 are kept in the server's memory only: for the last 90 days at most (heart rate: 7 days), and only while you use the screen. While you do, Gymly refreshes them from Oura automatically every few hours, and when you tap "Sync now". If you do not open the screen for 14 days, they are discarded and automatic syncing stops; they are also discarded when you disconnect and whenever the server restarts. They are never written to Gymly's database or files, never added to your Gymly workout log, and therefore not part of your synced data, exports, webhooks or backups. Workouts recorded by Oura are shown beside your Gymly sessions; a session that appears in both is shown once, and Gymly's own record of it is never replaced.</li>
-  <li>Oura data <strong>is never sent to an AI model or AI service</strong>. That includes Gymly's AI Coach, AI assistant connections such as ChatGPT or Claude, and any other model. It is never used to train, fine-tune or evaluate AI.</li>
-  <li>Oura data is never sold, rented or licensed. It is not shared with or disclosed to third parties, except that it passes through the network provider in <a href="#processors">section 5</a> on its way to you. It is never used for advertising, marketing or targeting, and we do not use it to contact you. It is not shown to other users.</li>
+  <li><strong>Only for you, and never saved.</strong> Gymly shows your Oura data on the Training &amp; recovery screen, next to your own training. To do that, the reduced figures listed in 8.1 are kept in the server's memory only: for the last 90 days at most (heart rate: 7 days), and only while you use the screen or an AI assistant you connected reads your sleep (see below). While you do, Gymly refreshes them from Oura automatically every few hours, and when you tap "Sync now". If neither happens for 14 days, they are discarded and automatic syncing stops; they are also discarded when you disconnect and whenever the server restarts. They are never written to Gymly's database or files, never added to your Gymly workout log, and therefore not part of your synced data, exports, webhooks or backups. Workouts recorded by Oura are shown beside your Gymly sessions; a session that appears in both is shown once, and Gymly's own record of it is never replaced.</li>
+  <li><strong>AI:</strong> Oura data is never sent to Gymly's AI Coach. It is never used to train, fine-tune or evaluate AI. The one exception is your sleep: an AI assistant (such as ChatGPT or Claude) that you connected to Gymly through the authorisation screen (<a href="#ai">section 6.2</a>) can read, for each night, when your main sleep began and ended, your total sleep, sleep efficiency, sleep score, average HRV and lowest heart rate. It can read nothing else from Oura, and nothing at all from a read-only access token. The assistant's provider then processes those figures under its own privacy policy. Disconnecting the assistant or disconnecting Oura stops this at once.</li>
+  <li>Oura data is never sold, rented or licensed. It is not shared with or disclosed to third parties, except that it passes through the network provider in <a href="#processors">section 5</a> on its way to you, and the sleep figures above go to an AI assistant you connected. It is never used for advertising, marketing or targeting, and we do not use it to contact you. It is not shown to other users.</li>
 </ul>
 <h3>8.4 Disconnecting and deleting</h3>
 <ul>
@@ -270,7 +270,7 @@ footer ul{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;mar
   <li><strong>Sign-in links, pairing codes and passkey challenges:</strong> expire within minutes.</li>
   <li><strong>Off-site backups:</strong> encrypted backups of the server's data are taken every six hours. We keep the last four, one per day for 30 days and one per week for 12 weeks, then delete them. So data you delete can stay in an encrypted backup for up to about 12 weeks. Backups are used only to restore the service after a failure.</li>
   <li><strong>Pre-update snapshots:</strong> before each software update, a snapshot of the server's data is saved on the same server so a failed update can be undone. These snapshots are readable only by the server's administrator account. They are not currently deleted on a fixed schedule; the operator removes them manually.</li>
-  <li><strong>Oura:</strong> Oura data is never stored. Its reduced figures are held in server memory for at most 90 days back, only while you use Training &amp; recovery, and discarded after 14 days without use, on disconnect or on a server restart. The encrypted Oura tokens, the time of the last sync, the last sync error's type and your device's time-zone name are kept while you stay connected and deleted when you disconnect (<a href="#oura">section 8</a>).</li>
+  <li><strong>Oura:</strong> Oura data is never stored. Its reduced figures are held in server memory for at most 90 days back, only while you use Training &amp; recovery or a connected AI assistant reads your sleep, and discarded after 14 days without either, on disconnect or on a server restart. The encrypted Oura tokens, the time of the last sync, the last sync error's type and your device's time-zone name are kept while you stay connected and deleted when you disconnect (<a href="#oura">section 8</a>).</li>
   <li><strong>Data on your devices:</strong> stays until you clear it, sign out or uninstall the app.</li>
 </ul>
 </section>
